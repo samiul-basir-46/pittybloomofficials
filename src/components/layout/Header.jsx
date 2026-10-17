@@ -33,17 +33,17 @@ export default function Header() {
           <SmartImage src={settings.logo} alt={settings.name} />
         </Link>
         <div className="flex items-center justify-end gap-4 sm:gap-5">
-          <button className="relative" aria-label="Cart">
+          <Link to="/cart" className="relative" aria-label="Cart">
             <ShoppingCart size={20} />
             {count > 0 && (
               <span className="absolute -right-2 -top-2 grid size-4 place-items-center rounded-full bg-heart text-[10px] font-bold text-white">
                 {count}
               </span>
             )}
-          </button>
-          <button aria-label="Account">
+          </Link>
+          <Link to="/account" aria-label="Account">
             <User size={20} />
-          </button>
+          </Link>
           <button className="hidden items-center gap-2 text-xs uppercase tracking-wide text-ink/70 sm:flex">
             <LogOut size={16} /> Logout
           </button>

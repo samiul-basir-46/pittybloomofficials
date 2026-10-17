@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Gift, ShoppingCart } from 'lucide-react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, ChevronRight, Gift, ShoppingCart } from 'lucide-react'
 import Container from '../components/ui/Container'
 import Button from '../components/ui/Button'
 import CoverViewer from '../components/product/CoverViewer'
@@ -16,6 +16,7 @@ import { formatPrice } from '../utils/format'
 
 function Detail({ magazine, sizes }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { add } = useCart()
   const { productInfo } = useSettings().settings
   const related = useAsync(getMagazines)
@@ -25,12 +26,26 @@ function Detail({ magazine, sizes }) {
 
   return (
     <Container className="pb-20 pt-4">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 rounded-full border border-sand bg-white px-4 py-2 text-sm font-medium shadow-sm"
-      >
-        <ArrowLeft size={16} /> Back
-      </button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <button
+          // location.key is "default" when the page was opened directly, so there is nothing to go back to
+          onClick={() => (location.key !== 'default' ? navigate(-1) : navigate('/magazines'))}
+          className="inline-flex items-center gap-2 rounded-full border border-sand bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-sand"
+        >
+          <ArrowLeft size={16} /> Back
+        </button>
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm text-ink/60">
+          <Link to="/" className="hover:text-brand">
+            Home
+          </Link>
+          <ChevronRight size={14} className="shrink-0" />
+          <Link to="/magazines" className="hover:text-brand">
+            Magazines
+          </Link>
+          <ChevronRight size={14} className="shrink-0" />
+          <span className="truncate font-medium text-ink">{magazine.title}</span>
+        </nav>
+      </div>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:gap-14">
         <CoverViewer images={[magazine.image, magazine.backImage].filter(Boolean)} title={magazine.title} />

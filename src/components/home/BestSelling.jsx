@@ -4,17 +4,16 @@ import SmartImage from '../ui/SmartImage'
 import { useSettings } from '../../context/SettingsContext'
 
 function Card({ item }) {
-  const Tag = item.to ? Link : 'div'
   return (
-    <Tag
-      to={item.to || undefined}
+    <Link
+      to={item.to || `/products/${item.id}`}
       className="flex w-full max-w-[320px] flex-col rounded-xl bg-linear-to-b from-white to-sand p-5 shadow-xl sm:w-[320px]"
     >
       <div className="aspect-[4/5] overflow-hidden rounded-lg shadow-md">
         <SmartImage src={item.image} alt={item.name} />
       </div>
       <p className="py-5 text-center text-xl font-bold text-warm">{item.name}</p>
-    </Tag>
+    </Link>
   )
 }
 

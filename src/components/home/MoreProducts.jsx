@@ -4,17 +4,16 @@ import SmartImage from '../ui/SmartImage'
 import { useSettings } from '../../context/SettingsContext'
 
 function Tile({ item }) {
-  const Tag = item.to ? Link : 'div'
   return (
-    <Tag
-      to={item.to || undefined}
+    <Link
+      to={item.to || `/products/${item.id}`}
       className="block w-[calc((100%_-_1.25rem)/2)] lg:w-[calc((100%_-_7.5rem)/4)]"
     >
       <div className="aspect-square overflow-hidden rounded-xl">
         <SmartImage src={item.image} alt={item.name} />
       </div>
       <p className="mt-4 text-center font-bold">{item.name}</p>
-    </Tag>
+    </Link>
   )
 }
 
