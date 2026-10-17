@@ -14,16 +14,16 @@ export default function AboutUs() {
   return (
     <section className="overflow-hidden bg-white py-16 sm:py-24">
       <Container>
-        <div className="grid items-start gap-10 lg:grid-cols-[1fr_1.4fr]">
-          <div className="max-w-[400px]">
-            <h2 className="font-serif text-4xl font-semibold">{settings.aboutTitle}</h2>
-            <div className="mt-8 space-y-5 leading-8 text-ink/60">
+        <div className="grid grid-cols-[1.15fr_1fr] gap-4 lg:grid-cols-[1fr_1.4fr] lg:items-start lg:gap-10">
+          <div className="min-w-0 max-w-[400px]">
+            <h2 className="font-serif text-3xl font-semibold sm:text-4xl">{settings.aboutTitle}</h2>
+            <div className="mt-5 space-y-4 text-sm leading-6 text-ink/60 sm:mt-8 sm:space-y-5 sm:text-base sm:leading-8">
               {settings.about.filter(Boolean).map((p) => (
                 <p key={p}>{p}</p>
               ))}
             </div>
           </div>
-          <div className="relative h-[380px] lg:h-[560px]">
+          <div className="relative min-h-[420px] lg:h-[560px]">
             {ABOUT_LAYOUT.map((item, i) => (
               <div
                 key={item.alt}
