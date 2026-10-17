@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AlertCircle, Check, X } from 'lucide-react'
 import Button from '../../../shared/ui/Button'
 import SmartImage from '../../../shared/ui/SmartImage'
-import QtyStepper from '../../../shared/ui/QtyStepper'
 import useAsync from '../../../shared/hooks/useAsync'
 import { getActiveAddons } from '../../../shared/services/contentService'
 import { formatPrice } from '../../../shared/utils/format'
@@ -40,7 +40,8 @@ export default function AddOnModal({ magazine, size, initial = [], onClose, onCo
       return next
     })
 
-  return (
+  // Rendered on document.body so no parent (transforms, overflow) can ever shift it off the screen.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-6"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
@@ -129,11 +130,6 @@ export default function AddOnModal({ magazine, size, initial = [], onClose, onCo
                         {a.price > 0 && <p className="mt-0.5 text-sm font-bold text-warm">{formatPrice(a.price)}</p>}
                       </div>
                     </button>
-                    {on && (
-                      <div className="flex justify-center bg-cream pb-3">
-                        <QtyStepper value={picked[a.id]} onChange={(q) => setPicked((p) => ({ ...p, [a.id]: q }))} />
-                      </div>
-                    )}
                   </li>
                 )
               })}
@@ -153,6 +149,7 @@ export default function AddOnModal({ magazine, size, initial = [], onClose, onCo
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

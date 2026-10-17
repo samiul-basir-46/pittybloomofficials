@@ -17,7 +17,7 @@
   --font-quote: "Lora", Georgia, serif;
   --animate-float: float 6s ease-in-out infinite;
   --animate-float-reverse: float-reverse 6s ease-in-out infinite;
-  --animate-page-in: page-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-page-in: page-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 
   @keyframes page-in {
     from {
