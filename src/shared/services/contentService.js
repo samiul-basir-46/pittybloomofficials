@@ -1,4 +1,5 @@
 import { store } from './storage'
+import { bookStore } from './bookStore'
 import { bestSelling, moreProducts } from '../../pages/home/data'
 import { magazines } from '../../pages/magazines/data'
 import { SIZES } from '../../pages/magazine-detail/data'
@@ -19,7 +20,29 @@ const collection = (key, seed, sort = (items) => items) => ({
 
 export const bestSellingApi = collection('bestSelling', bestSelling)
 export const moreProductsApi = collection('moreProducts', moreProducts)
-export const magazinesApi = collection('magazines', magazines)
+const magazinesCollection = collection('magazines', magazines)
+// Deletes stored book pages that no magazine uses any more (replaced/removed PDFs, abandoned uploads).
+const pruneBooks = async () => {
+  try {
+    const keys = (await magazinesCollection.list()).map((m) => m.book?.key).filter(Boolean)
+    await bookStore.prune(keys)
+  } catch {
+    // cleanup is best-effort and must never block saving
+  }
+}
+export const magazinesApi = {
+  ...magazinesCollection,
+  save: async (item) => {
+    const result = await magazinesCollection.save(item)
+    await pruneBooks()
+    return result
+  },
+  remove: async (id) => {
+    const result = await magazinesCollection.remove(id)
+    await pruneBooks()
+    return result
+  },
+}
 export const sizesApi = collection('sizes', SIZES, (items) => [...items].sort((a, b) => a.pages - b.pages))
 export const faqsApi = collection('faqs', faqs)
 export const policiesApi = collection('policies', policies)

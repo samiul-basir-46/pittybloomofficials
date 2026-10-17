@@ -36,12 +36,14 @@ export const SECTIONS = [
       { name: 'badge', label: 'Badge', type: 'select', options: ['', 'Best Seller', 'New Release'] },
       { name: 'image', label: 'Cover image', type: 'image' },
       { name: 'backImage', label: 'Second image', type: 'image' },
+      { name: 'book', label: 'Book preview (PDF)', type: 'pdf' },
     ],
-    blank: { title: '', price: 1499, mrp: 1999, badge: '', image: '', backImage: '' },
+    blank: { title: '', price: 1499, mrp: 1999, badge: '', image: '', backImage: '', book: null },
     label: (i) => i.title,
     columns: [
       { key: 'price', label: 'Price', format: formatPrice },
       { key: 'badge', label: 'Badge' },
+      { key: 'book', label: 'Book', format: (b) => `${b.pageCount} pages` },
     ],
   },
   {

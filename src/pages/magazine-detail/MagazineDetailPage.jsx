@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, ChevronRight, Gift, ShoppingCart } from 'lucide-
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import CoverViewer from './components/CoverViewer'
+import BookViewer from './components/BookViewer'
+import { isValidPageCount } from '../../shared/services/pdfBook'
 import SizeSelector from './components/SizeSelector'
 import ProductAbout from './components/ProductAbout'
 import MagazineMiniCard from './components/MagazineMiniCard'
@@ -23,6 +25,9 @@ function Detail({ magazine, sizes }) {
   const [sizeId, setSizeId] = useState((sizes.find((s) => s.id === DEFAULT_SIZE) ?? sizes[0]).id)
   const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
   const save = magazine.mrp - size.price
+  // The flipbook is only used for a valid book (page count divisible by 4); otherwise the cover images are shown
+  const hasBook = Boolean(magazine.book?.key) && isValidPageCount(magazine.book.pageCount)
+  const cover = <CoverViewer images={[magazine.image, magazine.backImage].filter(Boolean)} title={magazine.title} />
 
   return (
     <Container className="pb-20 pt-4">
@@ -48,7 +53,11 @@ function Detail({ magazine, sizes }) {
       </div>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:gap-14">
-        <CoverViewer images={[magazine.image, magazine.backImage].filter(Boolean)} title={magazine.title} />
+        {hasBook ? (
+          <BookViewer book={magazine.book} title={magazine.title} fallback={cover} />
+        ) : (
+          cover
+        )}
         <div className="text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Magazine</p>
           <h1 className="mt-4 font-serif text-4xl sm:text-5xl">{magazine.title}</h1>
