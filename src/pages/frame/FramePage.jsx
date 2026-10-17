@@ -1,6 +1,7 @@
-import ComingSoon from '../../shared/ui/ComingSoon'
+import ProductPage from '../products/ProductPage'
 
-// Placeholder. Design the real Frame page here (route: /frame).
+// Uses the shared product page (route: /frame). Content and prices come from Admin → Products.
+// To fully redesign this page later, replace this file's contents.
 export default function FramePage() {
-  return <ComingSoon title="Frame" />
+  return <ProductPage id="frame" />
 }

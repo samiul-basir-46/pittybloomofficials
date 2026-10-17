@@ -136,6 +136,11 @@ export default function SettingsPage() {
         <Field label="Privacy note" type="textarea" rows={3} value={info.privacy} onChange={setInfo('privacy')} />
       </Group>
 
+      <Group title="Orders & cart" hint="Orders from the cart open as a ready-made message to this number.">
+        <Field label="WhatsApp number with country code (e.g. 8801XXXXXXXXX)" value={form.whatsapp} onChange={set('whatsapp')} />
+        <Field label="Note shown in the cart" type="textarea" rows={3} value={form.deliveryNote} onChange={set('deliveryNote')} />
+      </Group>
+
       <Group title="Footer & contact">
         <Field label="Footer text" type="textarea" rows={3} value={form.blurb} onChange={set('blurb')} />
         <Field label="Email" type="email" value={form.email} onChange={set('email')} />

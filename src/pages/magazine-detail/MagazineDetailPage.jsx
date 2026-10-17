@@ -27,6 +27,17 @@ function Detail({ magazine, sizes }) {
   const save = magazine.mrp - size.price
   // The flipbook is only used for a valid book (page count divisible by 4); otherwise the cover images are shown
   const hasBook = Boolean(magazine.book?.key) && isValidPageCount(magazine.book.pageCount)
+  const orderItem = () => ({
+    kind: 'magazine',
+    id: magazine.id,
+    optionId: size.id,
+    name: magazine.title,
+    image: magazine.image,
+    optionLabel: `${size.pages} Pages`,
+    price: size.price,
+    mrp: magazine.mrp,
+    to: `/magazines/${magazine.id}`,
+  })
   const cover = <CoverViewer images={[magazine.image, magazine.backImage].filter(Boolean)} title={magazine.title} />
 
   return (
@@ -78,10 +89,16 @@ function Detail({ magazine, sizes }) {
           <p className="mb-5 mt-10 font-semibold">Choose Magazine Size</p>
           <SizeSelector sizes={sizes} value={size.id} onChange={setSizeId} />
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <Button variant="outline" className="h-[76px] gap-2" onClick={() => add({ id: magazine.id, sizeId })}>
+            <Button variant="outline" className="h-[76px] gap-2" onClick={() => add(orderItem())}>
               <ShoppingCart size={18} /> Add to Cart
             </Button>
-            <Button className="h-[76px] flex-col shadow-lg">
+            <Button
+              className="h-[76px] flex-col shadow-lg"
+              onClick={() => {
+                add(orderItem(), { silent: true })
+                navigate('/cart')
+              }}
+            >
               <span className="flex items-center gap-2 text-xl font-extrabold uppercase">
                 Buy now <ArrowRight size={18} />
               </span>

@@ -12,7 +12,7 @@ import StickerPage from './pages/sticker/StickerPage'
 import PhotoStripPage from './pages/photo-strip/PhotoStripPage'
 import CartPage from './pages/cart/CartPage'
 import AccountPage from './pages/account/AccountPage'
-import ComingSoonPage from './pages/coming-soon/ComingSoonPage'
+import ProductPage from './pages/products/ProductPage'
 import NotFoundPage from './pages/not-found/NotFoundPage'
 import AdminLayout from './admin/AdminLayout'
 import Dashboard from './admin/Dashboard'
@@ -36,7 +36,7 @@ export default function App() {
           <Route path="polaroids" element={<PolaroidsPage />} />
           <Route path="sticker" element={<StickerPage />} />
           <Route path="photo-strip" element={<PhotoStripPage />} />
-          <Route path="products/:id" element={<ComingSoonPage />} />
+          <Route path="products/:id" element={<ProductPage />} />
 
           <Route path="cart" element={<CartPage />} />
           <Route path="account" element={<AccountPage />} />

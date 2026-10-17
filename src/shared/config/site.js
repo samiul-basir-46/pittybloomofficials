@@ -33,6 +33,8 @@ export const SITE = {
     notes: ['Delivery across Bangladesh', 'Made to order, just for you'],
     buyNote: 'Wrapped with care',
   },
+  whatsapp: '',
+  deliveryNote: 'Delivery charge and payment details are confirmed with you after we receive your order.',
   email: 'hello@pittybloom.com',
   instagram: '@pittybloomofficials',
   instagramUrl: 'https://www.instagram.com/pittybloomofficials',

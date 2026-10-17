@@ -3,6 +3,7 @@ import { bookStore } from './bookStore'
 import { bestSelling, moreProducts } from '../../pages/home/data'
 import { magazines } from '../../pages/magazines/data'
 import { SIZES } from '../../pages/magazine-detail/data'
+import { products } from '../../pages/products/data'
 import { faqs } from '../../pages/faq/data'
 import { policies } from '../../pages/policy/data'
 import { navLinks } from '../layout/navLinks'
@@ -44,6 +45,7 @@ export const magazinesApi = {
   },
 }
 export const sizesApi = collection('sizes', SIZES, (items) => [...items].sort((a, b) => a.pages - b.pages))
+export const productsApi = collection('products', products)
 export const faqsApi = collection('faqs', faqs)
 export const policiesApi = collection('policies', policies)
 export const navLinksApi = collection('navLinks', navLinks)
@@ -57,6 +59,8 @@ export const getBestSelling = bestSellingApi.list
 export const getMoreProducts = moreProductsApi.list
 export const getMagazines = magazinesApi.list
 export const getSizes = sizesApi.list
+export const getProducts = productsApi.list
+export const getProduct = async (id) => (await productsApi.list()).find((p) => p.id === id) ?? null
 export const getFaqs = faqsApi.list
 export const getPolicies = policiesApi.list
 export const getNavLinks = navLinksApi.list

@@ -1,6 +1,7 @@
-import ComingSoon from '../../shared/ui/ComingSoon'
+import ProductPage from '../products/ProductPage'
 
-// Placeholder. Design the real Photo Strip page here (route: /photo-strip).
+// Uses the shared product page (route: /photo-strip). Content and prices come from Admin → Products.
+// To fully redesign this page later, replace this file's contents.
 export default function PhotoStripPage() {
-  return <ComingSoon title="Photo Strip" />
+  return <ProductPage id="photo-strip" />
 }

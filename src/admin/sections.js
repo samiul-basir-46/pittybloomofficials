@@ -1,4 +1,4 @@
-import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, Star, Tag } from 'lucide-react'
+import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, ShoppingBag, Star, Tag } from 'lucide-react'
 import {
   bestSellingApi,
   faqsApi,
@@ -6,6 +6,7 @@ import {
   moreProductsApi,
   navLinksApi,
   policiesApi,
+  productsApi,
   sizesApi,
 } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
@@ -45,6 +46,28 @@ export const SECTIONS = [
       { key: 'badge', label: 'Badge' },
       { key: 'book', label: 'Book', format: (b) => `${b.pageCount} pages` },
     ],
+  },
+  {
+    path: 'products',
+    title: 'Shop Products',
+    icon: ShoppingBag,
+    api: productsApi,
+    fields: [
+      { name: 'name', label: 'Name', required: true },
+      { name: 'image', label: 'Image', type: 'image' },
+      { name: 'status', label: 'Status', type: 'select', options: ['Available', 'Coming soon'] },
+      { name: 'tagline', label: 'Short line under the name' },
+      { name: 'description', label: 'Description', type: 'textarea', rows: 4 },
+      {
+        name: 'options',
+        label: 'Options & prices (one per line: Name | Price | MRP (optional) | Tag (optional))',
+        type: 'textarea',
+        rows: 6,
+      },
+    ],
+    blank: { name: '', image: '', status: 'Available', tagline: '', description: '', options: 'Option name | 499' },
+    label: (i) => i.name,
+    columns: [{ key: 'status', label: 'Status' }],
   },
   {
     path: 'sizes',

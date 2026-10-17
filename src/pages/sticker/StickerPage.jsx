@@ -1,6 +1,7 @@
-import ComingSoon from '../../shared/ui/ComingSoon'
+import ProductPage from '../products/ProductPage'
 
-// Placeholder. Design the real Sticker page here (route: /sticker).
+// Uses the shared product page (route: /sticker). Content and prices come from Admin → Products.
+// To fully redesign this page later, replace this file's contents.
 export default function StickerPage() {
-  return <ComingSoon title="Sticker" />
+  return <ProductPage id="sticker" />
 }
