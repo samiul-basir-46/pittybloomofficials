@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import { RotateCcw, Settings } from 'lucide-react'
-import Button from '../components/ui/Button'
-import useAsync from '../hooks/useAsync'
-import { store } from '../services/storage'
+import Button from '../shared/ui/Button'
+import useAsync from '../shared/hooks/useAsync'
+import { store } from '../shared/services/storage'
 import { SECTIONS } from './sections'
 
 function Stat({ section }) {

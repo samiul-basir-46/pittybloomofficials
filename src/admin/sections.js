@@ -7,8 +7,8 @@ import {
   navLinksApi,
   policiesApi,
   sizesApi,
-} from '../services/contentService'
-import { formatPrice } from '../utils/format'
+} from '../shared/services/contentService'
+import { formatPrice } from '../shared/utils/format'
 
 const card = {
   fields: [

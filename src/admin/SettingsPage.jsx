@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Check, Plus, Trash2 } from 'lucide-react'
-import Button from '../components/ui/Button'
+import Button from '../shared/ui/Button'
 import Field from './Field'
-import { useSettings } from '../context/SettingsContext'
+import { useSettings } from '../shared/context/SettingsContext'
 
 const MAX_SLIDES = 5
 

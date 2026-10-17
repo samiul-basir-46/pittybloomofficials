@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
-import Button from '../components/ui/Button'
-import SmartImage from '../components/ui/SmartImage'
+import Button from '../shared/ui/Button'
+import SmartImage from '../shared/ui/SmartImage'
 import Field from './Field'
-import useAsync from '../hooks/useAsync'
-import { slugify } from '../utils/text'
+import useAsync from '../shared/hooks/useAsync'
+import { slugify } from '../shared/utils/text'
 import { inputClass } from './classes'
 
 export default function ItemManager({ title, api, fields, blank, label, columns = [], makeId = (i) => slugify(label(i)) }) {

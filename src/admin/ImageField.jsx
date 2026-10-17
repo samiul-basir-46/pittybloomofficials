@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ImagePlus, Trash2 } from 'lucide-react'
-import SmartImage from '../components/ui/SmartImage'
-import { compressImage } from '../utils/compressImage'
+import SmartImage from '../shared/ui/SmartImage'
+import { compressImage } from '../shared/utils/compressImage'
 import { inputClass } from './classes'
 
 export default function ImageField({ value, onChange }) {

@@ -1,12 +1,19 @@
 import { Route, Routes } from 'react-router-dom'
-import Layout from './components/layout/Layout'
-import Home from './pages/Home'
-import Magazines from './pages/Magazines'
-import MagazineDetail from './pages/MagazineDetail'
-import Faq from './pages/Faq'
-import Policy from './pages/Policy'
-import ComingSoon from './pages/ComingSoon'
-import ScrollToTop from './components/layout/ScrollToTop'
+import Layout from './shared/layout/Layout'
+import ScrollToTop from './shared/layout/ScrollToTop'
+import HomePage from './pages/home/HomePage'
+import MagazinesPage from './pages/magazines/MagazinesPage'
+import MagazineDetailPage from './pages/magazine-detail/MagazineDetailPage'
+import FaqPage from './pages/faq/FaqPage'
+import PolicyPage from './pages/policy/PolicyPage'
+import FramePage from './pages/frame/FramePage'
+import PolaroidsPage from './pages/polaroids/PolaroidsPage'
+import StickerPage from './pages/sticker/StickerPage'
+import PhotoStripPage from './pages/photo-strip/PhotoStripPage'
+import CartPage from './pages/cart/CartPage'
+import AccountPage from './pages/account/AccountPage'
+import ComingSoonPage from './pages/coming-soon/ComingSoonPage'
+import NotFoundPage from './pages/not-found/NotFoundPage'
 import AdminLayout from './admin/AdminLayout'
 import Dashboard from './admin/Dashboard'
 import ItemManager from './admin/ItemManager'
@@ -19,17 +26,26 @@ export default function App() {
       <ScrollToTop />
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="magazines" element={<Magazines />} />
-          <Route path="magazines/:id" element={<MagazineDetail />} />
-          <Route path="faq" element={<Faq />} />
-          <Route path="policies/:id" element={<Policy />} />
-          {/* Not built yet: replace these with real pages when each one is designed */}
-          <Route path="products/:id" element={<ComingSoon />} />
-          <Route path="cart" element={<ComingSoon page="cart" />} />
-          <Route path="account" element={<ComingSoon page="account" />} />
-          <Route path="*" element={<ComingSoon page="page" />} />
+          <Route index element={<HomePage />} />
+
+          <Route path="magazines" element={<MagazinesPage />} />
+          <Route path="magazines/:id" element={<MagazineDetailPage />} />
+
+          {/* One page per product, each in its own folder under src/pages (placeholders for now) */}
+          <Route path="frame" element={<FramePage />} />
+          <Route path="polaroids" element={<PolaroidsPage />} />
+          <Route path="sticker" element={<StickerPage />} />
+          <Route path="photo-strip" element={<PhotoStripPage />} />
+          <Route path="products/:id" element={<ComingSoonPage />} />
+
+          <Route path="cart" element={<CartPage />} />
+          <Route path="account" element={<AccountPage />} />
+
+          <Route path="faq" element={<FaqPage />} />
+          <Route path="policies/:id" element={<PolicyPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
+
         <Route path="admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           {SECTIONS.map((s) => (
