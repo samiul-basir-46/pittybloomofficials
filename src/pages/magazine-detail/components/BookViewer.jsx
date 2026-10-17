@@ -4,15 +4,21 @@ import { PageFlip } from 'page-flip'
 import { bookStore } from '../../../shared/services/bookStore'
 
 // Realistic page-flip preview of the magazine PDF.
-// Shows the first page alone (closed book), then two pages side by side after every flip, and the last
-// page alone as the back cover. On narrow screens it switches to one page at a time.
+// Shows the first page alone in the middle (closed book), then two pages side by side after every flip, and
+// the last page alone in the middle as the back cover. On narrow screens it shows one page at a time.
 // If the book cannot be loaded (e.g. its pages are not in this browser), `fallback` is shown instead.
 const MIN_PAGE_WIDTH = 240 // below 2 x this width the book switches to single-page view
 const MAX_PAGE_WIDTH = 520
+const SLIDE = 'transform 850ms cubic-bezier(0.45, 0, 0.2, 1)'
+
+// 'cover' = closed at the front, 'back' = closed at the back, 'open' = two-page spread
+const whereFor = (index, lastIndex) => (index === 0 ? 'cover' : index >= lastIndex ? 'back' : 'open')
 
 export default function BookViewer({ book, title, fallback }) {
   const host = useRef(null)
   const flip = useRef(null)
+  const place = useRef(null)
+  const current = useRef(0)
   const [status, setStatus] = useState('loading')
   const [index, setIndex] = useState(0)
   const lastIndex = book.pageCount - 1
@@ -24,7 +30,21 @@ export default function BookViewer({ book, title, fallback }) {
     // PageFlip removes the element it is given when destroyed, so give it its own element instead of React's.
     const el = document.createElement('div')
     el.style.width = '100%'
+    el.style.margin = '0 auto'
     host.current.appendChild(el)
+
+    // A closed book shows its cover on the right half of the book (back cover on the left half). Slide the whole
+    // book by half a page so the single page sits in the middle, and slide it back when the book opens.
+    place.current = (where, animate = true) => {
+      const width = host.current?.clientWidth ?? 0
+      const portrait = width < MIN_PAGE_WIDTH * 2
+      const half = Math.min(width / 2, MAX_PAGE_WIDTH) / 2
+      const x = portrait ? 0 : where === 'cover' ? -half : where === 'back' ? half : 0
+      el.style.transition = animate ? SLIDE : 'none'
+      el.style.transform = `translateX(${x}px)`
+    }
+    const settle = () => place.current?.(whereFor(current.current, lastIndex), false)
+    window.addEventListener('resize', settle)
 
     bookStore
       .get(book.key)
@@ -48,9 +68,15 @@ export default function BookViewer({ book, title, fallback }) {
           maxShadowOpacity: 0.5,
           mobileScrollSupport: false,
         })
-        pageFlip.on('flip', (e) => setIndex(e.data))
+        pageFlip.on('flip', (e) => {
+          current.current = e.data
+          setIndex(e.data)
+          place.current?.(whereFor(e.data, lastIndex))
+        })
+        pageFlip.on('changeOrientation', settle)
         pageFlip.loadFromImages(urls)
         flip.current = pageFlip
+        place.current('cover', false)
         setStatus('ready')
       })
       .catch(() => {
@@ -60,6 +86,8 @@ export default function BookViewer({ book, title, fallback }) {
     return () => {
       cancelled = true
       flip.current = null
+      place.current = null
+      window.removeEventListener('resize', settle)
       try {
         pageFlip?.destroy()
       } catch {
@@ -68,7 +96,21 @@ export default function BookViewer({ book, title, fallback }) {
       el.remove()
       urls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [book.key, book.pageCount, book.ratio])
+  }, [book.key, book.pageCount, book.ratio, lastIndex])
+
+  // The slide starts together with the page turn (the page-flip "flip" event only fires when the turn has finished).
+  const next = () => {
+    const i = current.current
+    if (i === 0) place.current?.('open')
+    else if (i >= lastIndex - 2) place.current?.('back')
+    flip.current?.flipNext()
+  }
+  const prev = () => {
+    const i = current.current
+    if (i >= lastIndex) place.current?.('open')
+    else if (i <= 2) place.current?.('cover')
+    flip.current?.flipPrev()
+  }
 
   if (status === 'error') return fallback
 
@@ -82,23 +124,11 @@ export default function BookViewer({ book, title, fallback }) {
         {!ready && <p className="absolute inset-0 grid place-items-center text-sm text-ink/50">Loading preview…</p>}
       </div>
       <div className="mt-6 flex items-center gap-5 text-xs uppercase tracking-widest text-ink/60">
-        <button
-          type="button"
-          onClick={() => flip.current?.flipPrev()}
-          disabled={!ready || index <= 0}
-          aria-label="Previous page"
-          className={arrow}
-        >
+        <button type="button" onClick={prev} disabled={!ready || index <= 0} aria-label="Previous page" className={arrow}>
           <ChevronLeft size={18} />
         </button>
         Click to flip
-        <button
-          type="button"
-          onClick={() => flip.current?.flipNext()}
-          disabled={!ready || index >= lastIndex}
-          aria-label="Next page"
-          className={arrow}
-        >
+        <button type="button" onClick={next} disabled={!ready || index >= lastIndex} aria-label="Next page" className={arrow}>
           <ChevronRight size={18} />
         </button>
       </div>
