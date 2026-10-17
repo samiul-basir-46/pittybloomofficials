@@ -16,7 +16,7 @@ function Column({ title, items }) {
 
 export default function ProductAbout({ size }) {
   const info = useSettings().settings.productInfo
-  const pages = `${size.pages} Pages (${size.sides} Sides)`
+  const pages = `${size.pages} Pages`
   const columns = [
     { title: "What's Included:", items: [pages, ...info.included] },
     { title: 'Things Required:', items: [`${size.photos} Photos`, ...info.required] },

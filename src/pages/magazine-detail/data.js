@@ -1,12 +1,12 @@
 export const DEFAULT_SIZE = '10'
 
 export const SIZES = [
-  { id: '6', pages: 6, sides: 12, photos: '12–15', price: 999 },
-  { id: '8', pages: 8, sides: 16, photos: '18–20', price: 1299 },
-  { id: '10', pages: 10, sides: 20, photos: '24–30', price: 1499 },
-  { id: '12', pages: 12, sides: 24, photos: '32–40', price: 1799, tag: 'Most Popular' },
-  { id: '16', pages: 16, sides: 32, photos: '45–55', price: 2299 },
-  { id: '20', pages: 20, sides: 40, photos: '60–70', price: 2699, tag: 'Best Value' },
+  { id: '6', pages: 6, photos: '12–15', price: 999 },
+  { id: '8', pages: 8, photos: '18–20', price: 1299 },
+  { id: '10', pages: 10, photos: '24–30', price: 1499 },
+  { id: '12', pages: 12, photos: '32–40', price: 1799, tag: 'Most Popular' },
+  { id: '16', pages: 16, photos: '45–55', price: 2299 },
+  { id: '20', pages: 20, photos: '60–70', price: 2699, tag: 'Best Value' },
 ]
 
 export const ABOUT = {

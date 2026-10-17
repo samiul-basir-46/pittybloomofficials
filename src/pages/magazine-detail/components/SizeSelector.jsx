@@ -19,9 +19,7 @@ export default function SizeSelector({ sizes, value, onChange }) {
                 ✦ {s.tag} ✦
               </span>
             )}
-            <p className="text-sm font-semibold">
-              {s.pages} Pages · {s.sides} Sides
-            </p>
+            <p className="text-sm font-semibold">{s.pages} Pages</p>
             <p className="mt-1 text-xs text-ink/50">{s.photos} Photos</p>
             <p className="mt-2 font-bold text-warm">{formatPrice(s.price)}</p>
           </button>

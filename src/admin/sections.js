@@ -51,13 +51,12 @@ export const SECTIONS = [
     api: sizesApi,
     fields: [
       { name: 'pages', label: 'Pages', type: 'number', required: true },
-      { name: 'sides', label: 'Sides', type: 'number', required: true },
       { name: 'photos', label: 'Photos (e.g. 24–30)', required: true },
       { name: 'price', label: 'Price (BDT)', type: 'number', required: true },
       { name: 'tag', label: 'Tag', type: 'select', options: ['', 'Most Popular', 'Best Value'] },
     ],
-    blank: { pages: 10, sides: 20, photos: '', price: 1499, tag: '' },
-    label: (i) => `${i.pages} Pages · ${i.sides} Sides`,
+    blank: { pages: 10, photos: '', price: 1499, tag: '' },
+    label: (i) => `${i.pages} Pages`,
     makeId: (i) => String(i.pages),
     columns: [
       { key: 'photos', label: 'Photos' },
