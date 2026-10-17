@@ -16,9 +16,9 @@ export default function AboutUs() {
       <Container>
         <div className="grid items-start gap-10 lg:grid-cols-[1fr_1.4fr]">
           <div className="max-w-[400px]">
-            <h2 className="font-serif text-4xl font-semibold">About Us</h2>
+            <h2 className="font-serif text-4xl font-semibold">{settings.aboutTitle}</h2>
             <div className="mt-8 space-y-5 leading-8 text-ink/60">
-              {settings.about.map((p) => (
+              {settings.about.filter(Boolean).map((p) => (
                 <p key={p}>{p}</p>
               ))}
             </div>

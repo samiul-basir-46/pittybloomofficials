@@ -21,8 +21,8 @@ export default function Hero() {
             <br />
             {settings.quote[1]}”
           </p>
-          <Button as={Link} to="/magazines" variant="light" className="gap-2 shadow-lg">
-            Explore Products <ArrowRight size={18} />
+          <Button as={Link} to={settings.ctaLink} variant="light" className="gap-2 shadow-lg">
+            {settings.ctaLabel} <ArrowRight size={18} />
           </Button>
         </Container>
       </div>

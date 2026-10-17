@@ -1,5 +1,13 @@
-import { BookOpen, LayoutGrid, Star, Tag } from 'lucide-react'
-import { bestSellingApi, magazinesApi, moreProductsApi, sizesApi } from '../services/contentService'
+import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, Star, Tag } from 'lucide-react'
+import {
+  bestSellingApi,
+  faqsApi,
+  magazinesApi,
+  moreProductsApi,
+  navLinksApi,
+  policiesApi,
+  sizesApi,
+} from '../services/contentService'
 import { formatPrice } from '../utils/format'
 
 const card = {
@@ -55,5 +63,42 @@ export const SECTIONS = [
       { key: 'photos', label: 'Photos' },
       { key: 'price', label: 'Price', format: formatPrice },
     ],
+  },
+  {
+    path: 'faq',
+    title: 'FAQ',
+    icon: CircleHelp,
+    api: faqsApi,
+    fields: [
+      { name: 'question', label: 'Question', required: true },
+      { name: 'answer', label: 'Answer', type: 'textarea', required: true },
+    ],
+    blank: { question: '', answer: '' },
+    label: (i) => i.question,
+  },
+  {
+    path: 'policies',
+    title: 'Policies',
+    icon: FileText,
+    api: policiesApi,
+    fields: [
+      { name: 'title', label: 'Title', required: true },
+      { name: 'content', label: 'Content', type: 'textarea' },
+    ],
+    blank: { title: '', content: '' },
+    label: (i) => i.title,
+  },
+  {
+    path: 'menu',
+    title: 'Menu Links',
+    icon: Menu,
+    api: navLinksApi,
+    fields: [
+      { name: 'label', label: 'Label', required: true },
+      { name: 'to', label: 'Link (e.g. /magazines)', required: true },
+    ],
+    blank: { label: '', to: '' },
+    label: (i) => i.label,
+    columns: [{ key: 'to', label: 'Link' }],
   },
 ]

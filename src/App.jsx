@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Magazines from './pages/Magazines'
 import MagazineDetail from './pages/MagazineDetail'
 import Faq from './pages/Faq'
+import Policy from './pages/Policy'
 import AdminLayout from './admin/AdminLayout'
 import Dashboard from './admin/Dashboard'
 import ItemManager from './admin/ItemManager'
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="magazines" element={<Magazines />} />
         <Route path="magazines/:id" element={<MagazineDetail />} />
         <Route path="faq" element={<Faq />} />
+        <Route path="policies/:id" element={<Policy />} />
       </Route>
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />

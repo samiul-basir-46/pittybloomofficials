@@ -2,9 +2,10 @@ import { Link, NavLink } from 'react-router-dom'
 import { LogOut, ShoppingCart, User } from 'lucide-react'
 import Container from '../ui/Container'
 import SmartImage from '../ui/SmartImage'
-import { NAV_LINKS } from '../../config/site'
+import useAsync from '../../hooks/useAsync'
 import { useCart } from '../../context/CartContext'
 import { useSettings } from '../../context/SettingsContext'
+import { getNavLinks } from '../../services/contentService'
 
 const linkClass = ({ isActive }) =>
   `text-sm font-medium uppercase tracking-wide transition-colors hover:text-brand ${isActive ? 'text-brand' : ''}`
@@ -12,13 +13,14 @@ const linkClass = ({ isActive }) =>
 export default function Header() {
   const { count } = useCart()
   const { settings } = useSettings()
+  const nav = useAsync(getNavLinks)
 
   return (
     <header className="border-b border-sand bg-white">
       <Container className="grid h-20 grid-cols-3 items-center sm:h-[120px]">
         <nav className="flex gap-5 sm:gap-8">
-          {NAV_LINKS.map((l) => (
-            <NavLink key={l.to} to={l.to} end className={linkClass}>
+          {(nav.data ?? []).map((l) => (
+            <NavLink key={l.id} to={l.to} end className={linkClass}>
               {l.label}
             </NavLink>
           ))}

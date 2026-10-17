@@ -1,15 +1,17 @@
 import Container from '../components/ui/Container'
 import MagazineCard from '../components/product/MagazineCard'
 import useAsync from '../hooks/useAsync'
+import { useSettings } from '../context/SettingsContext'
 import { getMagazines } from '../services/contentService'
 
 export default function Magazines() {
   const { data, loading } = useAsync(getMagazines)
+  const { settings } = useSettings()
 
   return (
     <div className="bg-cream py-12 sm:py-16">
       <Container>
-        <h1 className="mb-12 text-center font-serif text-4xl sm:text-5xl">Magazines</h1>
+        <h1 className="mb-12 text-center font-serif text-4xl sm:text-5xl">{settings.magazinesTitle}</h1>
         {loading ? (
           <p className="py-20 text-center text-ink/60">Loading…</p>
         ) : (

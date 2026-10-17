@@ -8,4 +8,5 @@ export const moreProducts = [
   { id: 'frame', name: 'Frame', image: '/images/products/frame.jpg', to: '' },
   { id: 'polaroids', name: 'Polaroids', image: '/images/products/polaroids.jpg', to: '' },
   { id: 'sticker', name: 'Sticker', image: '/images/products/sticker.jpg', to: '' },
+  { id: 'photo-strip', name: 'Photo Strip', image: '/images/products/photo-strip.jpg', to: '' },
 ]

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import Container from '../ui/Container'
 import SmartImage from '../ui/SmartImage'
+import { useSettings } from '../../context/SettingsContext'
 
 function Card({ item }) {
   const Tag = item.to ? Link : 'div'
@@ -18,9 +19,11 @@ function Card({ item }) {
 }
 
 export default function BestSelling({ items }) {
+  const { settings } = useSettings()
+
   return (
     <section className="bg-brand py-16 sm:py-24">
-      <h2 className="text-center font-script text-6xl text-accent sm:text-8xl">Best Selling</h2>
+      <h2 className="text-center font-script text-6xl text-accent sm:text-8xl">{settings.bestSellingTitle}</h2>
       <Container className="mt-12 sm:mt-20">
         <div className="mx-auto flex max-w-[1040px] flex-wrap justify-center gap-8 sm:gap-10">
           {items.map((i) => (

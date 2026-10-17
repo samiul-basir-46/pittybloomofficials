@@ -4,8 +4,13 @@ export const SITE = {
   heroWord: 'PITTYBLOOM',
   heroImages: ['/images/hero/1.jpg', '/images/hero/2.jpg', '/images/hero/3.jpg', ''],
   quote: ['make every memory', 'bloom into a keepsake'],
+  ctaLabel: 'Explore Products',
+  ctaLink: '/magazines',
+  bestSellingTitle: 'Best Selling',
+  moreProductsTitle: 'More Products',
   subtitle: '★ GIFTS THAT HOLD YOUR FAVOURITE MOMENTS ★',
   blurb: 'Personalised gifts made from your own photos and stories, for the people who matter most.',
+  aboutTitle: 'About Us',
   about: [
     'PittyBloom is a Bangladeshi gift studio that turns your photos and stories into something you can hold.',
     'From personalised magazines and frames to polaroids and stickers, every piece is designed around you and the person you are gifting.',
@@ -13,17 +18,25 @@ export const SITE = {
     'New ideas are always on the way, so keep an eye out for what blooms next.',
   ],
   aboutImages: ['/images/about/1.jpg', '/images/about/2.jpg', '/images/about/3.jpg'],
+  magazinesTitle: 'Magazines',
+  productInfo: {
+    tagline: 'A magazine made from your own story.',
+    included: ['Premium quality printing', 'Custom layouts designed for you', 'Your captions and messages', 'Matched to the theme you choose'],
+    required: [
+      'Clear, high-quality photos',
+      'Tell us your preferred theme in the special instructions',
+      'Need more pages? We can extend any size on request',
+    ],
+    perfectFor: ['Anniversaries', 'Birthdays', 'Couples', 'Friends', 'Long-distance love', 'Family keepsakes'],
+    important: ['Delivery time is shared when you order', 'Fully personalised for you', 'Your photos stay private. Nothing is posted without your permission.'],
+    privacy: 'Your photos and orders stay private. Nothing is shared or posted without your permission.',
+    notes: ['Delivery across Bangladesh', 'Made to order, just for you'],
+    buyNote: 'Wrapped with care',
+  },
   email: 'hello@pittybloom.com',
   instagram: '@pittybloomofficials',
   instagramUrl: 'https://www.instagram.com/pittybloomofficials',
 }
-
-export const NAV_LINKS = [
-  { label: 'Home', to: '/' },
-  { label: 'FAQ', to: '/faq' },
-]
-
-export const POLICIES = ['Terms & Conditions', 'Privacy Policy', 'Refund Policy', 'Shipping Policy']
 
 export const ABOUT_LAYOUT = [
   { alt: 'Magazine', className: 'left-[4%] top-0 w-[24%] aspect-[3/4] motion-safe:animate-float' },

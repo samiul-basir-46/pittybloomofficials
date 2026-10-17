@@ -1,10 +1,13 @@
+import { Link } from 'react-router-dom'
 import { Instagram, Mail } from 'lucide-react'
 import Container from '../ui/Container'
-import { POLICIES } from '../../config/site'
+import useAsync from '../../hooks/useAsync'
 import { useSettings } from '../../context/SettingsContext'
+import { getPolicies } from '../../services/contentService'
 
 export default function Footer() {
   const { settings } = useSettings()
+  const policies = useAsync(getPolicies)
 
   return (
     <footer className="border-t border-sand bg-cream">
@@ -16,11 +19,11 @@ export default function Footer() {
         <div>
           <p className="font-serif text-lg">Policies</p>
           <ul className="mt-5 space-y-3.5">
-            {POLICIES.map((p) => (
-              <li key={p}>
-                <a href="#" className="hover:text-brand">
-                  {p}
-                </a>
+            {(policies.data ?? []).map((p) => (
+              <li key={p.id}>
+                <Link to={`/policies/${p.id}`} className="hover:text-brand">
+                  {p.title}
+                </Link>
               </li>
             ))}
           </ul>

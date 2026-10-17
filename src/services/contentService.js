@@ -2,6 +2,7 @@ import { store } from './storage'
 import { bestSelling, moreProducts } from '../data/categories'
 import { magazines } from '../data/magazines'
 import { SIZES } from '../data/magazineMeta'
+import { faqs, navLinks, policies } from '../data/navigation'
 import { SITE } from '../config/site'
 
 const collection = (key, seed, sort = (items) => items) => ({
@@ -18,6 +19,9 @@ export const bestSellingApi = collection('bestSelling', bestSelling)
 export const moreProductsApi = collection('moreProducts', moreProducts)
 export const magazinesApi = collection('magazines', magazines)
 export const sizesApi = collection('sizes', SIZES, (items) => [...items].sort((a, b) => a.pages - b.pages))
+export const faqsApi = collection('faqs', faqs)
+export const policiesApi = collection('policies', policies)
+export const navLinksApi = collection('navLinks', navLinks)
 
 export const settingsApi = {
   get: async () => ({ ...SITE, ...(await store.get('settings', {})) }),
@@ -28,4 +32,8 @@ export const getBestSelling = bestSellingApi.list
 export const getMoreProducts = moreProductsApi.list
 export const getMagazines = magazinesApi.list
 export const getSizes = sizesApi.list
+export const getFaqs = faqsApi.list
+export const getPolicies = policiesApi.list
+export const getNavLinks = navLinksApi.list
 export const getMagazine = async (id) => (await magazinesApi.list()).find((m) => m.id === id) ?? null
+export const getPolicy = async (id) => (await policiesApi.list()).find((p) => p.id === id) ?? null

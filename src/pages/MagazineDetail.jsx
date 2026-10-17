@@ -9,6 +9,7 @@ import ProductAbout from '../components/product/ProductAbout'
 import MagazineMiniCard from '../components/product/MagazineMiniCard'
 import useAsync from '../hooks/useAsync'
 import { useCart } from '../context/CartContext'
+import { useSettings } from '../context/SettingsContext'
 import { getMagazine, getMagazines, getSizes } from '../services/contentService'
 import { DEFAULT_SIZE } from '../data/magazineMeta'
 import { formatPrice } from '../utils/format'
@@ -16,6 +17,7 @@ import { formatPrice } from '../utils/format'
 function Detail({ magazine, sizes }) {
   const navigate = useNavigate()
   const { add } = useCart()
+  const { productInfo } = useSettings().settings
   const related = useAsync(getMagazines)
   const [sizeId, setSizeId] = useState((sizes.find((s) => s.id === DEFAULT_SIZE) ?? sizes[0]).id)
   const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
@@ -44,8 +46,11 @@ function Detail({ magazine, sizes }) {
               </span>
             )}
           </p>
-          <p className="mt-8 text-ink/80">Delivery across Bangladesh</p>
-          <p className="mt-4 text-ink/70">Made to order, just for you</p>
+          <div className="mt-8 space-y-3 text-ink/75">
+            {productInfo.notes.filter(Boolean).map((n) => (
+              <p key={n}>{n}</p>
+            ))}
+          </div>
           <p className="mb-5 mt-10 font-semibold">Choose Magazine Size</p>
           <SizeSelector sizes={sizes} value={size.id} onChange={setSizeId} />
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -57,7 +62,7 @@ function Detail({ magazine, sizes }) {
                 Buy now <ArrowRight size={18} />
               </span>
               <span className="flex items-center gap-1.5 text-sm font-medium text-white/80">
-                <Gift size={14} /> Wrapped with care
+                <Gift size={14} /> {productInfo.buyNote}
               </span>
             </Button>
           </div>

@@ -4,6 +4,8 @@ import Button from '../components/ui/Button'
 import Field from './Field'
 import { useSettings } from '../context/SettingsContext'
 
+const MAX_SLIDES = 5
+
 function Group({ title, hint, children }) {
   return (
     <section className="space-y-5 rounded-2xl border border-sand bg-white p-6 shadow-sm">
@@ -25,6 +27,7 @@ export default function SettingsPage() {
   useEffect(() => setForm(settings), [settings])
 
   const dirty = JSON.stringify(form) !== JSON.stringify(settings)
+  const info = form.productInfo
   const set = (key) => (value) => {
     setStatus('')
     setForm({ ...form, [key]: value })
@@ -33,6 +36,16 @@ export default function SettingsPage() {
     setStatus('')
     setForm({ ...form, [key]: form[key].map((v, n) => (n === i ? value : v)) })
   }
+  const setInfo = (key) => (value) => {
+    setStatus('')
+    setForm({ ...form, productInfo: { ...form.productInfo, [key]: value } })
+  }
+  const lines = (key) => ({
+    type: 'textarea',
+    rows: 5,
+    value: info[key].join('\n'),
+    onChange: (v) => setInfo(key)(v.split('\n')),
+  })
   const addSlide = () => setForm({ ...form, heroImages: [...form.heroImages, ''] })
   const removeSlide = (i) => setForm({ ...form, heroImages: form.heroImages.filter((_, n) => n !== i) })
 
@@ -62,7 +75,7 @@ export default function SettingsPage() {
         <Field label="Big hero word" value={form.heroWord} onChange={set('heroWord')} required />
       </Group>
 
-      <Group title="Hero" hint="Slideshow images shown at the top of the home page.">
+      <Group title="Hero" hint="Slideshow images shown at the top of the home page (up to 5).">
         {form.heroImages.map((src, i) => (
           <div key={i} className="relative rounded-xl border border-sand p-4">
             <Field
@@ -83,15 +96,22 @@ export default function SettingsPage() {
             )}
           </div>
         ))}
-        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addSlide}>
-          <Plus size={14} /> Add slide
-        </Button>
+        {form.heroImages.length < MAX_SLIDES && (
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addSlide}>
+            <Plus size={14} /> Add slide
+          </Button>
+        )}
         <Field label="Quote line 1" value={form.quote[0]} onChange={setAt('quote', 0)} />
         <Field label="Quote line 2" value={form.quote[1]} onChange={setAt('quote', 1)} />
+        <Field label="Button text" value={form.ctaLabel} onChange={set('ctaLabel')} />
+        <Field label="Button link (e.g. /magazines)" value={form.ctaLink} onChange={set('ctaLink')} />
       </Group>
 
       <Group title="Home page">
+        <Field label="Best Selling title" value={form.bestSellingTitle} onChange={set('bestSellingTitle')} />
+        <Field label="More Products title" value={form.moreProductsTitle} onChange={set('moreProductsTitle')} />
         <Field label="More Products subtitle" value={form.subtitle} onChange={set('subtitle')} />
+        <Field label="About title" value={form.aboutTitle} onChange={set('aboutTitle')} />
         <Field
           label="About text (blank line between paragraphs)"
           type="textarea"
@@ -102,6 +122,18 @@ export default function SettingsPage() {
         {form.aboutImages.map((src, i) => (
           <Field key={i} label={`About image ${i + 1}`} type="image" value={src} onChange={setAt('aboutImages', i)} />
         ))}
+      </Group>
+
+      <Group title="Magazine pages">
+        <Field label="Magazines page title" value={form.magazinesTitle} onChange={set('magazinesTitle')} />
+        <Field label="Lines under the price (one per line)" {...lines('notes')} rows={3} />
+        <Field label="Text under Buy Now" value={info.buyNote} onChange={setInfo('buyNote')} />
+        <Field label="About This Product: intro line" value={info.tagline} onChange={setInfo('tagline')} />
+        <Field label="What's included (one per line)" {...lines('included')} />
+        <Field label="Things required (one per line)" {...lines('required')} />
+        <Field label="Perfect for (one per line)" {...lines('perfectFor')} />
+        <Field label="Important information (one per line)" {...lines('important')} />
+        <Field label="Privacy note" type="textarea" rows={3} value={info.privacy} onChange={setInfo('privacy')} />
       </Group>
 
       <Group title="Footer & contact">

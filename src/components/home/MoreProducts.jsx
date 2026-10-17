@@ -24,7 +24,7 @@ export default function MoreProducts({ items }) {
   return (
     <section className="bg-cream py-14 sm:py-20">
       <Container>
-        <h2 className="text-center font-serif text-4xl sm:text-5xl">More Products</h2>
+        <h2 className="text-center font-serif text-4xl sm:text-5xl">{settings.moreProductsTitle}</h2>
         <p className="mt-4 text-center text-sm uppercase tracking-wide text-ink/60">{settings.subtitle}</p>
         <div className="mx-auto mt-14 flex max-w-[1400px] flex-wrap justify-center gap-x-5 gap-y-10 lg:gap-x-10 lg:gap-y-14">
           {items.map((i) => (
