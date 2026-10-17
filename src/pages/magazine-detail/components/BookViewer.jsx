@@ -7,9 +7,18 @@ import { bookStore } from '../../../shared/services/bookStore'
 // Shows the first page alone in the middle (closed book), then two pages side by side after every flip, and
 // the last page alone in the middle as the back cover. On narrow screens it shows one page at a time.
 // If the book cannot be loaded (e.g. its pages are not in this browser), `fallback` is shown instead.
-const MIN_PAGE_WIDTH = 240 // below 2 x this width the book switches to single-page view
-const MAX_PAGE_WIDTH = 520
+const LANDSCAPE_FROM = 640 // box width from which two pages are shown side by side
+const PORTRAIT_MAX_PAGE = 440
+const LANDSCAPE_MAX_PAGE = 520
 const SLIDE = 'transform 850ms cubic-bezier(0.45, 0, 0.2, 1)'
+const SHADOW = 'drop-shadow(0 16px 18px rgba(60, 30, 32, 0.2))'
+
+// A closed book is slid half a page sideways to centre its single page. To keep the whole book (including the
+// page that is turning) inside its box while it slides, a page is at most a third of the box width.
+const layoutFor = (hostWidth) =>
+  hostWidth < LANDSCAPE_FROM
+    ? { portrait: true, pageWidth: Math.min(hostWidth, PORTRAIT_MAX_PAGE) }
+    : { portrait: false, pageWidth: Math.min(Math.floor(hostWidth / 3), LANDSCAPE_MAX_PAGE) }
 
 // 'cover' = closed at the front, 'back' = closed at the back, 'open' = two-page spread
 const whereFor = (index, lastIndex) => (index === 0 ? 'cover' : index >= lastIndex ? 'back' : 'open')
@@ -19,84 +28,117 @@ export default function BookViewer({ book, title, fallback }) {
   const flip = useRef(null)
   const place = useRef(null)
   const current = useRef(0)
+  const [urls, setUrls] = useState(null)
+  const [hostWidth, setHostWidth] = useState(0)
   const [status, setStatus] = useState('loading')
   const [index, setIndex] = useState(0)
   const lastIndex = book.pageCount - 1
 
+  // 1. Load the page images of this book
   useEffect(() => {
     let cancelled = false
-    let pageFlip = null
-    let urls = []
-    // PageFlip removes the element it is given when destroyed, so give it its own element instead of React's.
-    const el = document.createElement('div')
-    el.style.width = '100%'
-    el.style.margin = '0 auto'
-    host.current.appendChild(el)
-
-    // A closed book shows its cover on the right half of the book (back cover on the left half). Slide the whole
-    // book by half a page so the single page sits in the middle, and slide it back when the book opens.
-    place.current = (where, animate = true) => {
-      const width = host.current?.clientWidth ?? 0
-      const portrait = width < MIN_PAGE_WIDTH * 2
-      const half = Math.min(width / 2, MAX_PAGE_WIDTH) / 2
-      const x = portrait ? 0 : where === 'cover' ? -half : where === 'back' ? half : 0
-      el.style.transition = animate ? SLIDE : 'none'
-      el.style.transform = `translateX(${x}px)`
-    }
-    const settle = () => place.current?.(whereFor(current.current, lastIndex), false)
-    window.addEventListener('resize', settle)
-
+    let made = []
     bookStore
       .get(book.key)
       .then((blobs) => {
         if (cancelled) return
         if (!Array.isArray(blobs) || blobs.length !== book.pageCount) throw new Error('Book pages not found')
-        urls = blobs.map((blob) => URL.createObjectURL(blob))
-        const ratio = book.ratio || 1 / 1.4142
-        const width = 400
-        pageFlip = new PageFlip(el, {
-          width,
-          height: Math.round(width / ratio),
-          size: 'stretch',
-          minWidth: MIN_PAGE_WIDTH,
-          maxWidth: MAX_PAGE_WIDTH,
-          minHeight: Math.round(MIN_PAGE_WIDTH / ratio),
-          maxHeight: Math.round(MAX_PAGE_WIDTH / ratio),
-          showCover: true,
-          usePortrait: true,
-          flippingTime: 900,
-          maxShadowOpacity: 0.5,
-          mobileScrollSupport: false,
-        })
-        pageFlip.on('flip', (e) => {
-          current.current = e.data
-          setIndex(e.data)
-          place.current?.(whereFor(e.data, lastIndex))
-        })
-        pageFlip.on('changeOrientation', settle)
-        pageFlip.loadFromImages(urls)
-        flip.current = pageFlip
-        place.current('cover', false)
-        setStatus('ready')
+        made = blobs.map((blob) => URL.createObjectURL(blob))
+        setUrls(made)
       })
       .catch(() => {
         if (!cancelled) setStatus('error')
       })
-
     return () => {
       cancelled = true
+      made.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [book.key, book.pageCount])
+
+  // 2. Follow the width of the box so the book is rebuilt at the right size when the window changes
+  useEffect(() => {
+    const node = host.current
+    if (!node) return
+    let timer
+    const measure = () => setHostWidth(Math.round(node.clientWidth))
+    measure()
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer)
+      timer = setTimeout(measure, 150)
+    })
+    observer.observe(node)
+    return () => {
+      clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [])
+
+  // 3. Build the flipbook
+  useEffect(() => {
+    if (!urls || !hostWidth) return
+    const { portrait, pageWidth } = layoutFor(hostWidth)
+    const ratio = book.ratio || 1 / 1.4142
+    const pageHeight = Math.round(pageWidth / ratio)
+
+    // PageFlip removes the element it is given when destroyed, so give it its own element instead of React's.
+    const el = document.createElement('div')
+    el.style.width = portrait ? `${pageWidth}px` : '100%'
+    el.style.margin = '0 auto'
+    el.style.filter = SHADOW
+    host.current.appendChild(el)
+
+    // A closed book shows its cover on the right half of the book (back cover on the left half). Slide the whole
+    // book by half a page so the single page sits in the middle, and slide it back when the book opens.
+    place.current = (where, animate = true) => {
+      const x = portrait ? 0 : where === 'cover' ? -pageWidth / 2 : where === 'back' ? pageWidth / 2 : 0
+      el.style.transition = animate ? SLIDE : 'none'
+      el.style.transform = `translateX(${x}px)`
+    }
+
+    let pageFlip
+    try {
+      pageFlip = new PageFlip(el, {
+        width: pageWidth,
+        height: pageHeight,
+        size: 'stretch',
+        // min = max = the page size we want; min also decides one page (portrait) or two (landscape)
+        minWidth: pageWidth,
+        maxWidth: pageWidth,
+        minHeight: pageHeight,
+        maxHeight: pageHeight,
+        startPage: current.current,
+        showCover: true,
+        usePortrait: true,
+        flippingTime: 900,
+        maxShadowOpacity: 0.5,
+        mobileScrollSupport: false,
+      })
+      pageFlip.on('flip', (e) => {
+        current.current = e.data
+        setIndex(e.data)
+        place.current?.(whereFor(e.data, lastIndex))
+      })
+      pageFlip.loadFromImages(urls)
+    } catch {
+      el.remove()
+      setStatus('error')
+      return
+    }
+    flip.current = pageFlip
+    place.current(whereFor(current.current, lastIndex), false)
+    setStatus('ready')
+
+    return () => {
       flip.current = null
       place.current = null
-      window.removeEventListener('resize', settle)
       try {
-        pageFlip?.destroy()
+        pageFlip.destroy()
       } catch {
         // already torn down
       }
       el.remove()
-      urls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [book.key, book.pageCount, book.ratio, lastIndex])
+  }, [urls, hostWidth, lastIndex, book.ratio])
 
   // The slide starts together with the page turn (the page-flip "flip" event only fires when the turn has finished).
   const next = () => {
@@ -119,7 +161,7 @@ export default function BookViewer({ book, title, fallback }) {
 
   return (
     <div className="flex min-w-0 flex-col items-center">
-      <div className="relative w-full bg-linear-to-b from-white to-cream pb-8 pt-6 sm:pt-10">
+      <div className="relative w-full overflow-x-clip bg-linear-to-b from-white to-cream pb-8 pt-6 sm:pt-10">
         <div ref={host} role="img" aria-label={`${title} book preview`} className="mx-auto min-h-[320px] w-full max-w-[1040px]" />
         {!ready && <p className="absolute inset-0 grid place-items-center text-sm text-ink/50">Loading preview…</p>}
       </div>
