@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MessageCircle, ShoppingBag, Trash2 } from 'lucide-react'
+import { CheckCircle2, MessageCircle, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import SmartImage from '../../shared/ui/SmartImage'
@@ -8,12 +8,15 @@ import PageNav from '../../shared/ui/PageNav'
 import QtyStepper from '../../shared/ui/QtyStepper'
 import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
+import { ordersApi } from '../../shared/services/contentService'
+import { buildOrder, makeOrderId } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
 import { inputClass } from '../../admin/classes'
 
-const buildMessage = (items, subtotal, c, brand) =>
+const buildMessage = (items, subtotal, c, brand, orderId) =>
   [
     `New order for ${brand}`,
+    `Order ID: ${orderId}`,
     '',
     `Name: ${c.name}`,
     `Phone: ${c.phone}`,
@@ -21,7 +24,7 @@ const buildMessage = (items, subtotal, c, brand) =>
     ...(c.note.trim() ? [`Note: ${c.note.trim()}`] : []),
     '',
     ...items.flatMap((i, n) => [
-      `${n + 1}. ${i.name} (${i.optionLabel}) x${i.qty} = ${formatPrice(i.price * i.qty)}`,
+      `${n + 1}. ${i.kind === 'addon' ? '[Add-on] ' : ''}${i.name}${i.kind === 'addon' ? '' : ` (${i.optionLabel})`} x${i.qty} = ${formatPrice(i.price * i.qty)}`,
       ...(i.note ? [`   Instructions: ${i.note}`] : []),
     ]),
     '',
@@ -48,6 +51,28 @@ function EmptyCart() {
   )
 }
 
+function Placed({ order }) {
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center py-16 text-center">
+      <span className="grid size-20 place-items-center rounded-full bg-green-50 text-green-600">
+        <CheckCircle2 size={38} />
+      </span>
+      <h2 className="mt-6 font-serif text-3xl">Order ready to send</h2>
+      <p className="mt-3 text-ink/60">
+        Your order ID is <span className="font-bold text-ink">{order.id}</span>. Send the message that just opened so we can confirm your order.
+      </p>
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <Button as="a" href={order.url} target="_blank" rel="noreferrer" className="gap-2">
+          <MessageCircle size={16} /> Open message again
+        </Button>
+        <Button as={Link} to="/magazines" variant="outline">
+          Continue shopping
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function Line({ item }) {
   const { setQty, remove } = useCart()
   return (
@@ -60,7 +85,7 @@ function Line({ item }) {
           <Link to={item.to || '/'} className="block truncate font-semibold hover:text-brand">
             {item.name}
           </Link>
-          <p className="text-sm text-ink/60">{item.optionLabel}</p>
+          <p className="text-sm text-ink/60">{item.kind === 'addon' ? 'Add-on product' : item.optionLabel}</p>
           {item.note && <p className="mt-1 line-clamp-2 text-xs italic text-ink/50">“{item.note}”</p>}
           <p className="mt-1 text-sm font-medium text-warm">
             {formatPrice(item.price)}
@@ -86,18 +111,34 @@ function Line({ item }) {
 export default function CartPage() {
   const { items, subtotal, savings, count, clear } = useCart()
   const { settings } = useSettings()
+  const submitting = useRef(false)
+  const [placed, setPlaced] = useState(null)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', note: '' })
   const set = (key) => (e) => setCustomer({ ...customer, [key]: e.target.value })
   const whatsapp = (settings.whatsapp || '').replace(/\D/g, '')
 
-  const placeOrder = (e) => {
+  const placeOrder = async (e) => {
     e.preventDefault()
-    const text = buildMessage(items, subtotal, customer, settings.name)
-    if (whatsapp) {
-      window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
-    } else {
-      window.location.href = `mailto:${settings.email}?subject=${encodeURIComponent('New order')}&body=${encodeURIComponent(text)}`
+    if (submitting.current || items.length === 0) return
+    submitting.current = true
+    const existing = await ordersApi.list()
+    const id = makeOrderId(existing)
+    const text = buildMessage(items, subtotal, customer, settings.name, id)
+    const url = whatsapp
+      ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`
+      : `mailto:${settings.email}?subject=${encodeURIComponent(`New order ${id}`)}&body=${encodeURIComponent(text)}`
+
+    // The order is saved first. If browser storage is full the customer can still send the message.
+    try {
+      await ordersApi.save(buildOrder({ id, cartItems: items, customer }))
+    } catch {
+      // the message below still carries the whole order
     }
+    if (whatsapp) window.open(url, '_blank', 'noopener')
+    else window.location.href = url
+    setPlaced({ id, url })
+    clear()
+    submitting.current = false
   }
 
   return (
@@ -105,10 +146,12 @@ export default function CartPage() {
       <Container>
         <PageNav trail={[{ label: 'Cart' }]} />
         <h1 className="mt-8 font-serif text-4xl sm:text-5xl">
-          Your Cart {count > 0 && <span className="text-2xl text-ink/40">({count})</span>}
+          {placed ? 'Thank you' : 'Your Cart'} {!placed && count > 0 && <span className="text-2xl text-ink/40">({count})</span>}
         </h1>
 
-        {items.length === 0 ? (
+        {placed ? (
+          <Placed order={placed} />
+        ) : items.length === 0 ? (
           <EmptyCart />
         ) : (
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1.5fr_1fr]">

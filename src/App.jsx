@@ -18,6 +18,8 @@ import AdminLayout from './admin/AdminLayout'
 import Dashboard from './admin/Dashboard'
 import ItemManager from './admin/ItemManager'
 import SettingsPage from './admin/SettingsPage'
+import OrdersPage from './admin/OrdersPage'
+import OrderDetailsPage from './pages/order-details/OrderDetailsPage'
 import { SECTIONS } from './admin/sections'
 
 export default function App() {
@@ -30,6 +32,7 @@ export default function App() {
 
           <Route path="magazines" element={<MagazinesPage />} />
           <Route path="magazines/:id" element={<MagazineDetailPage />} />
+          <Route path="magazines/:id/details" element={<OrderDetailsPage />} />
 
           {/* One page per product, each in its own folder under src/pages (placeholders for now) */}
           <Route path="frame" element={<FramePage />} />
@@ -51,6 +54,7 @@ export default function App() {
           {SECTIONS.map((s) => (
             <Route key={s.path} path={s.path} element={<ItemManager key={s.path} {...s} />} />
           ))}
+          <Route path="orders" element={<OrdersPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

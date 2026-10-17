@@ -1,4 +1,4 @@
-import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, ShoppingBag, Star, Tag } from 'lucide-react'
+import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, PackagePlus, ShoppingBag, Star, Tag } from 'lucide-react'
 import {
   bestSellingApi,
   faqsApi,
@@ -7,6 +7,7 @@ import {
   navLinksApi,
   policiesApi,
   productsApi,
+  addonsApi,
   sizesApi,
 } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
@@ -68,6 +69,24 @@ export const SECTIONS = [
     blank: { name: '', image: '', status: 'Available', tagline: '', description: '', options: 'Option name | 499' },
     label: (i) => i.name,
     columns: [{ key: 'status', label: 'Status' }],
+  },
+  {
+    path: 'addons',
+    title: 'Add-on Products',
+    icon: PackagePlus,
+    api: addonsApi,
+    fields: [
+      { name: 'name', label: 'Name', required: true },
+      { name: 'image', label: 'Image', type: 'image' },
+      { name: 'price', label: 'Price (BDT)', type: 'number' },
+      { name: 'status', label: 'Show in Buy Now popup?', type: 'select', options: ['Active', 'Inactive'] },
+    ],
+    blank: { name: '', image: '', price: 0, status: 'Active' },
+    label: (i) => i.name,
+    columns: [
+      { key: 'price', label: 'Price', format: formatPrice },
+      { key: 'status', label: 'Status' },
+    ],
   },
   {
     path: 'sizes',

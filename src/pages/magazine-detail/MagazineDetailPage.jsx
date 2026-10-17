@@ -13,7 +13,9 @@ import useAsync from '../../shared/hooks/useAsync'
 import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
 import { getMagazine, getMagazines, getSizes } from '../../shared/services/contentService'
-import { DEFAULT_SIZE } from './data'
+import { DEFAULT_SIZE, magazineLine } from './data'
+import AddOnModal from './components/AddOnModal'
+import { draft } from '../../shared/services/draft'
 import { formatPrice } from '../../shared/utils/format'
 
 function Detail({ magazine, sizes }) {
@@ -22,22 +24,13 @@ function Detail({ magazine, sizes }) {
   const { add } = useCart()
   const { productInfo } = useSettings().settings
   const related = useAsync(getMagazines)
+  const [picking, setPicking] = useState(false)
   const [sizeId, setSizeId] = useState((sizes.find((s) => s.id === DEFAULT_SIZE) ?? sizes[0]).id)
   const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
   const save = magazine.mrp - size.price
   // The flipbook is only used for a valid book (page count divisible by 4); otherwise the cover images are shown
   const hasBook = Boolean(magazine.book?.key) && isValidPageCount(magazine.book.pageCount)
-  const orderItem = () => ({
-    kind: 'magazine',
-    id: magazine.id,
-    optionId: size.id,
-    name: magazine.title,
-    image: magazine.image,
-    optionLabel: `${size.pages} Pages`,
-    price: size.price,
-    mrp: magazine.mrp,
-    to: `/magazines/${magazine.id}`,
-  })
+  const orderItem = () => magazineLine(magazine, size)
   const cover = <CoverViewer images={[magazine.image, magazine.backImage].filter(Boolean)} title={magazine.title} />
 
   return (
@@ -94,10 +87,7 @@ function Detail({ magazine, sizes }) {
             </Button>
             <Button
               className="h-[76px] flex-col shadow-lg"
-              onClick={() => {
-                add(orderItem(), { silent: true })
-                navigate('/cart')
-              }}
+              onClick={() => setPicking(true)}
             >
               <span className="flex items-center gap-2 text-xl font-extrabold uppercase">
                 Buy now <ArrowRight size={18} />
@@ -109,6 +99,19 @@ function Detail({ magazine, sizes }) {
           </div>
         </div>
       </div>
+
+      {picking && (
+        <AddOnModal
+          magazine={magazine}
+          size={size}
+          initial={draft.get()?.magazineId === magazine.id ? draft.get().addons : []}
+          onClose={() => setPicking(false)}
+          onContinue={(selected) => {
+            draft.set({ magazineId: magazine.id, sizeId: size.id, addons: selected })
+            navigate(`/magazines/${magazine.id}/details`)
+          }}
+        />
+      )}
 
       <div className="mt-14">
         <ProductAbout size={size} />

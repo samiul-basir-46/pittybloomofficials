@@ -1,9 +1,10 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { ExternalLink, LayoutDashboard, Settings } from 'lucide-react'
+import { ClipboardList, ExternalLink, LayoutDashboard, Settings } from 'lucide-react'
 import { SECTIONS } from './sections'
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/admin/orders', label: 'Orders', icon: ClipboardList },
   ...SECTIONS.map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
   { to: '/admin/settings', label: 'Site Settings', icon: Settings },
 ]

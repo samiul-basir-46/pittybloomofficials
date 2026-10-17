@@ -15,6 +15,7 @@ const load = () => {
   }
 }
 
+const keyOf = (item) => [item.kind, item.id, item.optionId, (item.note ?? '').trim()].join('|')
 const clampQty = (n) => Math.min(MAX_QTY, Math.max(1, Math.round(Number(n) || 1)))
 
 export function CartProvider({ children }) {
@@ -39,7 +40,7 @@ export function CartProvider({ children }) {
 
   const add = useCallback((item, { silent = false } = {}) => {
     const note = (item.note ?? '').trim()
-    const key = [item.kind, item.id, item.optionId, note].join('|')
+    const key = keyOf(item)
     const qty = clampQty(item.qty ?? 1)
     setItems((prev) =>
       prev.some((i) => i.key === key)
@@ -51,6 +52,19 @@ export function CartProvider({ children }) {
       clearTimeout(timer.current)
       timer.current = setTimeout(() => setNotice(null), 3500)
     }
+  }, [])
+
+  // Sets a line to an exact quantity instead of adding to it, so repeating a step never duplicates an item.
+  // keepHigher: never lower a quantity the customer already chose in the cart.
+  const put = useCallback((item, { keepHigher = false } = {}) => {
+    const note = (item.note ?? '').trim()
+    const key = keyOf(item)
+    const qty = clampQty(item.qty ?? 1)
+    setItems((prev) =>
+      prev.some((i) => i.key === key)
+        ? prev.map((i) => (i.key === key ? { ...i, ...item, note, key, qty: keepHigher ? Math.max(i.qty, qty) : qty } : i))
+        : [...prev, { ...item, note, key, qty }],
+    )
   }, [])
 
   const setQty = useCallback(
@@ -69,12 +83,13 @@ export function CartProvider({ children }) {
       savings: items.reduce((sum, i) => sum + Math.max(0, (i.mrp || 0) - i.price) * i.qty, 0),
       notice,
       add,
+      put,
       setQty,
       remove,
       clear,
       dismissNotice,
     }),
-    [items, notice, add, setQty, remove, clear, dismissNotice],
+    [items, notice, add, put, setQty, remove, clear, dismissNotice],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

@@ -21,3 +21,17 @@ export const ABOUT = {
   important: ['Delivery time is shared when you order', 'Fully personalised for you', 'Your photos stay private. Nothing is posted without your permission.'],
   privacy: 'Your photos and orders stay private. Nothing is shared or posted without your permission.',
 }
+
+// The cart/order line for a magazine in a chosen size. Used by Add to Cart and the Buy Now flow.
+export const magazineLine = (magazine, size) => ({
+  kind: 'magazine',
+  id: magazine.id,
+  optionId: size.id,
+  name: magazine.title,
+  image: magazine.image,
+  optionLabel: `${size.pages} Pages`,
+  price: size.price,
+  mrp: magazine.mrp,
+  meta: { pages: size.pages, photos: size.photos },
+  to: `/magazines/${magazine.id}`,
+})
