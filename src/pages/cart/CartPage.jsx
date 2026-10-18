@@ -8,7 +8,9 @@ import PageNav from '../../shared/ui/PageNav'
 import QtyStepper from '../../shared/ui/QtyStepper'
 import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
-import { ordersApi } from '../../shared/services/contentService'
+import useAsync from '../../shared/hooks/useAsync'
+import { getMagazines, ordersApi } from '../../shared/services/contentService'
+import { savedDrafts } from '../order/lib/savedDrafts'
 import { buildOrder, makeOrderId } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
 import { inputClass } from '../../admin/classes'
@@ -73,6 +75,72 @@ function Placed({ order }) {
   )
 }
 
+const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+
+// Magazine orders the customer saved part-way (Save to Cart). They are not orders and not part of the totals below.
+function SavedDrafts({ drafts, magazines, onRemove }) {
+  return (
+    <section aria-labelledby="saved-drafts" className="mt-8">
+      <h2 id="saved-drafts" className="font-serif text-2xl">
+        Saved to finish later
+      </h2>
+      <p className="mt-1 text-sm text-ink/60">These orders are not placed yet. Resume any of them right where you stopped.</p>
+      <ul className="mt-4 space-y-3">
+        {drafts.map((d) => {
+          const magazine = magazines.find((m) => m.id === d.magazineId)
+          const percent = Math.round((d.step / d.totalSteps) * 100)
+          return (
+            <li key={d.id} className="flex gap-4 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-5">
+              <Link to={`/magazines/${d.magazineId}`} className="size-20 shrink-0 overflow-hidden rounded-xl bg-sand sm:size-24">
+                <SmartImage src={magazine?.image} alt={d.magazineTitle} />
+              </Link>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-semibold">{magazine?.title ?? d.magazineTitle}</p>
+                  <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Draft · not ordered yet</span>
+                </div>
+                <p className="mt-1 text-sm text-ink/60">
+                  {d.summary || 'Size not chosen yet'}
+                  {d.addonCount > 0 && ` · ${d.addonCount} add-on${d.addonCount > 1 ? 's' : ''}`}
+                </p>
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs text-ink/60">
+                    <span>
+                      Step {d.step} of {d.totalSteps} · {d.stepLabel}
+                    </span>
+                    <span>Saved {when(d.updatedAt)}</span>
+                  </div>
+                  <div role="progressbar" aria-label="Order progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sand">
+                    <div className="h-full rounded-full bg-brand" style={{ width: `${percent}%` }} />
+                  </div>
+                </div>
+                {d.photoCount > 0 && (
+                  <p className="mt-2 text-xs text-amber-800">
+                    Your {d.photoCount} photo{d.photoCount > 1 ? 's are' : ' is'} not kept with the draft yet. You will need to add {d.photoCount > 1 ? 'them' : 'it'} again.
+                  </p>
+                )}
+                <div className="mt-3 flex items-center gap-3">
+                  <Button as={Link} size="sm" to={`/magazines/${d.magazineId}/order?draft=${encodeURIComponent(d.id)}&step=${d.step}`}>
+                    Resume order
+                  </Button>
+                  <button
+                    type="button"
+                    aria-label={`Delete saved order for ${magazine?.title ?? d.magazineTitle}`}
+                    onClick={() => onRemove(d)}
+                    className="grid size-9 place-items-center rounded-lg text-red-500 hover:bg-red-50"
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 function Line({ item }) {
   const { setQty, remove } = useCart()
   return (
@@ -112,6 +180,17 @@ export default function CartPage() {
   const { items, subtotal, savings, count, clear } = useCart()
   const { settings } = useSettings()
   const submitting = useRef(false)
+  const drafts = useAsync(savedDrafts.list)
+  const magazines = useAsync(getMagazines)
+  const draftList = drafts.data ?? []
+  const removeDraft = async (d) => {
+    if (!window.confirm('Delete this saved order? What you filled in will be lost.')) return
+    try {
+      await savedDrafts.remove(d.id)
+    } finally {
+      drafts.reload()
+    }
+  }
   const [placed, setPlaced] = useState(null)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', note: '' })
   const set = (key) => (e) => setCustomer({ ...customer, [key]: e.target.value })
@@ -149,10 +228,12 @@ export default function CartPage() {
           {placed ? 'Thank you' : 'Your Cart'} {!placed && count > 0 && <span className="text-2xl text-ink/40">({count})</span>}
         </h1>
 
+        {!placed && draftList.length > 0 && <SavedDrafts drafts={draftList} magazines={magazines.data ?? []} onRemove={removeDraft} />}
+
         {placed ? (
           <Placed order={placed} />
         ) : items.length === 0 ? (
-          <EmptyCart />
+          draftList.length === 0 && <EmptyCart />
         ) : (
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1.5fr_1fr]">
             <div>

@@ -3,7 +3,7 @@
 const KEY = 'pb:order-draft'
 
 export const emptyDelivery = { recipient: '', phone: '', address: '', city: '', location: '', date: '' }
-export const emptyContact = { name: '', phone: '', email: '', note: '' }
+export const emptyContact = { name: '', phone: '', instagram: '', email: '', note: '' }
 
 export const freshDraft = (magazineId, size) => ({
   magazineId,

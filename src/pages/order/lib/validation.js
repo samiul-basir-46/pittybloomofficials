@@ -7,6 +7,16 @@ const blank = (v) => !String(v ?? '').trim()
 
 export const PHONE_MESSAGE = 'Enter a valid mobile number, like 01712345678.'
 
+// WhatsApp numbers: a Bangladesh mobile number, or any international number written with a + and country code.
+export const isWhatsApp = (v) => isPhone(v) || /^\+[1-9]\d{7,14}$/.test(cleanPhone(v))
+export const WHATSAPP_MESSAGE = 'Enter a valid WhatsApp number, like 01712345678, or +14155550123 for a number outside Bangladesh.'
+
+// Instagram: the username only (letters, numbers, dots and underscores, up to 30 characters), never a profile link.
+const stripAt = (v = '') => String(v).trim().replace(/^@+/, '')
+export const cleanInstagram = (v) => (stripAt(v) ? `@${stripAt(v)}` : '')
+const looksLikeLink = (v) => /[/:]|instagram\.com/i.test(v)
+const isInstagram = (v) => /^[A-Za-z0-9._]{1,30}$/.test(stripAt(v))
+
 // Every validator returns { fieldKey: 'message' }. An empty object means the step is fine.
 
 export function validateMagazine({ picks, formats }) {
@@ -53,8 +63,12 @@ export function validateDelivery({ delivery, settings, now }) {
 export function validateContact({ contact }) {
   const errors = {}
   if (blank(contact.name)) errors.name = 'Please enter your name.'
-  if (blank(contact.phone)) errors.contactPhone = 'Please enter your phone number.'
-  else if (!isPhone(contact.phone)) errors.contactPhone = PHONE_MESSAGE
+  if (blank(contact.phone)) errors.contactPhone = 'Please enter your WhatsApp number.'
+  else if (!isWhatsApp(contact.phone)) errors.contactPhone = WHATSAPP_MESSAGE
+  const instagram = contact.instagram ?? ''
+  if (blank(instagram) || !stripAt(instagram)) errors.instagram = 'Please enter your Instagram username.'
+  else if (looksLikeLink(instagram)) errors.instagram = 'Please enter your username, like @yourname, not a link.'
+  else if (!isInstagram(instagram)) errors.instagram = 'This does not look like an Instagram username. Use letters, numbers, dots and underscores only.'
   if (!blank(contact.email) && !isEmail(contact.email)) errors.email = 'This email address does not look right.'
   return errors
 }

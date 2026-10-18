@@ -1,5 +1,6 @@
 import { Card, Input } from '../components/FormField'
 
+// The heading and the line under it ("Your Info" / "Please provide your contact information…") come from OrderPage.
 export default function ContactStep({ ctx }) {
   const { draft, update, errors, clear } = ctx
   const c = draft.contact
@@ -10,20 +11,19 @@ export default function ContactStep({ ctx }) {
 
   return (
     <Card>
-      <h2 className="text-lg font-bold">About you</h2>
-      <p className="mt-1 text-sm text-ink/60">We use this only to confirm your order. This can be different from the delivery person.</p>
+      <p className="text-sm text-ink/60">This is your own contact information, not the person receiving the magazine.</p>
       <div className="mt-5 space-y-4">
-        <Input name="name" label="Your name" required autoComplete="name" placeholder="e.g. Fahim Ahmed" value={c.name} error={errors.name} onChange={set('name')} />
+        <Input name="name" label="Your Name" required autoComplete="name" placeholder="e.g. Fahim Ahmed" value={c.name} error={errors.name} onChange={set('name')} />
         <div>
           <Input
             name="contactPhone"
-            label="Your phone number"
+            label="Your WhatsApp Number"
             required
             type="tel"
             inputMode="tel"
             autoComplete="tel"
             placeholder="01XXXXXXXXX"
-            hint="Preferably the number you use on WhatsApp."
+            hint="We will message you on this number about your order. A number outside Bangladesh can be written like +14155550123."
             value={c.phone}
             error={errors.contactPhone}
             onChange={set('phone', 'contactPhone')}
@@ -38,6 +38,20 @@ export default function ContactStep({ ctx }) {
             </button>
           )}
         </div>
+        <Input
+          name="instagram"
+          label="Your Instagram Username"
+          required
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="@yourusername"
+          hint="Just your username, for example @pittybloomofficials. Please do not paste a link."
+          value={c.instagram ?? ''}
+          error={errors.instagram}
+          onChange={set('instagram')}
+        />
         <Input
           name="email"
           label="Email"

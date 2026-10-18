@@ -1,6 +1,7 @@
 import { buildOrder } from '../../../shared/utils/orders'
 import { photoStore } from './photoStore'
 import { checkDate } from './pricing'
+import { cleanInstagram } from './validation'
 
 const LOCATION_LABEL = { inside: 'Inside Dhaka', outside: 'Outside Dhaka' }
 export const locationLabel = (id) => LOCATION_LABEL[id] ?? ''
@@ -46,6 +47,7 @@ export function buildMagazineOrder({ id, draft, copies, occasions, addons, magaz
     customer: {
       name: draft.contact.name.trim(),
       phone: draft.contact.phone.trim(),
+      instagram: cleanInstagram(draft.contact.instagram),
       email: draft.contact.email.trim(),
       address: `${d.address.trim()}, ${d.city.trim()}`,
       note: draft.contact.note.trim(),

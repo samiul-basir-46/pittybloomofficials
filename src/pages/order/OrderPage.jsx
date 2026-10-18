@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Loader2, Send } from 'lucide-react'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Send, ShoppingCart } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
@@ -12,7 +12,9 @@ import { formatPrice } from '../../shared/utils/format'
 import { STEPS } from './data'
 import { buildCopies, defaultSizeFor, getFormats, sizesFor, withFields } from './lib/copies'
 import { calcTotals, orderingDay } from './lib/pricing'
-import { freshDraft, orderDraft } from './lib/orderDraft'
+import { emptyContact, freshDraft, orderDraft } from './lib/orderDraft'
+import { photoStore } from './lib/photoStore'
+import { newDraftId, savedDrafts } from './lib/savedDrafts'
 import { buildMagazineOrder } from './lib/buildOrder'
 import { buildOrderMessage } from './lib/message'
 import { validateContact, validateCustomize, validateDelivery, validateMagazine } from './lib/validation'
@@ -31,7 +33,7 @@ const HEADINGS = [
   { title: 'Personalize your magazine', text: 'Tell us about the occasion and the people in it. We use this to design your pages.' },
   { title: 'Upload your photos', text: 'Choose clear photos for each magazine, then pick a front and back page photo.' },
   { title: 'Delivery details', text: 'Where should we send it, and when do you need it?' },
-  { title: 'Your details', text: 'So we can reach you about your order.' },
+  { title: 'Your Info', text: 'Please provide your contact information so we can communicate with you about your magazine order.' },
   { title: 'Review your order', text: 'Check everything below. You can edit any section before you place the order.' },
 ]
 const STEP_COMPONENTS = [MagazineStep, CustomizeStep, PhotosStep, DeliveryStep, ContactStep, ReviewStep]
@@ -46,10 +48,11 @@ function reconcile(draft, { sizes, formats, addons, settings }) {
     const size = sizesFor(sizes, f).find((s) => s.id === pick.sizeId) ?? defaultSizeFor(sizes, f)
     if (size) picks[f.id] = { sizeId: size.id, qty: Math.min(max, Math.max(1, Math.round(Number(pick.qty)) || 1)) }
   })
-  return { ...draft, picks, addons: draft.addons.filter((id) => addons.some((a) => a.id === id)) }
+  // contact is merged with the empty one so a draft saved before a field existed (e.g. Instagram) still works
+  return { ...draft, picks, contact: { ...emptyContact, ...draft.contact }, addons: draft.addons.filter((id) => addons.some((a) => a.id === id)) }
 }
 
-function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) {
+function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, resumeDraft }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const { settings: site } = useSettings()
@@ -64,12 +67,17 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
       magazine.id,
       (sizes.find((s) => s.id === 'a4-8') ?? sizes[0]),
     )
-    return reconcile(orderDraft.get(magazine.id) ?? start, { sizes, formats, addons, settings })
+    // Resuming from the cart: the saved draft wins, unless this tab already holds a newer copy of that same draft
+    // (it is updated on every keystroke, so a refresh of a resumed order keeps what was typed after resuming).
+    const mine = orderDraft.get(magazine.id)
+    const resumed = resumeDraft && !(mine && mine.savedId === resumeDraft.id) ? resumeDraft.draft : null
+    return reconcile(resumed ?? mine ?? start, { sizes, formats, addons, settings })
   })
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState('idle') // idle | submitting | error | done
   const [submitError, setSubmitError] = useState('')
   const [result, setResult] = useState(null)
+  const [saveState, setSaveState] = useState(null) // null | saving | saved | error
 
   // Saved after every change so a refresh keeps the form. Not after the order is placed.
   useEffect(() => {
@@ -79,6 +87,7 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
   const step = Math.min(Math.max(1, Number(params.get('step')) || 1), draft.reached)
   useEffect(() => {
     topRef.current?.scrollIntoView?.({ block: 'start' })
+    setSaveState(null)
   }, [step])
 
   const update = (fn) => setDraft((d) => fn(d))
@@ -93,6 +102,42 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
   const copies = useMemo(() => buildCopies(draft, sizes, formats), [draft, sizes, formats])
   const chosenAddons = useMemo(() => addons.filter((a) => draft.addons.includes(a.id)).map((a) => ({ ...a, qty: 1 })), [addons, draft.addons])
   const totals = calcTotals({ copies, addons: chosenAddons, location: draft.delivery.location, date: draft.delivery.date, settings, now })
+
+  // Save to Cart: keeps whatever is filled in so far (nothing is required) and lists it in the cart as a draft.
+  // The draft id is kept inside the draft, so saving again updates the same cart entry instead of adding another.
+  // Photos are not stored yet (they only exist in this page's memory), so the draft remembers only how many there were.
+  const saveToCart = async () => {
+    if (saveState === 'saving') return
+    setSaveState('saving')
+    const id = draft.savedId ?? newDraftId()
+    try {
+      const photoCount = copies.reduce((n, c) => n + photoStore.list(c.key).length, 0)
+      const summary = formats
+        .filter((f) => draft.picks[f.id])
+        .map((f) => {
+          const pick = draft.picks[f.id]
+          const size = sizesFor(sizes, f).find((s) => s.id === pick.sizeId)
+          return `${f.id} · ${size ? `${size.pages} Pages` : 'pages not chosen'} × ${pick.qty}`
+        })
+        .join(', ')
+      await savedDrafts.save({
+        id,
+        magazineId: magazine.id,
+        magazineTitle: magazine.title,
+        summary,
+        addonCount: draft.addons.length,
+        step,
+        stepLabel: STEPS[step - 1].label,
+        totalSteps: STEPS.length,
+        photoCount,
+        draft: { ...draft, savedId: id, photos: {} },
+      })
+      update((d) => ({ ...d, savedId: id }))
+      setSaveState('saved')
+    } catch {
+      setSaveState('error')
+    }
+  }
 
   const validators = [
     () => validateMagazine({ picks: draft.picks, formats }),
@@ -142,6 +187,8 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
         ? `https://wa.me/${number}?text=${encodeURIComponent(text)}`
         : `mailto:${site.email}?subject=${encodeURIComponent(`New order ${order.id}`)}&body=${encodeURIComponent(text)}`
 
+      // The order is placed, so its saved cart draft is no longer needed
+      if (draft.savedId) await savedDrafts.remove(draft.savedId).catch(() => {})
       orderDraft.clear()
       setResult({ order })
       setStatus('done')
@@ -208,6 +255,23 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
               <h2 className="font-serif text-2xl sm:text-3xl">{heading.title}</h2>
               <p className="mt-1 text-ink/70">{heading.text}</p>
             </div>
+            {saveState === 'saved' && (
+              <p
+                role="status"
+                className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
+              >
+                <CheckCircle2 size={18} className="shrink-0" />
+                <span>Saved to your cart. You can finish this order later from the cart.</span>
+                <Link to="/cart" className="font-semibold underline">
+                  Go to cart
+                </Link>
+              </p>
+            )}
+            {saveState === 'error' && (
+              <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                We could not save your progress. Please keep this page open: if you leave now, what you have entered may be lost.
+              </p>
+            )}
             {Object.keys(errors).length > 0 && (
               <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 Please fix the highlighted fields to continue.
@@ -220,6 +284,10 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
               <div className="mx-auto flex max-w-[1488px] items-center gap-3 sm:px-2 lg:px-0">
                 <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={back} disabled={busy}>
                   <ArrowLeft size={16} /> Back
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={saveToCart} disabled={busy || saveState === 'saving'}>
+                  <ShoppingCart size={16} />
+                  <span className="max-[460px]:sr-only">{saveState === 'saving' ? 'Saving…' : 'Save to Cart'}</span>
                 </Button>
                 <div className="mr-auto leading-tight lg:hidden">
                   <p className="text-xs text-ink/60">Total</p>
@@ -264,9 +332,13 @@ export default function OrderPage() {
   const addons = useAsync(getActiveAddons)
   const occasions = useAsync(getOccasions)
   const settings = useAsync(getOrderSettings)
+  // ?draft=ID is a link from the cart that resumes a saved draft
+  const [search] = useSearchParams()
+  const resumeId = search.get('draft')
+  const resume = useAsync(() => (resumeId ? savedDrafts.get(resumeId) : Promise.resolve(null)), [resumeId])
 
   const parts = [magazine, sizes, occasions, settings]
-  if (parts.some((p) => p.loading) || addons.loading) return <p className="py-32 text-center text-ink/60">Loading…</p>
+  if (parts.some((p) => p.loading) || addons.loading || resume.loading) return <p className="py-32 text-center text-ink/60">Loading…</p>
   if (parts.some((p) => p.error))
     return (
       <div className="py-32 text-center">
@@ -289,6 +361,7 @@ export default function OrderPage() {
       addonsFailed={Boolean(addons.error)}
       occasions={occasions.data.map(withFields)}
       settings={settings.data}
+      resumeDraft={resume.data?.magazineId === magazine.data.id ? resume.data : null}
     />
   )
 }

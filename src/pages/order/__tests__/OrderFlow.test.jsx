@@ -99,11 +99,18 @@ describe('magazine order journey', () => {
     await cont()
 
     // Step 5: your info
-    expect(await screen.findByRole('heading', { name: /your details/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /your info/i })).toBeInTheDocument()
     await cont()
     expect(screen.getByText(/please enter your name/i)).toBeInTheDocument()
+    expect(screen.getByText(/please enter your whatsapp number/i)).toBeInTheDocument()
+    expect(screen.getByText(/please enter your instagram username/i)).toBeInTheDocument()
     await type(/your name/i, 'Fahim Ahmed')
     await user.click(screen.getByRole('button', { name: /use the delivery number/i }))
+    await type(/instagram username/i, 'https://instagram.com/fahim')
+    await cont()
+    expect(screen.getByText(/not a link/i)).toBeInTheDocument() // a profile link is not a username
+    await user.clear(screen.getByLabelText(/instagram username/i))
+    await type(/instagram username/i, 'fahim.ahmed')
     await cont()
 
     // Step 6: review shows everything, then places the order once
@@ -131,7 +138,7 @@ describe('magazine order journey', () => {
       ]),
     )
     expect(order.items[0].photos).toMatchObject({ count: 2, front: 'a.jpg' })
-    expect(order.customer).toMatchObject({ name: 'Fahim Ahmed', phone: '01712345678', address: 'House 1, Road 2, Dhanmondi, Dhaka' })
+    expect(order.customer).toMatchObject({ name: 'Fahim Ahmed', phone: '01712345678', instagram: '@fahim.ahmed', address: 'House 1, Road 2, Dhanmondi, Dhaka' })
     expect(order.delivery).toMatch(/Inside Dhaka · Monday, 19 October 2026/)
     expect(sessionStorage.getItem('pb:order-draft')).toBeNull()
   })
@@ -223,9 +230,10 @@ describe('magazine order journey', () => {
     await fillDelivery(/outside dhaka/i)
     await user.click(screen.getByRole('button', { name: /wednesday, 21 october$/i }))
     await cont()
-    await screen.findByRole('heading', { name: /your details/i })
+    await screen.findByRole('heading', { name: /your info/i })
     await type(/your name/i, 'Fahim Ahmed')
     await user.click(screen.getByRole('button', { name: /use the delivery number/i }))
+    await type(/instagram username/i, '@fahim.ahmed')
     await cont()
     await screen.findByRole('heading', { name: /review your order/i })
 
@@ -246,6 +254,33 @@ describe('magazine order journey', () => {
     await cont()
     expect(await screen.findByRole('heading', { name: /the order has been placed/i })).toBeInTheDocument()
     expect(orders()).toHaveLength(1)
+  })
+
+  it('saves an unfinished order to the cart and resumes it at the same step, without duplicates', async () => {
+    const first = open()
+    await screen.findByRole('heading', { name: /choose your magazine/i })
+    await cont()
+    await screen.findByRole('heading', { name: /personalize/i })
+    await user.click(screen.getByRole('radio', { name: /couple/i }))
+    await type(/name of the couples/i, 'Fahim & Sarah')
+
+    // Nothing else is filled in, and saving still works
+    await user.click(screen.getByRole('button', { name: /save to cart/i }))
+    expect(await screen.findByText(/saved to your cart/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /save to cart/i })) // saving again updates the same draft
+    await screen.findByText(/saved to your cart/i)
+    expect(JSON.parse(localStorage.getItem('pb:saved-drafts'))).toHaveLength(1)
+    expect(orders()).toHaveLength(0) // a draft is not an order
+    first.unmount()
+    sessionStorage.clear() // as if the customer came back later, in a new tab
+
+    // The cart lists the draft, and Resume order opens it at step 2 with the answers still there
+    open('/cart')
+    expect(await screen.findByText(/draft · not ordered yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/step 2 of 6/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: /resume order/i }))
+    expect(await screen.findByLabelText(/name of the couples/i)).toHaveValue('Fahim & Sarah')
+    expect(screen.getByRole('heading', { name: /personalize/i })).toBeInTheDocument()
   })
 
   it('shows the order form for the cart-free Buy Now start and falls back safely for a missing magazine', async () => {

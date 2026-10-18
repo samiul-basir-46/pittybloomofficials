@@ -182,7 +182,7 @@ export default function MagazineStep({ ctx }) {
             Add something extra <span className="ml-1 text-xs font-normal text-ink/50">(optional)</span>
           </h2>
           <p className="mt-1 text-sm text-ink/60">These are sold separately and added to your total. Skip this if you only want the magazine.</p>
-          <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <ul className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
             {addons.map((a) => {
               const on = draft.addons.includes(a.id)
               return (
@@ -192,23 +192,23 @@ export default function MagazineStep({ ctx }) {
                     role="checkbox"
                     aria-checked={on}
                     onClick={() => toggleAddon(a.id)}
-                    className={`block w-full overflow-hidden rounded-2xl border-2 bg-white text-left transition ${
+                    className={`block w-full overflow-hidden rounded-xl border-2 bg-white text-left transition ${
                       on ? 'border-brand shadow' : 'border-sand hover:border-brand/40'
                     }`}
                   >
                     <div className="relative aspect-square bg-sand">
                       <SmartImage src={a.image} alt={a.name} placeholder="600x600" />
                       <span
-                        className={`absolute right-2 top-2 grid size-7 place-items-center rounded-full border-2 ${
+                        className={`absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full border-2 ${
                           on ? 'border-brand bg-brand text-white' : 'border-white bg-white/70 text-transparent'
                         }`}
                       >
-                        <Check size={16} />
+                        <Check size={12} />
                       </span>
                     </div>
-                    <div className={`px-3 py-3 text-center ${on ? 'bg-cream' : ''}`}>
-                      <p className="truncate text-sm font-semibold">{a.name}</p>
-                      {a.price > 0 && <p className="mt-0.5 text-sm font-bold text-warm">{formatPrice(a.price)}</p>}
+                    <div className={`px-1.5 py-2 text-center ${on ? 'bg-cream' : ''}`}>
+                      <p className="truncate text-xs font-semibold">{a.name}</p>
+                      {a.price > 0 && <p className="mt-0.5 text-xs font-bold text-warm">{formatPrice(a.price)}</p>}
                     </div>
                   </button>
                 </li>

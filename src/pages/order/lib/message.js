@@ -10,6 +10,7 @@ export function buildOrderMessage(order, brand) {
     '',
     `Name: ${c.name}`,
     `Phone: ${c.phone}`,
+    ...(c.instagram ? [`Instagram: ${c.instagram}`] : []),
     ...(c.email ? [`Email: ${c.email}`] : []),
     ...(c.note ? [`Note: ${c.note}`] : []),
     '',

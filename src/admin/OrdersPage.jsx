@@ -90,6 +90,7 @@ function Order({ order, addons, onChange, onDelete }) {
               <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-brand">Customer</p>
               <p className="font-semibold">{order.customer.name}</p>
               <p>{order.customer.phone}</p>
+              {order.customer.instagram && <p className="text-ink/70">Instagram: {order.customer.instagram}</p>}
               <p className="whitespace-pre-line text-ink/70">{order.customer.address}</p>
               {order.customer.email && <p className="text-ink/70">{order.customer.email}</p>}
               {order.customer.recipient && <p className="mt-1 text-ink/70">Recipient: {order.customer.recipient}</p>}

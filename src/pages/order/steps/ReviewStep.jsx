@@ -5,6 +5,7 @@ import PriceSummary from '../components/PriceSummary'
 import { copyTitle } from '../lib/copies'
 import { photoStore } from '../lib/photoStore'
 import { locationLabel } from '../lib/buildOrder'
+import { cleanInstagram } from '../lib/validation'
 import { longDate } from './DeliveryStep'
 
 const Rows = ({ rows }) => (
@@ -111,8 +112,16 @@ export default function ReviewStep({ ctx }) {
         />
       </Section>
 
-      <Section title="Your details" onEdit={() => goTo(5)}>
-        <Rows rows={[{ label: 'Name', value: c.name }, { label: 'Phone', value: c.phone }, { label: 'Email', value: c.email }, { label: 'Note', value: c.note }]} />
+      <Section title="Your Info" onEdit={() => goTo(5)}>
+        <Rows
+          rows={[
+            { label: 'Name', value: c.name },
+            { label: 'WhatsApp', value: c.phone },
+            { label: 'Instagram', value: cleanInstagram(c.instagram) },
+            { label: 'Email', value: c.email },
+            { label: 'Note', value: c.note },
+          ]}
+        />
       </Section>
 
       <Card>

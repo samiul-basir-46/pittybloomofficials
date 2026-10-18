@@ -81,10 +81,29 @@ describe('validation', () => {
     const errs = validateDelivery({ delivery: { phone: '01712345678', address: 'x', city: 'y', location: 'outside', date: '2026-10-19' }, settings, now: at('2026-10-18') })
     expect(errs.date).toMatch(/no longer available/)
   })
-  it('contact: name and phone are required, email is optional but checked', () => {
-    expect(Object.keys(validateContact({ contact: { name: '', phone: '', email: '' } })).sort()).toEqual(['contactPhone', 'name'])
-    expect(validateContact({ contact: { name: 'A', phone: '01712345678', email: 'bad' } }).email).toBeTruthy()
-    expect(validateContact({ contact: { name: 'A', phone: '01712345678', email: '' } })).toEqual({})
+  it('contact: name, WhatsApp number and Instagram username are required, email is optional but checked', () => {
+    expect(Object.keys(validateContact({ contact: { name: '', phone: '', instagram: '', email: '' } })).sort()).toEqual(['contactPhone', 'instagram', 'name'])
+    expect(validateContact({ contact: { name: 'A', phone: '01712345678', instagram: '@a', email: 'bad' } }).email).toBeTruthy()
+    expect(validateContact({ contact: { name: 'A', phone: '01712345678', instagram: '@a', email: '' } })).toEqual({})
+  })
+  it('contact: WhatsApp accepts Bangladesh and international numbers', () => {
+    const ok = (phone) => validateContact({ contact: { name: 'A', phone, instagram: '@a' } }).contactPhone
+    expect(ok('01712345678')).toBeUndefined()
+    expect(ok('+8801712345678')).toBeUndefined()
+    expect(ok('+1 415 555 0123')).toBeUndefined()
+    expect(ok('12345')).toBeTruthy()
+    expect(ok('01212345678')).toBeTruthy()
+  })
+  it('contact: Instagram must be a username, not a link', () => {
+    const msg = (instagram) => validateContact({ contact: { name: 'A', phone: '01712345678', instagram } }).instagram
+    expect(msg('@pitty.bloom_1')).toBeUndefined()
+    expect(msg('pittybloom')).toBeUndefined() // the @ is optional when typing
+    expect(msg('')).toMatch(/enter your instagram username/i)
+    expect(msg('@')).toMatch(/enter your instagram username/i)
+    expect(msg('https://www.instagram.com/pittybloom')).toMatch(/not a link/i)
+    expect(msg('instagram.com/pittybloom')).toMatch(/not a link/i)
+    expect(msg('@has space')).toBeTruthy()
+    expect(msg(`@${'a'.repeat(31)}`)).toBeTruthy()
   })
   it('recommended photo range', () => {
     expect(parseRange('16–22')).toEqual({ min: 16, max: 22 })
