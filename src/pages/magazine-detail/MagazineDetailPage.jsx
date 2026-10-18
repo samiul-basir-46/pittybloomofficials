@@ -57,7 +57,7 @@ function Detail({ magazine, sizes, settings }) {
         </nav>
       </div>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:gap-14">
+      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-14">
         {hasBook ? (
           <BookViewer book={magazine.book} title={magazine.title} fallback={cover} />
         ) : (

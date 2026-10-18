@@ -31,6 +31,9 @@ export default function BookViewer({ book, title, fallback }) {
     const el = document.createElement('div')
     el.style.width = '100%'
     el.style.margin = '0 auto'
+    // page-flip paints the whole book area as an opaque white rectangle. Multiplying it with the background makes
+    // the white vanish, so a closed book is just its single page on the soft background (shadows and photos stay).
+    el.style.mixBlendMode = 'multiply'
     host.current.appendChild(el)
 
     // A closed book shows its cover on the right half of the book (back cover on the left half). Slide the whole
@@ -119,7 +122,10 @@ export default function BookViewer({ book, title, fallback }) {
 
   return (
     <div className="flex min-w-0 flex-col items-center">
-      <div className="relative w-full bg-linear-to-b from-white to-cream pb-8 pt-6 sm:pt-10">
+      {/* overflow-x-clip: the closed book is slid half a page sideways, so its empty half sticks out. It is cut off here
+          instead of covering the size and cart buttons next to the book. Do not add isolate/z-index/transform here:
+          that would stop the multiply blend above from seeing the background. */}
+      <div className="relative w-full overflow-x-clip bg-linear-to-b from-white to-cream pb-8 pt-6 sm:pt-10">
         <div ref={host} role="img" aria-label={`${title} book preview`} className="mx-auto min-h-[320px] w-full max-w-[1040px]" />
         {!ready && <p className="absolute inset-0 grid place-items-center text-sm text-ink/50">Loading preview…</p>}
       </div>
