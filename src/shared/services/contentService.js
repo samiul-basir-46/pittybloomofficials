@@ -5,6 +5,7 @@ import { magazines } from '../../pages/magazines/data'
 import { SIZES } from '../../pages/magazine-detail/data'
 import { products } from '../../pages/products/data'
 import { addons } from '../../pages/addons/data'
+import { ORDER_DEFAULTS, OCCASIONS } from '../../pages/order/data'
 import { faqs } from '../../pages/faq/data'
 import { policies } from '../../pages/policy/data'
 import { navLinks } from '../layout/navLinks'
@@ -45,7 +46,11 @@ export const magazinesApi = {
     return result
   },
 }
-export const sizesApi = collection('sizes', SIZES, (items) => [...items].sort((a, b) => a.pages - b.pages))
+// Stored under a new key: the old 'sizes' list used a different layout (no A4/A5), so it is left untouched.
+export const sizesApi = collection('printSizes', SIZES, (items) =>
+  [...items].sort((a, b) => (a.format ?? '').localeCompare(b.format ?? '') || a.pages - b.pages),
+)
+export const occasionsApi = collection('occasions', OCCASIONS, (items) => [...items].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)))
 export const productsApi = collection('products', products)
 export const addonsApi = collection('addons', addons)
 export const ordersApi = collection('orders', [], (items) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
@@ -58,10 +63,18 @@ export const settingsApi = {
   save: (settings) => store.set('settings', settings),
 }
 
+export const orderSettingsApi = {
+  get: async () => ({ ...ORDER_DEFAULTS, ...(await store.get('orderSettings', {})) }),
+  save: (settings) => store.set('orderSettings', settings),
+}
+export const getOrderSettings = orderSettingsApi.get
+
 export const getBestSelling = bestSellingApi.list
 export const getMoreProducts = moreProductsApi.list
 export const getMagazines = magazinesApi.list
-export const getSizes = sizesApi.list
+// Customers only see sizes that have a price.
+export const getSizes = async () => (await sizesApi.list()).filter((s) => s.price > 0)
+export const getOccasions = async () => (await occasionsApi.list()).filter((o) => o.status !== 'Inactive')
 export const getProducts = productsApi.list
 export const getProduct = async (id) => (await productsApi.list()).find((p) => p.id === id) ?? null
 export const getActiveAddons = async () => (await addonsApi.list()).filter((a) => a.status !== 'Inactive')

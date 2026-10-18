@@ -1,16 +1,19 @@
-import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, PackagePlus, ShoppingBag, Star, Tag } from 'lucide-react'
+import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, PackagePlus, PartyPopper, ShoppingBag, Star, Tag } from 'lucide-react'
 import {
   bestSellingApi,
   faqsApi,
   magazinesApi,
   moreProductsApi,
   navLinksApi,
+  occasionsApi,
+  orderSettingsApi,
   policiesApi,
   productsApi,
   addonsApi,
   sizesApi,
 } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
+import { slugify } from '../shared/utils/text'
 
 const card = {
   fields: [
@@ -93,18 +96,58 @@ export const SECTIONS = [
     title: 'Sizes & Pricing',
     icon: Tag,
     api: sizesApi,
+    note: 'A4 and A5 magazines, priced by page count. A price of 0 hides an option from customers. Page limits are set in Order Settings.',
     fields: [
-      { name: 'pages', label: 'Pages', type: 'number', required: true },
-      { name: 'photos', label: 'Photos (e.g. 24–30)', required: true },
-      { name: 'price', label: 'Price (BDT)', type: 'number', required: true },
+      { name: 'format', label: 'Size', type: 'select', options: ['A4', 'A5'] },
+      { name: 'pages', label: 'Pages (a multiple of 4)', type: 'number', required: true },
+      { name: 'photos', label: 'Recommended photos (e.g. 16–22, leave empty if unknown)' },
+      { name: 'price', label: 'Price (BDT). 0 hides this option', type: 'number', required: true },
+      { name: 'mrp', label: 'MRP in BDT (optional struck-through price, 0 for none)', type: 'number' },
       { name: 'tag', label: 'Tag', type: 'select', options: ['', 'Most Popular', 'Best Value'] },
     ],
-    blank: { pages: 10, photos: '', price: 1499, tag: '' },
-    label: (i) => `${i.pages} Pages`,
-    makeId: (i) => String(i.pages),
+    blank: { format: 'A4', pages: 8, photos: '', price: 0, mrp: 0, tag: '' },
+    label: (i) => `${i.format ?? 'A4'} · ${i.pages} Pages${i.price > 0 ? '' : '   ⚠ price not set (hidden)'}`,
+    makeId: (i) => `${i.format}-${i.pages}`.toLowerCase(),
     columns: [
       { key: 'photos', label: 'Photos' },
       { key: 'price', label: 'Price', format: formatPrice },
+    ],
+    validate: async (item, { items }) => {
+      const settings = await orderSettingsApi.get()
+      const max = Number(item.format === 'A5' ? settings.a5MaxPages : settings.a4MaxPages)
+      if (!Number.isInteger(item.pages) || item.pages < 4 || item.pages % 4 !== 0) return 'Pages must be a multiple of 4 (4, 8, 12, …).'
+      if (max && item.pages > max) return `${item.format} magazines can have at most ${max} pages. Change the limit in Order Settings if this is wrong.`
+      if (!(item.price >= 0)) return 'The price cannot be negative.'
+      if (items.some((i) => i.id !== item.id && i.format === item.format && i.pages === item.pages))
+        return `${item.format} · ${item.pages} Pages already exists. Edit that one instead.`
+      return ''
+    },
+  },
+  {
+    path: 'occasions',
+    title: 'Occasions',
+    icon: PartyPopper,
+    api: occasionsApi,
+    note: 'The occasion buttons customers see, and the questions asked for each one.',
+    fields: [
+      { name: 'label', label: 'Name', required: true },
+      { name: 'emoji', label: 'Emoji' },
+      { name: 'quick', label: 'Show as a big button (otherwise only in the drop-down)', type: 'select', options: ['Yes', 'No'] },
+      { name: 'status', label: 'Show to customers?', type: 'select', options: ['Active', 'Inactive'] },
+      { name: 'order', label: 'Position (1 is first)', type: 'number' },
+      {
+        name: 'fields',
+        label: 'Questions, one per line: Question | Placeholder | required or optional | text, number or date',
+        type: 'textarea',
+        rows: 6,
+      },
+    ],
+    blank: { label: '', emoji: '✨', quick: 'No', status: 'Active', order: 50, fields: 'Name | e.g. Sarah Ahmed | required' },
+    label: (i) => `${i.emoji ?? ''} ${i.label}`.trim(),
+    makeId: (i) => slugify(i.label),
+    columns: [
+      { key: 'status', label: 'Status' },
+      { key: 'quick', label: 'Big button' },
     ],
   },
   {

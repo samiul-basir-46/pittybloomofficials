@@ -12,22 +12,23 @@ import MagazineMiniCard from './components/MagazineMiniCard'
 import useAsync from '../../shared/hooks/useAsync'
 import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
-import { getMagazine, getMagazines, getSizes } from '../../shared/services/contentService'
+import { getMagazine, getMagazines, getOrderSettings, getSizes } from '../../shared/services/contentService'
 import { DEFAULT_SIZE, magazineLine } from './data'
-import AddOnModal from './components/AddOnModal'
-import { draft } from '../../shared/services/draft'
+import { freshDraft, orderDraft } from '../order/lib/orderDraft'
+import { getFormats } from '../order/lib/copies'
+import { photoStore } from '../order/lib/photoStore'
 import { formatPrice } from '../../shared/utils/format'
 
-function Detail({ magazine, sizes }) {
+function Detail({ magazine, sizes, settings }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { add } = useCart()
   const { productInfo } = useSettings().settings
   const related = useAsync(getMagazines)
-  const [picking, setPicking] = useState(false)
+  const formats = getFormats(settings)
   const [sizeId, setSizeId] = useState((sizes.find((s) => s.id === DEFAULT_SIZE) ?? sizes[0]).id)
   const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
-  const save = magazine.mrp - size.price
+  const save = Math.max(0, (size.mrp || 0) - size.price)
   // The flipbook is only used for a valid book (page count divisible by 4); otherwise the cover images are shown
   const hasBook = Boolean(magazine.book?.key) && isValidPageCount(magazine.book.pageCount)
   const orderItem = () => magazineLine(magazine, size)
@@ -66,7 +67,7 @@ function Detail({ magazine, sizes }) {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Magazine</p>
           <h1 className="mt-4 font-serif text-4xl sm:text-5xl">{magazine.title}</h1>
           <p className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {save > 0 && <span className="text-2xl text-ink/50 line-through">{formatPrice(magazine.mrp)}</span>}
+            {save > 0 && <span className="text-2xl text-ink/50 line-through">{formatPrice(size.mrp)}</span>}
             <span className="text-3xl font-extrabold sm:text-4xl">Price: {formatPrice(size.price)}</span>
             {save > 0 && (
               <span className="rounded-full border border-sand bg-cream px-3 py-1 text-xs font-semibold text-warm">
@@ -80,14 +81,19 @@ function Detail({ magazine, sizes }) {
             ))}
           </div>
           <p className="mb-5 mt-10 font-semibold">Choose Magazine Size</p>
-          <SizeSelector sizes={sizes} value={size.id} onChange={setSizeId} />
+          <SizeSelector sizes={sizes} formats={formats} value={size.id} onChange={setSizeId} />
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <Button variant="outline" className="h-[76px] gap-2" onClick={() => add(orderItem())}>
               <ShoppingCart size={18} /> Add to Cart
             </Button>
             <Button
               className="h-[76px] flex-col shadow-lg"
-              onClick={() => setPicking(true)}
+              // Buy Now always starts a fresh order with the size chosen here
+              onClick={() => {
+                photoStore.clear()
+                orderDraft.set(freshDraft(magazine.id, size))
+                navigate(`/magazines/${magazine.id}/order`)
+              }}
             >
               <span className="flex items-center gap-2 text-xl font-extrabold uppercase">
                 Buy now <ArrowRight size={18} />
@@ -99,19 +105,6 @@ function Detail({ magazine, sizes }) {
           </div>
         </div>
       </div>
-
-      {picking && (
-        <AddOnModal
-          magazine={magazine}
-          size={size}
-          initial={draft.get()?.magazineId === magazine.id ? draft.get().addons : []}
-          onClose={() => setPicking(false)}
-          onContinue={(selected) => {
-            draft.set({ magazineId: magazine.id, sizeId: size.id, addons: selected })
-            navigate(`/magazines/${magazine.id}/details`)
-          }}
-        />
-      )}
 
       <div className="mt-14">
         <ProductAbout size={size} />
@@ -136,9 +129,10 @@ export default function MagazineDetail() {
   const { id } = useParams()
   const magazine = useAsync(() => getMagazine(id), [id])
   const sizes = useAsync(getSizes)
+  const settings = useAsync(getOrderSettings)
 
-  if (magazine.loading || sizes.loading) return <p className="py-32 text-center text-ink/60">Loading…</p>
+  if (magazine.loading || sizes.loading || settings.loading) return <p className="py-32 text-center text-ink/60">Loading…</p>
   if (!magazine.data) return <p className="py-32 text-center text-ink/60">Magazine not found.</p>
   if (!sizes.data.length) return <p className="py-32 text-center text-ink/60">No sizes available.</p>
-  return <Detail key={magazine.data.id} magazine={magazine.data} sizes={sizes.data} />
+  return <Detail key={magazine.data.id} magazine={magazine.data} sizes={sizes.data} settings={settings.data} />
 }

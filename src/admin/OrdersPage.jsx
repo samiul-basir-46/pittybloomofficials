@@ -35,6 +35,23 @@ function Items({ title, items, fallbackImage }) {
                 {[i.optionLabel, i.meta?.photos && `${i.meta.photos} photos`, `Qty ${i.qty}`].filter(Boolean).join(' · ')}
               </p>
               {i.note && <p className="mt-0.5 text-xs italic text-ink/50">“{i.note}”</p>}
+              {i.details?.length > 0 && (
+                <dl className="mt-1.5 space-y-0.5 text-xs">
+                  {i.details.map((r) => (
+                    <div key={r.label} className="flex gap-2">
+                      <dt className="shrink-0 text-ink/50">{r.label}:</dt>
+                      <dd className="font-medium [overflow-wrap:anywhere]">{r.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {i.photos && (
+                <p className="mt-1 text-xs text-ink/60">
+                  Photos: {i.photos.count} chosen
+                  {i.photos.front && ` · Front: ${i.photos.front}`}
+                  {i.photos.back && ` · Back: ${i.photos.back}`}
+                </p>
+              )}
             </div>
             <p className="text-sm font-bold">{formatPrice(i.price * i.qty)}</p>
           </li>
@@ -74,6 +91,11 @@ function Order({ order, addons, onChange, onDelete }) {
               <p className="font-semibold">{order.customer.name}</p>
               <p>{order.customer.phone}</p>
               <p className="whitespace-pre-line text-ink/70">{order.customer.address}</p>
+              {order.customer.email && <p className="text-ink/70">{order.customer.email}</p>}
+              {order.customer.recipient && <p className="mt-1 text-ink/70">Recipient: {order.customer.recipient}</p>}
+              {order.customer.deliveryPhone && order.customer.deliveryPhone !== order.customer.phone && (
+                <p className="text-ink/70">Delivery phone: {order.customer.deliveryPhone}</p>
+              )}
               {order.customer.note && <p className="mt-1 italic text-ink/60">“{order.customer.note}”</p>}
             </div>
             <label className="text-sm">
@@ -106,9 +128,23 @@ function Order({ order, addons, onChange, onDelete }) {
                 <dd>{formatPrice(order.otherTotal)}</dd>
               </div>
             )}
-            <div className="flex justify-between">
+            {order.deliveryInfo && (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-ink/60">Delivery charge</dt>
+                  <dd>{formatPrice(order.deliveryCharge || 0)}</dd>
+                </div>
+                {order.rushCharge > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-ink/60">Rush delivery</dt>
+                    <dd>{formatPrice(order.rushCharge)}</dd>
+                  </div>
+                )}
+              </>
+            )}
+            <div className="flex justify-between gap-4">
               <dt className="text-ink/60">Delivery</dt>
-              <dd>{order.delivery}</dd>
+              <dd className="text-right">{order.delivery}</dd>
             </div>
             <div className="flex justify-between border-t border-sand pt-2 text-base font-extrabold">
               <dt>Total</dt>

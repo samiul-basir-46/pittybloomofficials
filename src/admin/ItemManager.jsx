@@ -7,12 +7,13 @@ import useAsync from '../shared/hooks/useAsync'
 import { slugify } from '../shared/utils/text'
 import { inputClass } from './classes'
 
-export default function ItemManager({ title, api, fields, blank, label, columns = [], makeId = (i) => slugify(label(i)) }) {
+export default function ItemManager({ title, api, fields, blank, label, columns = [], makeId = (i) => slugify(label(i)), validate, note }) {
   const { data, loading, reload } = useAsync(api.list)
   const [form, setForm] = useState(null)
   const [query, setQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
+  const [problem, setProblem] = useState('')
   const items = data ?? []
   const imageKey = fields.find((f) => f.type === 'image')?.name
   const shown = items.filter((i) => label(i).toLowerCase().includes(query.trim().toLowerCase()))
@@ -33,6 +34,13 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
   const submit = async (e) => {
     e.preventDefault()
     let item = form.item
+    // Sections can add their own rules (for example page limits). A message stops the save.
+    const message = validate ? await validate(item, { items, isNew: form.isNew }) : ''
+    if (message) {
+      setProblem(message)
+      return
+    }
+    setProblem('')
     if (form.isNew) {
       const id = makeId(item)
       item = { ...item, id: items.some((i) => i.id === id) ? `${id}-${Date.now()}` : id }
@@ -63,8 +71,12 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
         <div>
           <h1 className="font-serif text-3xl">{title}</h1>
           <p className="mt-1 text-sm text-ink/60">{items.length} item{items.length === 1 ? '' : 's'}</p>
+          {note && <p className="mt-2 max-w-xl text-sm text-ink/60">{note}</p>}
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => setForm({ isNew: true, item: blank })}>
+        <Button size="sm" className="gap-1.5" onClick={() => {
+            setProblem('')
+            setForm({ isNew: true, item: blank })
+          }}>
           <Plus size={16} /> Add new
         </Button>
       </div>
@@ -109,7 +121,10 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
               <button
                 aria-label="Edit"
                 className="grid size-9 place-items-center rounded-lg hover:bg-sand/70"
-                onClick={() => setForm({ isNew: false, item })}
+                onClick={() => {
+                  setProblem('')
+                  setForm({ isNew: false, item })
+                }}
               >
                 <Pencil size={17} />
               </button>
@@ -156,6 +171,11 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
                 onChange={(v) => setForm({ ...form, item: { ...form.item, [f.name]: v } })}
               />
             ))}
+            {problem && (
+              <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {problem}
+              </p>
+            )}
             <div className="flex justify-end gap-3 border-t border-sand pt-4">
               <Button type="button" variant="outline" size="sm" onClick={() => setForm(null)}>
                 Cancel

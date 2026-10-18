@@ -1,12 +1,31 @@
-export const DEFAULT_SIZE = '10'
+export const DEFAULT_SIZE = 'a4-8'
+
+// A4 and A5 magazines, priced by page count. Edit from Admin → Sizes & Pricing.
+// A price of 0 hides an option from customers until a real price is set.
+const size = (format, pages, photos, price) => ({
+  id: `${format}-${pages}`.toLowerCase(),
+  format,
+  pages,
+  photos,
+  price,
+  mrp: 0,
+  tag: '',
+})
 
 export const SIZES = [
-  { id: '6', pages: 6, photos: '12–15', price: 999 },
-  { id: '8', pages: 8, photos: '18–20', price: 1299 },
-  { id: '10', pages: 10, photos: '24–30', price: 1499 },
-  { id: '12', pages: 12, photos: '32–40', price: 1799, tag: 'Most Popular' },
-  { id: '16', pages: 16, photos: '45–55', price: 2299 },
-  { id: '20', pages: 20, photos: '60–70', price: 2699, tag: 'Best Value' },
+  size('A4', 4, '8–12', 299),
+  { ...size('A4', 8, '16–22', 549), tag: 'Most Popular' },
+  size('A4', 12, '26–32', 749),
+  size('A4', 16, '35–40', 949),
+  size('A4', 20, '45–50', 1149),
+  size('A4', 24, '55–60', 1349),
+  size('A4', 28, '65–70', 1649),
+  size('A4', 32, '75–80', 1949),
+  size('A4', 36, '85–90', 2149),
+  size('A4', 40, '95–100', 2349),
+  size('A5', 4, '', 200),
+  // TODO: set the A5 8-page price in Admin → Sizes & Pricing. It stays hidden from customers until then.
+  size('A5', 8, '', 0),
 ]
 
 export const ABOUT = {
@@ -29,9 +48,9 @@ export const magazineLine = (magazine, size) => ({
   optionId: size.id,
   name: magazine.title,
   image: magazine.image,
-  optionLabel: `${size.pages} Pages`,
+  optionLabel: `${size.format} · ${size.pages} Pages`,
   price: size.price,
-  mrp: magazine.mrp,
-  meta: { pages: size.pages, photos: size.photos },
+  mrp: size.mrp || 0,
+  meta: { pages: size.pages, photos: size.photos, format: size.format },
   to: `/magazines/${magazine.id}`,
 })

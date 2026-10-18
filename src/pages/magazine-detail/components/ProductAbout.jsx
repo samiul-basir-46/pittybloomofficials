@@ -16,14 +16,14 @@ function Column({ title, items }) {
 
 export default function ProductAbout({ size }) {
   const info = useSettings().settings.productInfo
-  const pages = `${size.pages} Pages`
+  const pages = `${size.format ? `${size.format} · ` : ''}${size.pages} Pages`
   const columns = [
     { title: "What's Included:", items: [pages, ...info.included] },
-    { title: 'Things Required:', items: [`${size.photos} Photos`, ...info.required] },
+    { title: 'Things Required:', items: [size.photos && `${size.photos} Photos`, ...info.required] },
     { title: 'Perfect For:', items: info.perfectFor },
     {
       title: 'Important Information:',
-      items: [`Price: ${formatPrice(size.price)}`, pages, `${size.photos} Photos Required`, ...info.important],
+      items: [`Price: ${formatPrice(size.price)}`, pages, size.photos && `${size.photos} Photos Required`, ...info.important],
     },
   ]
 

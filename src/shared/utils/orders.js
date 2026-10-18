@@ -17,7 +17,9 @@ export const slimImage = (src = '') => (src.startsWith('data:') && src.length > 
 
 const sumOf = (items, test) => items.filter(test).reduce((sum, i) => sum + i.price * i.qty, 0)
 
-export const buildOrder = ({ id, cartItems, customer }) => {
+// extras (optional, used by the magazine order form): delivery charges and the delivery details.
+// Without extras this builds exactly the same order as before, so the cart checkout is unaffected.
+export const buildOrder = ({ id, cartItems, customer, extras = {} }) => {
   const items = cartItems.map((i) => ({
     kind: i.kind,
     id: i.id,
@@ -28,10 +30,14 @@ export const buildOrder = ({ id, cartItems, customer }) => {
     price: i.price,
     note: i.note || '',
     meta: i.meta || null,
+    ...(i.details ? { details: i.details } : {}),
+    ...(i.photos ? { photos: i.photos } : {}),
   }))
   const magazineTotal = sumOf(items, (i) => i.kind === 'magazine')
   const addonTotal = sumOf(items, (i) => i.kind === 'addon')
   const otherTotal = sumOf(items, (i) => i.kind !== 'magazine' && i.kind !== 'addon')
+  const deliveryCharge = Number(extras.deliveryCharge) || 0
+  const rushCharge = Number(extras.rushCharge) || 0
   return {
     id,
     createdAt: new Date().toISOString(),
@@ -41,7 +47,8 @@ export const buildOrder = ({ id, cartItems, customer }) => {
     magazineTotal,
     addonTotal,
     otherTotal,
-    total: magazineTotal + addonTotal + otherTotal,
-    delivery: 'To be confirmed',
+    total: magazineTotal + addonTotal + otherTotal + deliveryCharge + rushCharge,
+    delivery: extras.deliveryLabel || 'To be confirmed',
+    ...(extras.deliveryInfo ? { deliveryInfo: extras.deliveryInfo, deliveryCharge, rushCharge } : {}),
   }
 }
