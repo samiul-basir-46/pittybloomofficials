@@ -13,7 +13,6 @@ import { STEPS } from './data'
 import { buildCopies, defaultSizeFor, getFormats, sizesFor, withFields } from './lib/copies'
 import { calcTotals, orderingDay } from './lib/pricing'
 import { freshDraft, orderDraft } from './lib/orderDraft'
-import { photoStore } from './lib/photoStore'
 import { buildMagazineOrder } from './lib/buildOrder'
 import { buildOrderMessage } from './lib/message'
 import { validateContact, validateCustomize, validateDelivery, validateMagazine } from './lib/validation'
@@ -133,15 +132,10 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
       // The ID is made once, so retrying after an error can never create a second order
       orderId.current ??= makeOrderId(existing)
       const order = buildMagazineOrder({ id: orderId.current, draft, copies, occasions, addons: chosenAddons, magazine, totals, settings, now, longDate })
-      const photoCount = copies.reduce((n, c) => n + photoStore.list(c.key).length, 0)
 
-      // The order is saved first. If browser storage is full the customer can still send the message.
-      let saved = true
-      try {
-        await ordersApi.save(order)
-      } catch {
-        saved = false
-      }
+      // The order must be saved before anything else happens. If saving fails we land in the catch below:
+      // no success screen, no message opened, and the draft is kept so the customer can try again.
+      await ordersApi.save(order)
       const text = buildOrderMessage(order, site.name)
       const number = (site.whatsapp || '').replace(/\D/g, '')
       const url = number
@@ -149,14 +143,14 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
         : `mailto:${site.email}?subject=${encodeURIComponent(`New order ${order.id}`)}&body=${encodeURIComponent(text)}`
 
       orderDraft.clear()
-      setResult({ order, url, saved, photoCount, whatsapp: Boolean(number) })
+      setResult({ order })
       setStatus('done')
       if (number) window.open(url, '_blank', 'noopener')
       else window.location.href = url
     } catch {
       submitting.current = false
       setStatus('error')
-      setSubmitError('Something went wrong and your order was not sent. Nothing has been lost, so please try again.')
+      setSubmitError('Your order could not be saved, so it has not been placed. Nothing you entered has been lost, so please try again.')
     }
   }
 
@@ -179,7 +173,7 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings }) 
     return (
       <div className="bg-cream py-10 sm:py-16">
         <Container>
-          <Success result={result} whatsapp={result.whatsapp} photosNote={settings.photosNote} />
+          <Success orderId={result.order.id} />
         </Container>
       </div>
     )

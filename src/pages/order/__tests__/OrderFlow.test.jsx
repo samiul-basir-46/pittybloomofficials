@@ -113,11 +113,14 @@ describe('magazine order journey', () => {
     expect(screen.getAllByText('৳1258').length).toBeGreaterThan(0)
     const place = screen.getByRole('button', { name: /place order/i })
     await user.dblClick(place) // a double click must not create two orders
-    expect(await screen.findByRole('heading', { name: /almost done/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /the order has been placed/i })).toBeInTheDocument()
 
     const saved = orders()
     expect(saved).toHaveLength(1)
     const order = saved[0]
+    // The success screen is just the title and the Order ID, with no extra instructions
+    expect(screen.getByText(/order id:/i)).toHaveTextContent(`Order ID: ${order.id}`)
+    expect(screen.queryByText(/whatsapp|what to do next|almost done/i)).not.toBeInTheDocument()
     expect(order).toMatchObject({ status: 'New', magazineTotal: 1098, addonTotal: 0, deliveryCharge: 60, rushCharge: 100, total: 1258 })
     expect(order.items).toHaveLength(2)
     expect(order.items[0]).toMatchObject({ kind: 'magazine', qty: 1, price: 549, optionLabel: 'A4 Magazine · 8 Pages' })
@@ -205,6 +208,44 @@ describe('magazine order journey', () => {
     await user.click(screen.getByRole('radio', { name: /outside dhaka/i }))
     expect(within(screen.getByRole('complementary')).queryByText(/rush/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/· No rush charge/)).not.toBeInTheDocument()
+  })
+
+  it('shows an error instead of the success screen when the order cannot be saved, and a retry places it once', async () => {
+    open()
+    await screen.findByRole('heading', { name: /choose your magazine/i })
+    await cont()
+    await screen.findByRole('heading', { name: /personalize/i })
+    await user.click(screen.getByRole('radio', { name: /couple/i }))
+    await type(/name of the couples/i, 'Fahim & Sarah')
+    await cont()
+    await cont() // photos are optional
+    await screen.findByRole('heading', { name: /delivery details/i })
+    await fillDelivery(/outside dhaka/i)
+    await user.click(screen.getByRole('button', { name: /wednesday, 21 october$/i }))
+    await cont()
+    await screen.findByRole('heading', { name: /your details/i })
+    await type(/your name/i, 'Fahim Ahmed')
+    await user.click(screen.getByRole('button', { name: /use the delivery number/i }))
+    await cont()
+    await screen.findByRole('heading', { name: /review your order/i })
+
+    // Saving the order fails (for example the browser storage is full)
+    const realSetItem = Storage.prototype.setItem
+    const failing = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (key === 'pb:orders') throw new Error('storage full')
+      return realSetItem.call(this, key, value)
+    })
+    await cont()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be saved/i)
+    expect(screen.queryByRole('heading', { name: /the order has been placed/i })).not.toBeInTheDocument()
+    expect(orders()).toHaveLength(0)
+    expect(sessionStorage.getItem('pb:order-draft')).not.toBeNull() // nothing the customer entered is lost
+
+    // Trying again once saving works places exactly one order
+    failing.mockRestore()
+    await cont()
+    expect(await screen.findByRole('heading', { name: /the order has been placed/i })).toBeInTheDocument()
+    expect(orders()).toHaveLength(1)
   })
 
   it('shows the order form for the cart-free Buy Now start and falls back safely for a missing magazine', async () => {
