@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useMatch } from 'react-router-dom'
 import { ClipboardList, ExternalLink, LayoutDashboard, Settings, SlidersHorizontal } from 'lucide-react'
 import { SECTIONS } from './sections'
 
@@ -16,6 +16,8 @@ const linkClass = ({ isActive }) =>
   }`
 
 export default function AdminLayout() {
+  // An order's own page has room for two columns
+  const wide = useMatch('/admin/orders/:id')
   return (
     <div className="min-h-screen bg-cream md:flex">
       <aside className="border-b border-sand bg-white md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
@@ -40,7 +42,7 @@ export default function AdminLayout() {
         </nav>
       </aside>
       <main className="min-w-0 flex-1 p-5 sm:p-8 lg:p-10">
-        <div className="mx-auto max-w-4xl">
+        <div className={`mx-auto ${wide ? 'max-w-6xl' : 'max-w-4xl'}`}>
           <Outlet />
         </div>
       </main>

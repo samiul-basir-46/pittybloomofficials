@@ -19,6 +19,7 @@ import Dashboard from './admin/Dashboard'
 import ItemManager from './admin/ItemManager'
 import SettingsPage from './admin/SettingsPage'
 import OrdersPage from './admin/OrdersPage'
+import OrderDetailPage from './admin/OrderDetailPage'
 import OrderDetailsPage from './pages/order-details/OrderDetailsPage'
 import OrderPage from './pages/order/OrderPage'
 import OrderSettingsPage from './admin/OrderSettingsPage'
@@ -58,6 +59,7 @@ export default function App() {
             <Route key={s.path} path={s.path} element={<ItemManager key={s.path} {...s} />} />
           ))}
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="order-settings" element={<OrderSettingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
