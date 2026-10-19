@@ -74,7 +74,7 @@ describe('Admin orders: list and separate detail page', () => {
     await user.selectOptions(screen.getByLabelText(/filter by status/i), 'New')
     expect(screen.queryByRole('link', { name: /PB-2/ })).not.toBeInTheDocument()
     await user.type(screen.getByRole('searchbox'), 'zzz')
-    expect(screen.getByText(/no orders match your search/i)).toBeInTheDocument()
+    expect(screen.getByText(/no orders match these filters/i)).toBeInTheDocument()
   })
 
   it('changing the status on the order page is saved', async () => {

@@ -24,6 +24,10 @@ export const ORDER_DEFAULTS = {
   outsideMinDays: 3,
   standardNote: 'Standard delivery is 5 days.',
 
+  // Admin: an order is URGENT when it is needed within this many days (today counts as 0). Overdue is always urgent.
+  urgentDaysInside: 3,
+  urgentDaysOutside: 4,
+
   // Texts shown to the customer
   photosNote:
     'After you place your order, please send these photos to us on WhatsApp together with your Order ID. We cannot receive photos through this form yet.',

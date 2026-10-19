@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "firebase": "^13.0.0",
     "lucide-react": "^0.468.0",
     "page-flip": "^2.0.7",
     "pdfjs-dist": "^4.10.38",

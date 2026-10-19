@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Trash2 } from 'lucide-react'
 import SmartImage from '../shared/ui/SmartImage'
 import useAsync from '../shared/hooks/useAsync'
-import { addonsApi, ordersApi } from '../shared/services/contentService'
+import { addonsApi, getOrderSettings, ordersApi } from '../shared/services/contentService'
 import { ORDER_STATUSES } from '../shared/utils/orders'
 import { formatPrice } from '../shared/utils/format'
 import { inputClass } from './classes'
-import { StatusBadge, when } from './orderUi'
+import { getUrgency } from '../shared/utils/urgency'
+import { CopyButton, LEVEL_STYLE, StatusBadge, UrgencyPill, when } from './orderUi'
+import { cityText, formatOrderSummary } from './orderSummary'
 
 const Card = ({ title, children, className = '' }) => (
   <section className={`rounded-2xl border border-sand bg-white p-5 shadow-sm sm:p-6 ${className}`}>
@@ -87,6 +89,8 @@ export default function OrderDetailPage() {
   const navigate = useNavigate()
   const orders = useAsync(ordersApi.list)
   const addons = useAsync(addonsApi.list)
+  const settingsData = useAsync(getOrderSettings)
+  const now = useMemo(() => new Date(), [])
   const [note, setNote] = useState({ type: '', text: '' })
   const order = orders.data?.find((o) => o.id === id)
 
@@ -113,6 +117,9 @@ export default function OrderDetailPage() {
   // Oversized uploaded images are not stored in orders; use the add-on's current image instead.
   const addonImage = (i) => addons.data?.find((a) => a.id === i.id)?.image ?? ''
   const c = order.customer ?? {}
+  const settings = settingsData.data ?? {}
+  const urgency = getUrgency(order, settings, now)
+  const summary = formatOrderSummary(order, settings, now)
 
   const changeStatus = async (status) => {
     setNote({ type: '', text: '' })
@@ -142,6 +149,7 @@ export default function OrderDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-serif text-3xl">{order.id}</h1>
             <StatusBadge status={order.status} />
+            <UrgencyPill urgency={urgency} />
           </div>
           <p className="mt-1 text-sm text-ink/60">Placed {when(order.createdAt)}</p>
         </div>
@@ -160,6 +168,28 @@ export default function OrderDetailPage() {
         </div>
 
         <div className="space-y-6">
+          <Card title="Delivery deadline">
+            {order.deliveryInfo?.date ? (
+              <>
+                <p className={`rounded-xl border px-4 py-3 text-sm font-semibold ${LEVEL_STYLE[urgency.level].pill}`}>
+                  {urgency.level === 'none' ? 'No longer open' : `${LEVEL_STYLE[urgency.level].title}: ${urgency.label}`}
+                </p>
+                <p className="mt-3 text-sm text-ink/70">
+                  Needed on <strong className="text-ink">{order.delivery.split(' · ').slice(1).join(' · ') || order.deliveryInfo.date}</strong> · {order.deliveryInfo.locationLabel} · {cityText(order)}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-ink/60">This order has no delivery date, so it is listed as Standard.</p>
+            )}
+          </Card>
+
+          <Card title="Production summary">
+            <p className="rounded-xl bg-cream/70 p-3 font-mono text-xs leading-relaxed [overflow-wrap:anywhere]">{summary}</p>
+            <div className="mt-3">
+              <CopyButton label="Copy summary" getText={() => summary} />
+            </div>
+          </Card>
+
           <Card title="Status">
             <label className="block text-sm">
               <span className="sr-only">Order status</span>

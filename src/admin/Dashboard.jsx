@@ -1,8 +1,11 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { RotateCcw, Settings } from 'lucide-react'
+import { Flame, RotateCcw, Settings } from 'lucide-react'
 import Button from '../shared/ui/Button'
 import useAsync from '../shared/hooks/useAsync'
 import { store } from '../shared/services/storage'
+import { getOrderSettings, ordersApi } from '../shared/services/contentService'
+import { getUrgency } from '../shared/utils/urgency'
 import { SECTIONS } from './sections'
 
 function Stat({ section }) {
@@ -22,6 +25,36 @@ function Stat({ section }) {
   )
 }
 
+// Open orders by how soon they are needed. Each number opens the Orders list with that filter.
+function Attention() {
+  const orders = useAsync(ordersApi.list)
+  const settings = useAsync(getOrderSettings)
+  const now = useMemo(() => new Date(), [])
+  if (!orders.data || !settings.data) return null
+  const levels = orders.data.map((o) => getUrgency(o, settings.data, now).level)
+  const n = (level) => levels.filter((l) => l === level).length
+  const cards = [
+    { id: 'overdue', label: 'Overdue', tone: 'border-rose-200 bg-rose-50 text-rose-700' },
+    { id: 'urgent', label: 'Urgent', tone: 'border-amber-200 bg-amber-50 text-amber-800' },
+    { id: 'standard', label: 'Standard', tone: 'border-sand bg-white text-ink/70' },
+  ]
+  return (
+    <section aria-labelledby="attention" className="mt-8">
+      <h2 id="attention" className="flex items-center gap-2 font-serif text-2xl">
+        <Flame size={22} className="text-brand" /> Open orders by delivery date
+      </h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {cards.map((c) => (
+          <Link key={c.id} to={`/admin/orders?urgency=${c.id}`} className={`rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-md ${c.tone}`}>
+            <p className="text-3xl font-bold">{n(c.id)}</p>
+            <p className="text-sm font-medium">{c.label}</p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 const reset = () => {
   if (!window.confirm('Reset ALL content to defaults? Your edits will be lost.')) return
   store.clear()
@@ -33,6 +66,8 @@ export default function Dashboard() {
     <div>
       <h1 className="font-serif text-3xl">Dashboard</h1>
       <p className="mt-1 text-sm text-ink/60">Pick a section to edit. Changes show on the site instantly.</p>
+
+      <Attention />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {SECTIONS.map((s) => (

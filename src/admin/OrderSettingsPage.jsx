@@ -19,7 +19,7 @@ function Group({ title, hint, children }) {
   )
 }
 
-const NUMBERS = ['a4MaxPages', 'a5MaxPages', 'maxCopies', 'insideDhakaCharge', 'outsideDhakaCharge', 'cutoffHour', 'outsideMinDays']
+const NUMBERS = ['urgentDaysInside', 'urgentDaysOutside', 'a4MaxPages', 'a5MaxPages', 'maxCopies', 'insideDhakaCharge', 'outsideDhakaCharge', 'cutoffHour', 'outsideMinDays']
 
 // Checks the form and returns the first problem in plain words, or '' when it is fine.
 const check = (f) => {
@@ -112,6 +112,11 @@ export default function OrderSettingsPage() {
         {num('cutoffHour', 'Orders placed from this hour count from the next day (0–24 clock, 18 is 6:00 PM)')}
         {num('outsideMinDays', 'Earliest delivery for Outside Dhaka, in days from the order date')}
         <Field label="Extra sentence shown under the calendar" value={form.standardNote} onChange={set('standardNote')} />
+      </Group>
+
+      <Group title="Urgent orders" hint="Orders are sorted by the delivery date the customer chose. An open order is Urgent when it is needed within this many days (0 means today). Past dates are always Overdue.">
+        {num('urgentDaysInside', 'Inside Dhaka: urgent when needed within (days)')}
+        {num('urgentDaysOutside', 'Outside Dhaka: urgent when needed within (days)')}
       </Group>
 
       <Group title="Texts customers see">
