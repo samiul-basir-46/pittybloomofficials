@@ -1,8 +1,10 @@
 // Reads an uploaded PDF, checks it is valid for the book format and renders every page to an image.
 // pdf.js is loaded on demand, so the public site never downloads it (only the admin upload does).
 export const PAGE_MULTIPLE = 4
-const RENDER_WIDTH = 900 // px per page; A4 at this width stays sharp in the viewer and keeps files small
-const JPEG_QUALITY = 0.85
+// Keep the working canvas modest. The viewer can upscale these images, while large canvases
+// multiplied across a long PDF can exhaust browser memory before IndexedDB is even reached.
+const RENDER_WIDTH = 720
+const JPEG_QUALITY = 0.82
 
 export class PdfBookError extends Error {}
 
@@ -65,6 +67,8 @@ export async function readPdfBook(file, onProgress) {
       await page.render({ canvasContext: context, canvas, viewport }).promise
 
       pages.push(await toJpeg(canvas))
+      canvas.width = 0
+      canvas.height = 0
       page.cleanup()
       onProgress?.(n, count)
     }

@@ -34,7 +34,14 @@ export const bookStore = {
   // pages: array of image Blobs, in page order. Returns the key to keep on the magazine.
   async save(pages) {
     const key = `book-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-    await run('readwrite', (s) => s.put(pages, key))
+    try {
+      await run('readwrite', (s) => s.put(pages, key))
+    } catch (error) {
+      if (error?.name === 'QuotaExceededError') {
+        throw new Error('This browser is out of storage space for the PDF preview. Free some device storage and try again.')
+      }
+      throw error
+    }
     return key
   },
   get: (key) => run('readonly', (s) => s.get(key)),

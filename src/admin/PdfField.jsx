@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FileText, Trash2, Upload } from 'lucide-react'
-import { readPdfBook, PdfBookError } from '../shared/services/pdfBook'
+import { readPdfBook } from '../shared/services/pdfBook'
 import { bookStore } from '../shared/services/bookStore'
 
 // Upload a PDF (A4 pages) for the magazine's book preview. The PDF is checked and rendered in the browser;
@@ -21,7 +21,7 @@ export default function PdfField({ value, onChange }) {
       const key = await bookStore.save(pages)
       onChange({ key, pageCount: pages.length, ratio, name: file.name })
     } catch (err) {
-      setError(err instanceof PdfBookError ? err.message : 'Could not process this PDF. Try another file.')
+      setError(err instanceof Error && err.message ? err.message : 'Could not process this PDF. Try another file.')
     } finally {
       setProgress(null)
     }
