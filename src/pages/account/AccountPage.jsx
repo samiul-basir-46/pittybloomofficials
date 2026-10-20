@@ -6,7 +6,7 @@ import Button from '../../shared/ui/Button'
 import { useAuth } from '../../shared/context/AuthContext'
 
 export default function AccountPage() {
-  const { user, loading, configured, signIn, signOut } = useAuth()
+  const { user, loading, configured, signInWithGoogle, signOut } = useAuth()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [error, setError] = useState('')
@@ -21,7 +21,7 @@ export default function AccountPage() {
     setError('')
     setBusy(true)
     try {
-      await signIn()
+      await signInWithGoogle()
     } catch (e) {
       setError(e?.code === 'auth/popup-closed-by-user' ? 'Sign-in was cancelled.' : e.message || 'Google sign-in failed. Please try again.')
     } finally { setBusy(false) }

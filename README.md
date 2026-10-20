@@ -70,7 +70,7 @@ The magazine order flow uses Firebase Authentication, Cloud Firestore for submit
    npx firebase-tools deploy --only firestore:rules,firestore:indexes --project YOUR_FIREBASE_PROJECT_ID
    ```
 
-5. Customers use Google sign-in at `/account`. For the owner account, create one Email/Password user in **Authentication → Users → Add user**; the site has no public admin sign-up. Copy that user's UID, then in **Firestore → Data** create `admins/{uid}` with `role` (string: `admin`) and `email` (string: the owner email). Add that same email to the Worker `ADMIN_EMAILS` setting. The owner signs in at `/admin/login`; other signed-in accounts are denied. Firestore rules do not let users create or change admin records.
+5. Customers use Google sign-in at `/account`. For the owner account, create one Email/Password user in **Authentication → Users → Add user**; the admin dashboard does not use Google sign-in. The site has no public admin sign-up. Copy the Email/Password user's UID, then in **Firestore → Data** create `admins/{uid}` with `role` (string: `admin`) and `email` (string: the owner email). Add that same email to the Worker `ADMIN_EMAILS` setting. The owner signs in with that email and password at `/admin/login`; other signed-in accounts are denied. Firestore rules do not let users create or change admin records.
 
 ### 2. Cloudflare R2 and the Worker
 
@@ -89,7 +89,7 @@ After `npm run build`, deploy the existing Firebase Hosting site with `npx fireb
 
 ### 3. What is connected
 
-- Google sign-in is required for magazine ordering and for cart checkout when Firebase is configured. The `/admin` routes require a Firestore `admins/{uid}` record.
+- Google sign-in is required for magazine ordering and for cart checkout when Firebase is configured. The `/admin` routes use Email/Password sign-in and require a Firestore `admins/{uid}` record.
 - Saved drafts are private to their signed-in customer; admins see drafts in a separate section. Submitted orders are shared with admins, while customers can only read their own.
 - Customer photo uploads are stored as private R2 objects. The Worker verifies Firebase ID tokens, limits uploads to image files up to 20 MB, and only serves an image to its owner or a configured admin.
 - Existing browser-only submitted orders are imported into Firestore the first time an admin opens the order list on that browser. Legacy drafts on a browser are claimed by the first account that signs in there.

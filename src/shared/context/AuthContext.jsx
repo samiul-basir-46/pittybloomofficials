@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(() => ({
     user, isAdmin, loading, configured: firebaseConfigured,
-    signIn: async () => { if (!firebaseConfigured) throw new Error('Firebase config is missing. Add the VITE_FIREBASE_* values to .env.') ; return signInWithPopup(auth, googleProvider) },
+    signInWithGoogle: async () => { if (!firebaseConfigured) throw new Error('Firebase config is missing. Add the VITE_FIREBASE_* values to .env.') ; return signInWithPopup(auth, googleProvider) },
     signInWithPassword: async (email, password) => {
       if (!firebaseConfigured) throw new Error('Firebase config is missing. Add the VITE_FIREBASE_* values to .env.')
       return signInWithEmailAndPassword(auth, email.trim(), password)
@@ -49,7 +49,7 @@ export const useAuth = () => useContext(AuthContext) ?? {
   isAdmin: false,
   loading: false,
   configured: firebaseConfigured,
-  signIn: async () => { throw new Error('Wrap the app in AuthProvider before signing in.') },
+  signInWithGoogle: async () => { throw new Error('Wrap the app in AuthProvider before signing in.') },
   signInWithPassword: async () => { throw new Error('Wrap the app in AuthProvider before signing in.') },
   signOut: async () => {},
 }
