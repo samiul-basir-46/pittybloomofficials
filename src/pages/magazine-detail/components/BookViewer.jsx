@@ -50,7 +50,7 @@ export default function BookViewer({ book, title, fallback }) {
     window.addEventListener('resize', settle)
 
     bookStore
-      .get(book.key)
+      .get(book.key, book.pageCount)
       .then((blobs) => {
         if (cancelled) return
         if (!Array.isArray(blobs) || blobs.length !== book.pageCount) throw new Error('Book pages not found')

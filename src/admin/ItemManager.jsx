@@ -20,10 +20,10 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
 
   useEffect(() => {
     if (!form) return
-    const onKey = (e) => e.key === 'Escape' && setForm(null)
+    const onKey = (e) => e.key === 'Escape' && !saving && setForm(null)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [form])
+  }, [form, saving])
 
   useEffect(() => {
     if (!toast) return
@@ -51,8 +51,8 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
       setForm(null)
       setToast(form.isNew ? 'Added' : 'Saved')
       reload()
-    } catch {
-      alert('Could not save. The image may be too large for browser storage.')
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'Could not save this item.')
     } finally {
       setSaving(false)
     }
@@ -143,7 +143,6 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
       {form && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 backdrop-blur-sm"
-          onMouseDown={(e) => e.target === e.currentTarget && setForm(null)}
         >
           <form
             onSubmit={submit}
@@ -154,6 +153,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
               <button
                 type="button"
                 aria-label="Close"
+                disabled={saving}
                 className="grid size-9 place-items-center rounded-lg hover:bg-sand/70"
                 onClick={() => setForm(null)}
               >
@@ -177,7 +177,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
               </p>
             )}
             <div className="flex justify-end gap-3 border-t border-sand pt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => setForm(null)}>
+              <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setForm(null)}>
                 Cancel
               </Button>
               <Button type="submit" size="sm" disabled={saving}>

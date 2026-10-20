@@ -26,25 +26,20 @@ const collection = (key, seed, sort = (items) => items) => ({
 export const bestSellingApi = collection('bestSelling', bestSelling)
 export const moreProductsApi = collection('moreProducts', moreProducts)
 const magazinesCollection = collection('magazines', magazines)
-// Deletes stored book pages that no magazine uses any more (replaced/removed PDFs, abandoned uploads).
-const pruneBooks = async () => {
-  try {
-    const keys = (await magazinesCollection.list()).map((m) => m.book?.key).filter(Boolean)
-    await bookStore.prune(keys)
-  } catch {
-    // cleanup is best-effort and must never block saving
-  }
-}
 export const magazinesApi = {
   ...magazinesCollection,
   save: async (item) => {
+    const previous = (await magazinesCollection.list()).find((magazine) => magazine.id === item.id)
     const result = await magazinesCollection.save(item)
-    await pruneBooks()
+    if (previous?.book?.key && previous.book.key !== item.book?.key) {
+      await bookStore.remove(previous.book.key).catch(() => {})
+    }
     return result
   },
   remove: async (id) => {
+    const previous = (await magazinesCollection.list()).find((magazine) => magazine.id === id)
     const result = await magazinesCollection.remove(id)
-    await pruneBooks()
+    if (previous?.book?.key) await bookStore.remove(previous.book.key).catch(() => {})
     return result
   },
 }

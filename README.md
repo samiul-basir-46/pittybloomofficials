@@ -50,7 +50,7 @@ In **Admin → Magazines**, each magazine has a **Book preview (PDF)** field.
 - On the magazine page the customer first sees the first page alone (closed book). Next / Previous (or click or drag the page) turns it with a page-flip animation, two pages side by side, and the last page is shown alone as the back cover. On narrow screens it shows one page at a time.
 - A magazine without a PDF (or whose pages are not available) keeps the normal cover image viewer.
 
-How it works: `src/shared/services/pdfBook.js` reads the PDF with pdf.js and renders each page to a JPEG in the browser; `src/shared/services/bookStore.js` keeps those images in IndexedDB; `src/pages/magazine-detail/components/BookViewer.jsx` shows them with `page-flip`. Like all other content right now, the pages are stored in the browser that uploaded them, so a backend is needed before visitors on other devices can see them (replace `bookStore.js` with upload/download calls to storage).
+How it works: `src/shared/services/pdfBook.js` reads the PDF with pdf.js and renders each page to a JPEG in the browser; `src/shared/services/bookStore.js` uploads the page images to the Cloudflare R2 bucket through the media Worker; `src/pages/magazine-detail/components/BookViewer.jsx` loads those public preview pages with `page-flip`. The magazine record stores the R2 book key and page metadata.
 
 ## Cloud setup: Google sign-in, Firestore, and Cloudflare R2
 
@@ -93,6 +93,6 @@ After `npm run build`, deploy the existing Firebase Hosting site with `npx fireb
 - Saved drafts are private to their signed-in customer; admins see drafts in a separate section. Submitted orders are shared with admins, while customers can only read their own.
 - Customer photo uploads are stored as private R2 objects. The Worker verifies Firebase ID tokens, limits uploads to image files up to 20 MB, and only serves an image to its owner or a configured admin.
 - Existing browser-only submitted orders are imported into Firestore the first time an admin opens the order list on that browser. Legacy drafts on a browser are claimed by the first account that signs in there.
-- Site content edited in Admin is stored as individual Firestore documents; the first admin visit imports this browser's old local content. Flipbook page images and ordinary product cart contents still use browser storage. Existing local flipbook images are not automatically uploaded to R2.
+- Site content edited in Admin is stored as individual Firestore documents; the first admin visit imports this browser's old local content. New flipbook page images are stored in R2. Existing IndexedDB flipbook images are not automatically migrated; replace and save those PDFs in Admin to upload them. Ordinary product cart contents still use browser storage.
 
 See the official [Firebase web setup](https://firebase.google.com/docs/web/setup), [Google sign-in](https://firebase.google.com/docs/auth/web/google-signin), [Firestore rules](https://firebase.google.com/docs/firestore/security/get-started), and [Cloudflare R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-usage/) docs when creating the projects.

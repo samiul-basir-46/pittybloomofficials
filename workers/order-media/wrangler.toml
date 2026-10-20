@@ -1,5 +1,6 @@
 name = "pittybloom-order-media"
 main = "src/index.js"
+account_id = "ae87bccdb4cc9542c668c9869d6f9d98"
 compatibility_date = "2026-10-19"
 
 [vars]

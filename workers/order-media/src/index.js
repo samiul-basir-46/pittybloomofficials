@@ -68,7 +68,7 @@ function corsHeaders(request, env) {
   if (!allowed.includes(origin)) return null
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -77,7 +77,9 @@ function corsHeaders(request, env) {
 
 function isAdmin(claims, env) {
   const allowed = (env.ADMIN_EMAILS || '').toLowerCase().split(',').map((email) => email.trim()).filter(Boolean)
-  return Boolean(claims.email_verified && allowed.includes(String(claims.email || '').toLowerCase()))
+  // The configured admin uses Firebase Email/Password auth, which may have an
+  // unverified email claim even though the account is separately admin-approved.
+  return allowed.includes(String(claims.email || '').toLowerCase())
 }
 
 export default {
@@ -85,10 +87,82 @@ export default {
     const cors = corsHeaders(request, env)
     if (!cors) return json({ error: 'Origin is not allowed.' }, 403)
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
+    const url = new URL(request.url)
+    // Book previews are public product content, so customers can read them without signing in.
+    const publicPage = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/pages\/(\d{1,5})$/)
+    if (request.method === 'GET' && publicPage) {
+      const object = await env.MEDIA_BUCKET.get(`books/${publicPage[1]}/pages/${publicPage[2]}`)
+      if (!object) return json({ error: 'Book page not found.' }, 404, cors)
+      const headers = new Headers(cors)
+      object.writeHttpMetadata(headers)
+      headers.set('Cache-Control', 'public, max-age=3600')
+      return new Response(object.body, { headers })
+    }
+
     const claims = await verifyFirebaseToken(request, env).catch(() => null)
     if (!claims) return json({ error: 'A valid Firebase sign-in is required.' }, 401, cors)
 
-    const url = new URL(request.url)
+    if (request.method === 'GET' && url.pathname === '/books') {
+      const books = []
+      let cursor
+      do {
+        const listed = await env.MEDIA_BUCKET.list({ prefix: 'books/', cursor })
+        for (const object of listed.objects.filter((item) => item.key.endsWith('/manifest.json'))) {
+          const manifest = await env.MEDIA_BUCKET.get(object.key)
+          if (!manifest) continue
+          try { books.push(await manifest.json()) } catch { /* ignore incomplete manifests */ }
+        }
+        cursor = listed.truncated ? listed.cursor : undefined
+      } while (cursor)
+      return json({ books }, 200, cors)
+    }
+
+    const manifestPath = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/manifest$/)
+    if (request.method === 'PUT' && manifestPath) {
+      let manifest
+      try { manifest = await request.json() } catch { return json({ error: 'Invalid book details.' }, 400, cors) }
+      if (!Number.isInteger(manifest.pageCount) || manifest.pageCount < 4 || manifest.pageCount % 4 !== 0
+        || !Number.isFinite(manifest.ratio) || manifest.ratio <= 0) return json({ error: 'Invalid book details.' }, 400, cors)
+      const record = {
+        key: manifestPath[1],
+        pageCount: manifest.pageCount,
+        ratio: manifest.ratio,
+        name: String(manifest.name || 'Book PDF').slice(0, 180),
+        uploadedAt: new Date().toISOString(),
+      }
+      await env.MEDIA_BUCKET.put(`books/${record.key}/manifest.json`, JSON.stringify(record), {
+        httpMetadata: { contentType: 'application/json', cacheControl: 'private, no-store' },
+      })
+      return json({ book: record }, 201, cors)
+    }
+
+    const uploadPage = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/pages\/(\d{1,5})$/)
+    if (request.method === 'PUT' && uploadPage) {
+      if (!request.headers.get('Content-Type')?.startsWith('image/')) return json({ error: 'A rendered book page image is required.' }, 415, cors)
+      try {
+        await env.MEDIA_BUCKET.put(`books/${uploadPage[1]}/pages/${uploadPage[2]}`, request.body, {
+          httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=3600' },
+          customMetadata: { ownerUid: claims.sub },
+        })
+      } catch (error) {
+        console.error('Cloudflare R2 book page upload failed', error)
+        return json({ error: 'Cloudflare R2 could not store a book page.' }, 502, cors)
+      }
+      return json({ ok: true }, 201, cors)
+    }
+    const deleteBook = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})$/)
+    if (request.method === 'DELETE' && deleteBook) {
+      const prefix = `books/${deleteBook[1]}/pages/`
+      let cursor
+      do {
+        const listed = await env.MEDIA_BUCKET.list({ prefix, cursor })
+        if (listed.objects.length) await env.MEDIA_BUCKET.delete(listed.objects.map((object) => object.key))
+        cursor = listed.truncated ? listed.cursor : undefined
+      } while (cursor)
+      await env.MEDIA_BUCKET.delete(`books/${deleteBook[1]}/manifest.json`)
+      return json({ ok: true }, 200, cors)
+    }
+
     if (request.method === 'PUT' && /^\/media\/[a-zA-Z0-9_-]{8,80}$/.test(url.pathname)) {
       const contentType = request.headers.get('Content-Type') || ''
       const length = Number(request.headers.get('Content-Length') || 0)

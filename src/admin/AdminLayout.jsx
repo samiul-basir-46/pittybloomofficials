@@ -1,6 +1,8 @@
+import { useSyncExternalStore } from 'react'
 import { Link, NavLink, Outlet, useMatch } from 'react-router-dom'
-import { ClipboardList, ExternalLink, LayoutDashboard, Settings, SlidersHorizontal } from 'lucide-react'
+import { Check, ClipboardList, ExternalLink, LayoutDashboard, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
 import { SECTIONS } from './sections'
+import { dismissBookUpload, getBookUploads, subscribeBookUploads } from '../shared/services/bookUploadQueue'
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -14,6 +16,38 @@ const linkClass = ({ isActive }) =>
   `flex items-center gap-3 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
     isActive ? 'bg-brand text-white shadow-sm' : 'text-ink/70 hover:bg-sand/70 hover:text-ink'
   }`
+
+function UploadActivity() {
+  const jobs = useSyncExternalStore(subscribeBookUploads, getBookUploads, getBookUploads)
+  const visible = jobs.filter((job) => job.status === 'uploading' || job.status === 'error' || job.status === 'complete').slice(0, 3)
+  if (!visible.length) return null
+  return (
+    <div className="fixed bottom-4 right-4 z-[80] w-[min(24rem,calc(100vw-2rem))] space-y-2">
+      {visible.map((job) => {
+        const percent = job.total ? Math.round((job.done / job.total) * 100) : 0
+        return (
+          <div key={job.id} className="rounded-xl border border-sand bg-white p-3 shadow-xl">
+            <div className="flex items-start gap-2">
+              {job.status === 'complete' ? <Check size={17} className="mt-0.5 text-green-600" /> : <Upload size={17} className="mt-0.5 text-brand" />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{job.name}</p>
+                <p className={`text-xs ${job.status === 'error' ? 'text-red-600' : 'text-ink/60'}`}>
+                  {job.status === 'uploading' ? `${job.phase}${job.total ? ` · ${percent}%` : '…'}` : job.status === 'complete' ? 'Uploaded to Cloudflare. Edit a magazine to attach it.' : job.error}
+                </p>
+              </div>
+              {job.status !== 'uploading' && (
+                <button type="button" aria-label="Dismiss upload status" onClick={() => dismissBookUpload(job.id)} className="rounded p-1 text-ink/50 hover:bg-sand">
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+            {job.status === 'uploading' && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-sand"><div className="h-full bg-brand transition-[width]" style={{ width: `${percent}%` }} /></div>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function AdminLayout() {
   // An order's own page has room for two columns
@@ -46,6 +80,7 @@ export default function AdminLayout() {
           <Outlet />
         </div>
       </main>
+      <UploadActivity />
     </div>
   )
 }

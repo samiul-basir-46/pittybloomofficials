@@ -1,54 +1,70 @@
-// Stores the rendered page images of each magazine's PDF book in IndexedDB.
-// Page images are far too big for localStorage, so they live here and the magazine record only keeps
-// a small reference: { key, pageCount, ratio, name }.
-// When a backend is added, replace these four functions with API calls (upload pages, fetch page URLs).
-const DB_NAME = 'pittybloom'
-const STORE = 'books'
+// Magazine preview pages are stored in Cloudflare R2 through the authenticated media Worker.
+import { auth } from './firebaseClient'
 
-const open = () =>
-  new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1)
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE)
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
+const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
+const newKey = () => `book-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
-const run = (mode, action) =>
-  open().then(
-    (db) =>
-      new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, mode)
-        const req = action(tx.objectStore(STORE))
-        tx.oncomplete = () => {
-          db.close()
-          resolve(req?.result)
-        }
-        tx.onabort = tx.onerror = () => {
-          db.close()
-          reject(tx.error)
-        }
-      }),
-  )
+async function adminToken() {
+  if (!MEDIA_API) throw new Error('Cloudflare media storage is not configured. Set VITE_MEDIA_API_URL.')
+  if (!auth?.currentUser) throw new Error('Sign in to the admin account before uploading a PDF.')
+  return auth.currentUser.getIdToken()
+}
 
 export const bookStore = {
-  // pages: array of image Blobs, in page order. Returns the key to keep on the magazine.
-  async save(pages) {
-    const key = `book-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  async save(pages, metadata, onProgress) {
+    const key = newKey()
+    const token = await adminToken()
+    let uploaded = 0
     try {
-      await run('readwrite', (s) => s.put(pages, key))
-    } catch (error) {
-      if (error?.name === 'QuotaExceededError') {
-        throw new Error('This browser is out of storage space for the PDF preview. Free some device storage and try again.')
+      // A few pages at a time avoids holding a large PDF's full upload queue in memory.
+      for (let start = 0; start < pages.length; start += 3) {
+        await Promise.all(pages.slice(start, start + 3).map(async (page, offset) => {
+          const response = await fetch(`${MEDIA_API}/books/${key}/pages/${start + offset + 1}`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
+            body: page,
+          })
+          if (!response.ok) {
+            const result = await response.json().catch(() => null)
+            throw new Error(result?.error || `Could not upload PDF preview page ${start + offset + 1}.`)
+          }
+          onProgress?.(++uploaded, pages.length)
+        }))
       }
+      const manifest = await fetch(`${MEDIA_API}/books/${key}/manifest`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...metadata, pageCount: pages.length }),
+      })
+      if (!manifest.ok) {
+        const result = await manifest.json().catch(() => null)
+        throw new Error(result?.error || 'Could not finish saving the PDF upload.')
+      }
+      return key
+    } catch (error) {
+      await this.remove(key).catch(() => {})
       throw error
     }
-    return key
   },
-  get: (key) => run('readonly', (s) => s.get(key)),
-  remove: (key) => run('readwrite', (s) => s.delete(key)),
-  // Deletes every stored book that no magazine refers to any more (replaced or removed PDFs).
-  async prune(keysInUse) {
-    const keys = await run('readonly', (s) => s.getAllKeys())
-    await Promise.all(keys.filter((k) => !keysInUse.includes(k)).map((k) => this.remove(k)))
+  async get(key, pageCount) {
+    if (!MEDIA_API) throw new Error('Cloudflare media storage is not configured.')
+    return Promise.all(Array.from({ length: pageCount }, async (_, index) => {
+      const response = await fetch(`${MEDIA_API}/books/${key}/pages/${index + 1}`)
+      if (!response.ok) throw new Error(`Could not load preview page ${index + 1} from Cloudflare R2.`)
+      return response.blob()
+    }))
+  },
+  async list() {
+    const token = await adminToken()
+    const response = await fetch(`${MEDIA_API}/books`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!response.ok) throw new Error('Could not load uploaded PDFs from Cloudflare R2.')
+    const result = await response.json()
+    return result.books ?? []
+  },
+  async remove(key) {
+    if (!key || !MEDIA_API) return
+    const token = await adminToken()
+    const response = await fetch(`${MEDIA_API}/books/${key}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (!response.ok) throw new Error('Could not remove the old PDF preview from Cloudflare R2.')
   },
 }
