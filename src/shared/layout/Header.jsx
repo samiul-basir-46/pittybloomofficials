@@ -4,6 +4,7 @@ import Container from '../ui/Container'
 import SmartImage from '../ui/SmartImage'
 import useAsync from '../hooks/useAsync'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
 import { getNavLinks } from '../services/contentService'
 
@@ -12,6 +13,7 @@ const linkClass = ({ isActive }) =>
 
 export default function Header() {
   const { count } = useCart()
+  const { user, signOut, configured } = useAuth()
   const { settings } = useSettings()
   const nav = useAsync(getNavLinks)
 
@@ -44,9 +46,9 @@ export default function Header() {
           <Link to="/account" aria-label="Account">
             <User size={20} />
           </Link>
-          <button className="hidden items-center gap-2 text-xs uppercase tracking-wide text-ink/70 sm:flex">
+          {configured && user && <button onClick={signOut} className="hidden items-center gap-2 text-xs uppercase tracking-wide text-ink/70 sm:flex">
             <LogOut size={16} /> Logout
-          </button>
+          </button>}
         </div>
       </Container>
     </header>

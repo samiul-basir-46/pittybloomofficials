@@ -2,6 +2,7 @@ import { buildOrder } from '../../../shared/utils/orders'
 import { photoStore } from './photoStore'
 import { checkDate } from './pricing'
 import { cleanInstagram } from './validation'
+import { copyTitle } from './copies'
 
 const LOCATION_LABEL = { inside: 'Inside Dhaka', outside: 'Outside Dhaka' }
 export const locationLabel = (id) => LOCATION_LABEL[id] ?? ''
@@ -33,7 +34,16 @@ export function buildMagazineOrder({ id, draft, copies, occasions, addons, magaz
       price: copy.size.price,
       meta: { pages: copy.size.pages, photos: copy.size.photos, format: copy.size.format },
       details,
-      photos: { count: photos.length, front: nameOf(meta.front) ?? '', back: nameOf(meta.back) ?? '', names: photos.map((p) => p.name) },
+      photos: {
+        count: photos.length,
+        front: nameOf(meta.front) ?? '',
+        back: nameOf(meta.back) ?? '',
+        names: photos.map((p) => p.name),
+        copy: copyTitle(copy),
+        frontId: meta.front ?? '',
+        backId: meta.back ?? '',
+        files: photos.map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })),
+      },
     }
   })
   addons.forEach((a) =>

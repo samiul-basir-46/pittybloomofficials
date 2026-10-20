@@ -6,7 +6,8 @@ export const makeOrderId = (existing = []) => {
   const d = new Date()
   const day = `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
   for (;;) {
-    const id = `PB-${day}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+    const entropy = globalThis.crypto?.randomUUID?.().replaceAll('-', '').slice(0, 8) ?? Math.random().toString(36).slice(2, 10)
+    const id = `PB-${day}-${entropy.toUpperCase()}`
     if (!taken.has(id)) return id
   }
 }

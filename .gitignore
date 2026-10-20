@@ -1,4 +1,11 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
+.dev.vars
+workers/**/.dev.vars
+.wrangler
+workers/**/.wrangler
+.firebaserc
 *.patch

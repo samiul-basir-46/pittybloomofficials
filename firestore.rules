@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Admin records are provisioned manually in the Firebase Console. A user can
+    // read their own role but cannot grant themselves or anyone else admin access.
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /orders/{orderId} {
+      allow create: if isAdmin() || (signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.id == orderId
+        && request.resource.data.status == 'New'
+        && request.resource.data.customer.uid == request.auth.uid
+        && request.resource.data.customer.email == request.auth.token.email
+        && request.resource.data.items is list
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0);
+      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /drafts/{draftId} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.id == draftId
+        && request.resource.data.status == 'draft';
+      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.status == 'draft');
+      allow delete: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+    }
+
+    match /contentData/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

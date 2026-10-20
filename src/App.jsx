@@ -12,6 +12,7 @@ import StickerPage from './pages/sticker/StickerPage'
 import PhotoStripPage from './pages/photo-strip/PhotoStripPage'
 import CartPage from './pages/cart/CartPage'
 import AccountPage from './pages/account/AccountPage'
+import AdminLoginPage from './admin/AdminLoginPage'
 import ProductPage from './pages/products/ProductPage'
 import NotFoundPage from './pages/not-found/NotFoundPage'
 import AdminLayout from './admin/AdminLayout'
@@ -24,6 +25,8 @@ import OrderDetailsPage from './pages/order-details/OrderDetailsPage'
 import OrderPage from './pages/order/OrderPage'
 import OrderSettingsPage from './admin/OrderSettingsPage'
 import { SECTIONS } from './admin/sections'
+import { RequireAdmin, RequireCustomer } from './shared/ui/RouteGuards'
+import DraftDetailPage from './admin/DraftDetailPage'
 
 export default function App() {
   return (
@@ -35,7 +38,7 @@ export default function App() {
 
           <Route path="magazines" element={<MagazinesPage />} />
           <Route path="magazines/:id" element={<MagazineDetailPage />} />
-          <Route path="magazines/:id/order" element={<OrderPage />} />
+          <Route path="magazines/:id/order" element={<RequireCustomer><OrderPage /></RequireCustomer>} />
           <Route path="magazines/:id/details" element={<OrderDetailsPage />} />
 
           {/* One page per product, each in its own folder under src/pages (placeholders for now) */}
@@ -47,19 +50,21 @@ export default function App() {
 
           <Route path="cart" element={<CartPage />} />
           <Route path="account" element={<AccountPage />} />
+          <Route path="admin/login" element={<AdminLoginPage />} />
 
           <Route path="faq" element={<FaqPage />} />
           <Route path="policies/:id" element={<PolicyPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 
-        <Route path="admin" element={<AdminLayout />}>
+        <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
           <Route index element={<Dashboard />} />
           {SECTIONS.map((s) => (
             <Route key={s.path} path={s.path} element={<ItemManager key={s.path} {...s} />} />
           ))}
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="drafts/:id" element={<DraftDetailPage />} />
           <Route path="order-settings" element={<OrderSettingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>

@@ -39,7 +39,7 @@ describe('Admin orders: list and separate detail page', () => {
 
     const row = await screen.findByRole('link', { name: /PB-1/ })
     expect(row).toHaveAttribute('href', '/admin/orders/PB-1')
-    expect(within(row).getByText('2 × A4 Magazine · 8 Pages + 1 extra')).toBeInTheDocument()
+    expect(within(row).getByText(/Couple Magazine.*8 Pages.*Gift Box/)).toBeInTheDocument()
     expect(within(row).getByText('New')).toBeInTheDocument()
     // The details are NOT in the list any more
     expect(screen.queryByText('Sarah Ahmed')).not.toBeInTheDocument()

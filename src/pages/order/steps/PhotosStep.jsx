@@ -17,19 +17,32 @@ function PhotoPanel({ copy, ctx, refresh }) {
   const theme = occasions.find((o) => o.id === draft.customs[copy.key]?.occasionId)
 
   const setMeta = (patch) => update((d) => ({ ...d, photos: { ...d.photos, [copy.key]: { ...d.photos[copy.key], ...patch } } }))
+  const syncFiles = () => update((d) => ({
+    ...d,
+    photos: {
+      ...d.photos,
+      [copy.key]: {
+        ...d.photos[copy.key],
+        files: photoStore.list(copy.key).map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })),
+      },
+    },
+  }))
   const add = (e) => {
     const result = photoStore.add(copy.key, e.target.files)
     e.target.value = ''
     const notes = []
     if (result.rejected) notes.push(`${result.rejected} file${result.rejected > 1 ? 's were' : ' was'} not a picture and ${result.rejected > 1 ? 'were' : 'was'} skipped.`)
+    if (result.tooLarge) notes.push(`${result.tooLarge} image${result.tooLarge > 1 ? 's are' : ' is'} larger than 20 MB and ${result.tooLarge > 1 ? 'were' : 'was'} skipped.`)
     if (result.skipped) notes.push(`${result.skipped} photo${result.skipped > 1 ? 's were' : ' was'} already added.`)
     setMessage(notes.join(' '))
+    syncFiles()
     refresh()
   }
   const remove = (id) => {
     photoStore.remove(copy.key, id)
     if (meta.front === id) setMeta({ front: null })
     if (meta.back === id) setMeta({ back: null })
+    syncFiles()
     refresh()
   }
   // A photo can be the front or the back, not both

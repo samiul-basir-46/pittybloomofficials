@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { CheckCircle2, MessageCircle, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
@@ -14,6 +14,8 @@ import { savedDrafts } from '../order/lib/savedDrafts'
 import { buildOrder, makeOrderId } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
 import { inputClass } from '../../admin/classes'
+import { useAuth } from '../../shared/context/AuthContext'
+import { firebaseConfigured } from '../../shared/services/firebaseClient'
 
 const buildMessage = (items, subtotal, c, brand, orderId) =>
   [
@@ -179,8 +181,10 @@ function Line({ item }) {
 export default function CartPage() {
   const { items, subtotal, savings, count, clear } = useCart()
   const { settings } = useSettings()
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const submitting = useRef(false)
-  const drafts = useAsync(savedDrafts.list)
+  const drafts = useAsync(savedDrafts.list, [user?.uid])
   const magazines = useAsync(getMagazines)
   const draftList = drafts.data ?? []
   const removeDraft = async (d) => {
@@ -192,6 +196,7 @@ export default function CartPage() {
     }
   }
   const [placed, setPlaced] = useState(null)
+  const [submitError, setSubmitError] = useState('')
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', note: '' })
   const set = (key) => (e) => setCustomer({ ...customer, [key]: e.target.value })
   const whatsapp = (settings.whatsapp || '').replace(/\D/g, '')
@@ -199,19 +204,24 @@ export default function CartPage() {
   const placeOrder = async (e) => {
     e.preventDefault()
     if (submitting.current || items.length === 0) return
+    if (firebaseConfigured && !user) {
+      navigate(`/account?next=${encodeURIComponent('/cart')}`)
+      return
+    }
     submitting.current = true
-    const existing = await ordersApi.list()
-    const id = makeOrderId(existing)
+    setSubmitError('')
+    const id = makeOrderId([])
     const text = buildMessage(items, subtotal, customer, settings.name, id)
     const url = whatsapp
       ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`
       : `mailto:${settings.email}?subject=${encodeURIComponent(`New order ${id}`)}&body=${encodeURIComponent(text)}`
 
-    // The order is saved first. If browser storage is full the customer can still send the message.
     try {
       await ordersApi.save(buildOrder({ id, cartItems: items, customer }))
     } catch {
-      // the message below still carries the whole order
+      setSubmitError('We could not save your order. Your cart is still here; please try again.')
+      submitting.current = false
+      return
     }
     if (whatsapp) window.open(url, '_blank', 'noopener')
     else window.location.href = url
@@ -287,8 +297,10 @@ export default function CartPage() {
                 <input className={inputClass} placeholder="Note for us (optional)" value={customer.note} onChange={set('note')} />
               </div>
 
+              {submitError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{submitError}</p>}
+
               <Button type="submit" className="w-full gap-2 shadow-lg">
-                <MessageCircle size={18} /> {whatsapp ? 'Place order on WhatsApp' : 'Place order by email'}
+                <MessageCircle size={18} /> {firebaseConfigured && !user ? 'Sign in to place order' : whatsapp ? 'Place order on WhatsApp' : 'Place order by email'}
               </Button>
               <p className="text-center text-xs text-ink/50">
                 This opens a ready message with your order. Send it and we will confirm the details, delivery charge and payment with you.

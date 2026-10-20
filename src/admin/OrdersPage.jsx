@@ -10,6 +10,7 @@ import { inputClass } from './classes'
 import { CopyButton, LEVEL_STYLE, StatusBadge, UrgencyPill, orderSummary, when } from './orderUi'
 import { cityText, formatOrderSummary } from './orderSummary'
 import SummaryDialog from './SummaryDialog'
+import { savedDrafts } from '../pages/order/lib/savedDrafts'
 
 const PILLS = [
   { id: 'all', label: 'All' },
@@ -58,6 +59,7 @@ function Row({ order, urgency, settings, now }) {
 // Clicking a row opens the full order on its own page. Filters live in the address, so Back keeps them.
 export default function OrdersPage() {
   const orders = useAsync(ordersApi.list)
+  const drafts = useAsync(savedDrafts.list)
   const settingsData = useAsync(getOrderSettings)
   const [params, setParams] = useSearchParams()
   const [dialog, setDialog] = useState(false)
@@ -77,13 +79,14 @@ export default function OrdersPage() {
 
   const all = orders.data ?? []
   const q = query.trim().toLowerCase()
+  const draftRows = (drafts.data ?? []).filter((d) => !q || [d.id, d.magazineTitle, d.draft?.contact?.name, d.draft?.contact?.phone].some((v) => String(v ?? '').toLowerCase().includes(q)))
   const withUrgency = useMemo(
     () =>
       all
         .filter(
           (o) =>
             (status === 'All' || o.status === status) &&
-            (!q || [o.id, o.customer?.name, o.customer?.phone, o.customer?.instagram].some((v) => String(v ?? '').toLowerCase().includes(q))),
+            (!q || [o.id, o.customer?.name, o.customer?.phone, o.customer?.instagram, ...o.items.map((i) => i.name), ...o.items.map((i) => i.optionLabel)].some((v) => String(v ?? '').toLowerCase().includes(q))),
         )
         .map((order) => ({ order, urgency: getUrgency(order, settings, now) })),
     [all, status, q, settings, now],
@@ -112,7 +115,7 @@ export default function OrdersPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-serif text-3xl">Orders</h1>
-          <p className="mt-1 text-sm text-ink/60">{all.length} total</p>
+          <p className="mt-1 text-sm text-ink/60">{all.length} submitted · {draftRows.length} incomplete drafts</p>
         </div>
         <button
           type="button"
@@ -123,6 +126,19 @@ export default function OrdersPage() {
           {urgentTotal > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs" aria-label={`${urgentTotal} urgent`}>{urgentTotal} urgent</span>}
         </button>
       </div>
+
+      {draftRows.length > 0 && <section className="mb-8" aria-labelledby="draft-orders-heading">
+        <h2 id="draft-orders-heading" className="mb-3 text-sm font-bold uppercase tracking-widest text-ink/60">Incomplete drafts ({draftRows.length})</h2>
+        <ul className="space-y-2">
+          {draftRows.map((d) => <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 px-4 py-3">
+            <div className="min-w-0">
+              <p className="truncate font-semibold">{d.draft?.contact?.name || 'Customer not provided'} · {d.magazineTitle}</p>
+              <p className="text-sm text-ink/60">{d.summary || 'Magazine configuration not selected'} · Step {d.step} of {d.totalSteps}{d.photoCount ? ` · ${d.photoCount} saved photos` : ''}</p>
+            </div>
+            <Link className="shrink-0 text-sm font-semibold text-brand hover:underline" to={`/admin/drafts/${encodeURIComponent(d.id)}`}>View draft</Link>
+          </li>)}
+        </ul>
+      </section>}
 
       <div className="mb-4 flex flex-wrap gap-3">
         <label className="relative min-w-0 flex-1 basis-60">
@@ -169,10 +185,7 @@ export default function OrdersPage() {
         })}
       </div>
 
-      <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        Orders are saved in the browser where the customer placed them, so this list only shows orders made on this device.
-        The WhatsApp message is what reaches you from customers until orders are connected to an online database.
-      </p>
+      <p className="mb-6 text-xs text-ink/50">Order data is stored in this browser. A shared backend is needed before customer submissions can appear on a separate admin device.</p>
 
       {orders.error ? (
         <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

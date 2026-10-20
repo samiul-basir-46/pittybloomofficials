@@ -78,6 +78,17 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
   const [submitError, setSubmitError] = useState('')
   const [result, setResult] = useState(null)
   const [saveState, setSaveState] = useState(null) // null | saving | saved | error
+  const [photosReady, setPhotosReady] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    const restore = async () => {
+      await Promise.all(Object.entries(draft.photos ?? {}).map(([key, meta]) => photoStore.hydrate(key, meta.files ?? [])))
+      if (alive) setPhotosReady(true)
+    }
+    restore()
+    return () => { alive = false }
+  }, [])
 
   // Saved after every change so a refresh keeps the form. Not after the order is placed.
   useEffect(() => {
@@ -111,6 +122,7 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
     setSaveState('saving')
     const id = draft.savedId ?? newDraftId()
     try {
+      await photoStore.flush(copies.map((copy) => copy.key))
       const photoCount = copies.reduce((n, c) => n + photoStore.list(c.key).length, 0)
       const summary = formats
         .filter((f) => draft.picks[f.id])
@@ -130,7 +142,15 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
         stepLabel: STEPS[step - 1].label,
         totalSteps: STEPS.length,
         photoCount,
-        draft: { ...draft, savedId: id, photos: {} },
+        // Keep image references with the draft. The binary files are stored in IndexedDB.
+        draft: {
+          ...draft,
+          savedId: id,
+          photos: Object.fromEntries(copies.map((copy) => [copy.key, {
+            ...(draft.photos[copy.key] ?? {}),
+            files: photoStore.list(copy.key).map(({ id: photoId, name, size, type, storageKey }) => ({ id: photoId, name, size, type, storageKey })),
+          }])),
+        },
       })
       update((d) => ({ ...d, savedId: id }))
       setSaveState('saved')
@@ -173,9 +193,9 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
     setStatus('submitting')
     setSubmitError('')
     try {
-      const existing = await ordersApi.list()
+      await photoStore.flush(copies.map((copy) => copy.key))
       // The ID is made once, so retrying after an error can never create a second order
-      orderId.current ??= makeOrderId(existing)
+      orderId.current ??= makeOrderId([])
       const order = buildMagazineOrder({ id: orderId.current, draft, copies, occasions, addons: chosenAddons, magazine, totals, settings, now, longDate })
 
       // The order must be saved before anything else happens. If saving fails we land in the catch below:
@@ -194,10 +214,14 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
       setStatus('done')
       if (number) window.open(url, '_blank', 'noopener')
       else window.location.href = url
-    } catch {
+    } catch (error) {
+      console.error('Magazine order submission failed:', error)
       submitting.current = false
       setStatus('error')
-      setSubmitError('Your order could not be saved, so it has not been placed. Nothing you entered has been lost, so please try again.')
+      const detail = error?.code === 'permission-denied'
+        ? 'Firebase denied this order. Please sign in again and check that Firestore rules are deployed.'
+        : error?.message || ''
+      setSubmitError(`Your order could not be saved, so it has not been placed. Your progress is still here. Please try again.${detail ? ` (${detail})` : ''}`)
     }
   }
 
@@ -224,6 +248,8 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
         </Container>
       </div>
     )
+
+  if (!photosReady) return <p className="py-32 text-center text-ink/60">Restoring your saved photos…</p>
 
   const ctx = { magazine, sizes, addons, chosenAddons, addonsFailed, occasions, settings, formats, copies, draft, update, errors, clear, totals, now, goTo, submitError }
   const StepView = STEP_COMPONENTS[step - 1]
@@ -280,20 +306,20 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
 
             <StepView ctx={ctx} />
 
-            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-sand bg-white/95 px-4 py-3 backdrop-blur lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-              <div className="mx-auto flex max-w-[1488px] items-center gap-3 sm:px-2 lg:px-0">
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={back} disabled={busy}>
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-sand bg-white/95 px-3 py-3 backdrop-blur lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+              <div className="mx-auto flex max-w-[1488px] items-center gap-2 sm:px-2 lg:gap-3 lg:px-0">
+                <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5 max-[460px]:px-3" onClick={back} disabled={busy}>
                   <ArrowLeft size={16} /> Back
                 </Button>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={saveToCart} disabled={busy || saveState === 'saving'}>
+                <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5 max-[460px]:px-3" onClick={saveToCart} disabled={busy || saveState === 'saving'}>
                   <ShoppingCart size={16} />
                   <span className="max-[460px]:sr-only">{saveState === 'saving' ? 'Saving…' : 'Save to Cart'}</span>
                 </Button>
-                <div className="mr-auto leading-tight lg:hidden">
+                <div className="mr-auto shrink-0 leading-tight lg:hidden">
                   <p className="text-xs text-ink/60">Total</p>
                   <p className="text-lg font-extrabold">{formatPrice(totals.total)}</p>
                 </div>
-                <Button type="submit" className="ml-auto gap-2 shadow-lg disabled:opacity-70" disabled={busy}>
+                <Button type="submit" className="ml-auto shrink-0 gap-2 whitespace-nowrap shadow-lg disabled:opacity-70 max-[460px]:px-3 max-[460px]:text-sm" disabled={busy}>
                   {busy ? (
                     <>
                       <Loader2 size={18} className="animate-spin" /> Placing your order…

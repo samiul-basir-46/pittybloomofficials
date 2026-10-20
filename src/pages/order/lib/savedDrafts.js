@@ -1,9 +1,8 @@
-// "Save to Cart": an unfinished magazine order the customer can come back to.
-// Drafts live in their own list, so a draft is never mistaken for a placed order (those are in 'orders').
-// For now they are kept in this browser only. When accounts and a backend exist, replace the four functions
-// below with API calls tied to the signed-in user; nothing else needs to change.
-const KEY = 'pb:saved-drafts'
+import { auth, db, firebaseConfigured } from '../../../shared/services/firebaseClient'
+import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, where } from 'firebase/firestore'
 
+// A saved draft is stored separately from submitted orders and belongs to one account.
+const KEY = 'pb:saved-drafts'
 const read = () => {
   try {
     const list = JSON.parse(localStorage.getItem(KEY))
@@ -14,13 +13,54 @@ const read = () => {
 }
 const write = (list) => localStorage.setItem(KEY, JSON.stringify(list)) // throws when storage is full: callers show an error
 
-export const newDraftId = () => `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+export const newDraftId = () => `d-${globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`}`
 
 export const savedDrafts = {
-  list: async () => [...read()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-  get: async (id) => read().find((d) => d.id === id) ?? null,
+  list: async () => {
+    if (!firebaseConfigured) return [...read()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    const user = auth.currentUser
+    if (!user) return []
+    const admin = await getDoc(doc(db, 'admins', user.uid))
+    const ref = collection(db, 'drafts')
+    const isAdmin = admin.exists() && admin.data()?.role === 'admin'
+    // Drafts created before Google sign-in are claimed by the first signed-in
+    // account on this browser, then removed from local storage.
+    for (const legacy of read()) {
+      const draftRef = doc(db, 'drafts', legacy.id)
+      const old = await getDoc(draftRef)
+      if (!old.exists()) await setDoc(draftRef, { ...legacy, ownerUid: user.uid, status: 'draft' })
+    }
+    if (read().length) write([])
+    const snapshot = await getDocs(isAdmin
+      ? query(ref, orderBy('updatedAt', 'desc'))
+      : query(ref, where('ownerUid', '==', user.uid), orderBy('updatedAt', 'desc')))
+    return snapshot.docs.map((d) => d.data())
+  },
+  get: async (id) => {
+    if (!firebaseConfigured) return read().find((d) => d.id === id) ?? null
+    if (!auth.currentUser) return null
+    const snapshot = await getDoc(doc(db, 'drafts', id))
+    return snapshot.exists() ? snapshot.data() : null
+  },
   // One entry per id: saving the same draft again updates it, so it can never be added twice.
   save: async (entry) => {
+    if (firebaseConfigured) {
+      const user = auth.currentUser
+      if (!user) throw new Error('Sign in with Google before saving a draft.')
+      const ref = doc(db, 'drafts', entry.id)
+      const old = await getDoc(ref)
+      const now = new Date().toISOString()
+      const next = {
+        ...entry,
+        ownerUid: user.uid,
+        account: { uid: user.uid, email: user.email || '', displayName: user.displayName || '' },
+        status: 'draft',
+        createdAt: old.exists() ? old.data().createdAt : now,
+        updatedAt: now,
+      }
+      await setDoc(ref, next)
+      return next
+    }
     const list = read()
     const old = list.find((d) => d.id === entry.id)
     const now = new Date().toISOString()
@@ -28,7 +68,5 @@ export const savedDrafts = {
     write(old ? list.map((d) => (d.id === entry.id ? next : d)) : [...list, next])
     return next
   },
-  remove: async (id) => {
-    write(read().filter((d) => d.id !== id))
-  },
+  remove: async (id) => firebaseConfigured ? deleteDoc(doc(db, 'drafts', id)) : write(read().filter((d) => d.id !== id)),
 }

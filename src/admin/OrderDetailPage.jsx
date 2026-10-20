@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Trash2 } from 'lucide-react'
 import SmartImage from '../shared/ui/SmartImage'
@@ -10,6 +10,7 @@ import { inputClass } from './classes'
 import { getUrgency } from '../shared/utils/urgency'
 import { CopyButton, LEVEL_STYLE, StatusBadge, UrgencyPill, when } from './orderUi'
 import { cityText, formatOrderSummary } from './orderSummary'
+import { photoStore } from '../pages/order/lib/photoStore'
 
 const Card = ({ title, children, className = '' }) => (
   <section className={`rounded-2xl border border-sand bg-white p-5 shadow-sm sm:p-6 ${className}`}>
@@ -30,6 +31,37 @@ const Rows = ({ rows }) => (
       ))}
   </dl>
 )
+
+export function PhotoGallery({ photos }) {
+  const [urls, setUrls] = useState({})
+  const [preview, setPreview] = useState(null)
+  useEffect(() => {
+    let active = true
+    Promise.all((photos.files ?? []).map(async (file) => [file.id, await photoStore.getUrl(file.id, file.storageKey)]))
+      .then((entries) => { if (active) setUrls(Object.fromEntries(entries)) })
+    return () => { active = false }
+  }, [photos.files])
+  if (!photos.files?.length) return <p className="mt-2 text-sm text-ink/60">Photos: {photos.count} selected (image files are unavailable on this device).</p>
+  return <div className="mt-4">
+    <p className="mb-2 text-sm font-semibold">Customer photos · {photos.copy || 'Magazine'}</p>
+    <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {photos.files.map((file) => <li key={file.id}>
+        <button type="button" onClick={() => urls[file.id] && setPreview({ ...file, url: urls[file.id] })} className="group block w-full text-left">
+          <span className="block aspect-square overflow-hidden rounded-lg bg-sand">
+            {urls[file.id] ? <img src={urls[file.id]} alt={file.name} className="h-full w-full object-cover transition group-hover:scale-105" /> : <span className="grid h-full place-items-center p-2 text-center text-xs text-ink/50">Preview unavailable</span>}
+          </span>
+          <span className="mt-1 block truncate text-xs text-ink/70">{file.name}</span>
+          {file.id === photos.frontId && <span className="text-[10px] font-semibold text-brand">Front page</span>}
+          {file.id === photos.backId && <span className="text-[10px] font-semibold text-brand">Back page</span>}
+        </button>
+      </li>)}
+    </ul>
+    {preview && <div role="dialog" aria-modal="true" aria-label={`Preview ${preview.name}`} onClick={() => setPreview(null)} className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4">
+      <button type="button" onClick={() => setPreview(null)} className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold">Close</button>
+      <img src={preview.url} alt={preview.name} className="max-h-[88vh] max-w-full rounded-xl object-contain" />
+    </div>}
+  </div>
+}
 
 function Item({ item, image }) {
   return (
@@ -59,11 +91,14 @@ function Item({ item, image }) {
           </dl>
         )}
         {item.photos && (
+          <>
           <p className="mt-2 text-sm text-ink/60">
             Photos: {item.photos.count} chosen
             {item.photos.front && ` · Front: ${item.photos.front}`}
             {item.photos.back && ` · Back: ${item.photos.back}`}
           </p>
+          <PhotoGallery photos={item.photos} />
+          </>
         )}
       </div>
     </li>
@@ -164,7 +199,6 @@ export default function OrderDetailPage() {
           <ItemList title="Magazines" items={magazines} imageFor={() => ''} />
           <ItemList title="Additional products" items={extras} imageFor={addonImage} />
           <ItemList title="Other products" items={others} imageFor={() => ''} />
-          {extras.length === 0 && <p className="text-sm text-ink/50">No additional products in this order.</p>}
         </div>
 
         <div className="space-y-6">
@@ -213,6 +247,8 @@ export default function OrderDetailPage() {
                 { label: 'Phone', value: c.phone },
                 { label: 'Instagram', value: c.instagram },
                 { label: 'Email', value: c.email },
+                { label: 'Authenticated account ID', value: c.uid },
+                { label: 'Contact email', value: c.contactEmail && c.contactEmail !== c.email ? c.contactEmail : '' },
               ]}
             />
             {c.note && <p className="mt-3 rounded-xl bg-cream/70 p-3 text-sm italic text-ink/70">“{c.note}”</p>}

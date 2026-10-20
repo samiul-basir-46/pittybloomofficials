@@ -55,10 +55,14 @@ function Attention() {
   )
 }
 
-const reset = () => {
+const reset = async () => {
   if (!window.confirm('Reset ALL content to defaults? Your edits will be lost.')) return
-  store.clear()
-  window.location.reload()
+  try {
+    await store.clear()
+    window.location.reload()
+  } catch {
+    window.alert('Could not reset site content. Check your admin sign-in and try again.')
+  }
 }
 
 export default function Dashboard() {

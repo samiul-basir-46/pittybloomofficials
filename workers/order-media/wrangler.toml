@@ -1,0 +1,12 @@
+name = "pittybloom-order-media"
+main = "src/index.js"
+compatibility_date = "2026-10-19"
+
+[vars]
+FIREBASE_PROJECT_ID = "pittybloomofficials"
+APP_ORIGIN = "http://localhost:5173,http://127.0.0.1:5173,https://pittybloomofficials.web.app"
+ADMIN_EMAILS = "sohagsb123@gmail.com"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+  bucket_name = "pittybloom"

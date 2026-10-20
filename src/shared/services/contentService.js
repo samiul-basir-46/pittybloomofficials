@@ -10,6 +10,8 @@ import { faqs } from '../../pages/faq/data'
 import { policies } from '../../pages/policy/data'
 import { navLinks } from '../layout/navLinks'
 import { SITE } from '../config/site'
+import { auth, db, firebaseConfigured } from './firebaseClient'
+import { collection as fsCollection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, where } from 'firebase/firestore'
 
 const collection = (key, seed, sort = (items) => items) => ({
   list: async () => sort(await store.get(key, seed)),
@@ -53,7 +55,52 @@ export const sizesApi = collection('printSizes', SIZES, (items) =>
 export const occasionsApi = collection('occasions', OCCASIONS, (items) => [...items].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)))
 export const productsApi = collection('products', products)
 export const addonsApi = collection('addons', addons)
-export const ordersApi = collection('orders', [], (items) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+const localOrdersApi = collection('orders', [], (items) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+const requireSignedIn = () => {
+  if (!auth?.currentUser) throw new Error('Sign in with Google before working with orders.')
+  return auth.currentUser
+}
+const userIsAdmin = async (user) => {
+  const admin = await getDoc(doc(db, 'admins', user.uid))
+  return admin.exists() && admin.data()?.role === 'admin'
+}
+export const ordersApi = !firebaseConfigured ? localOrdersApi : {
+  list: async () => {
+    const user = requireSignedIn()
+    const admin = await userIsAdmin(user)
+    const ref = fsCollection(db, 'orders')
+    if (admin) {
+      const snapshot = await getDocs(query(ref, orderBy('createdAt', 'desc')))
+      const remote = snapshot.docs.map((d) => d.data())
+      const known = new Set(remote.map((order) => order.id))
+      // Bring this browser's pre-Firestore orders into the shared admin queue once.
+      for (const legacy of await localOrdersApi.list()) {
+        if (known.has(legacy.id)) continue
+        const imported = { ...legacy, ownerUid: legacy.ownerUid || 'legacy-local-order' }
+        await setDoc(doc(db, 'orders', imported.id), imported)
+        remote.push(imported)
+      }
+      return remote.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    }
+    const snapshot = await getDocs(query(ref, where('ownerUid', '==', user.uid), orderBy('createdAt', 'desc')))
+    return snapshot.docs.map((d) => d.data())
+  },
+  save: async (order) => {
+    const user = requireSignedIn()
+    const ref = doc(db, 'orders', order.id)
+    const existing = await getDoc(ref)
+    if (existing.exists() && existing.data().ownerUid === user.uid) return existing.data()
+    if (existing.exists() && !(await userIsAdmin(user))) throw new Error('This order ID is already in use.')
+    const next = existing.exists() ? order : {
+      ...order,
+      ownerUid: user.uid,
+      customer: { ...order.customer, uid: user.uid, contactEmail: order.customer?.email || '', email: user.email || '' },
+    }
+    await setDoc(ref, next)
+    return next
+  },
+  remove: async (id) => deleteDoc(doc(db, 'orders', id)),
+}
 export const faqsApi = collection('faqs', faqs)
 export const policiesApi = collection('policies', policies)
 export const navLinksApi = collection('navLinks', navLinks)

@@ -26,13 +26,14 @@ export function orderSummary(order) {
     .filter((i) => i.kind === 'magazine')
     .forEach((i) => {
       const label = i.optionLabel || i.name
-      const found = groups.find((g) => g.label === label)
+      const found = groups.find((g) => g.label === label && g.name === i.name)
       if (found) found.qty += i.qty
-      else groups.push({ label, qty: i.qty })
+      else groups.push({ label, name: i.name, qty: i.qty })
     })
-  const others = order.items.filter((i) => i.kind !== 'magazine').length
-  const text = groups.map((g) => `${g.qty} × ${g.label}`).join(', ')
-  return [text || 'No magazine', others ? `+ ${others} extra${others > 1 ? 's' : ''}` : ''].filter(Boolean).join(' ')
+  const extras = order.items.filter((i) => i.kind === 'addon').map((i) => `${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`)
+  const others = order.items.filter((i) => i.kind !== 'magazine' && i.kind !== 'addon').map((i) => i.name)
+  const text = groups.map((g) => `${g.qty} × ${g.name} · ${g.label}`).join(', ')
+  return [text || 'No magazine', extras.length ? `+ ${extras.join(', ')}` : '', others.length ? `+ ${others.join(', ')}` : ''].filter(Boolean).join(' ')
 }
 
 export const LEVEL_STYLE = {

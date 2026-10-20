@@ -1,0 +1,340 @@
+[debug] [2026-10-19T19:38:14.046Z] ----------------------------------------------------------------------
+[debug] [2026-10-19T19:38:14.048Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\sohag\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js projects:list
+[debug] [2026-10-19T19:38:14.048Z] CLI Version:   15.34.0
+[debug] [2026-10-19T19:38:14.048Z] Platform:      win32
+[debug] [2026-10-19T19:38:14.048Z] Node Version:  v24.19.0
+[debug] [2026-10-19T19:38:14.048Z] Detected Agent: codex_cli
+[debug] [2026-10-19T19:38:14.048Z] Time:          Tue Oct 20 2026 01:38:14 GMT+0600 (Bangladesh Standard Time)
+[debug] [2026-10-19T19:38:14.048Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-19T19:38:14.161Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-19T19:38:14.161Z] > authorizing via signed-in user (sohagsb123@gmail.com)
+[debug] [2026-10-19T19:38:14.168Z] Checked if tokens are valid: false, expires at: 1792412856471
+[debug] [2026-10-19T19:38:14.168Z] Checked if tokens are valid: false, expires at: 1792412856471
+[debug] [2026-10-19T19:38:14.168Z] > refreshing access token with scopes: []
+[debug] [2026-10-19T19:38:14.170Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-10-19T19:38:14.170Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-19T19:38:14.345Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-10-19T19:38:14.345Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-10-19T19:38:14.353Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-10-19T19:38:15.430Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-10-19T19:38:15.430Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] ┌──────────────────────┬───────────────────────────────┬────────────────┬──────────────────────┐
+│ Project Display Name │ Project ID                    │ Project Number │ Resource Location ID │
+├──────────────────────┼───────────────────────────────┼────────────────┼──────────────────────┤
+│ my first project     │ my-first-project-e8446        │ 660815667064   │ [Not specified]      │
+├──────────────────────┼───────────────────────────────┼────────────────┼──────────────────────┤
+│ pettybloom           │ petty-bloom                   │ 616648686687   │ [Not specified]      │
+├──────────────────────┼───────────────────────────────┼────────────────┼──────────────────────┤
+│ pittybloom           │ pittybloomofficials (current) │ 245028761410   │ [Not specified]      │
+├──────────────────────┼───────────────────────────────┼────────────────┼──────────────────────┤
+│ test-firebase        │ test-firebase-ea325           │ 547719472995   │ [Not specified]      │
+├──────────────────────┼───────────────────────────────┼────────────────┼──────────────────────┤
+│ test-notes           │ test-notes-89b10              │ 656047312534   │ [Not specified]      │
+├──────────────────────┼───────────────────────────────┼────────────────┼──────────────────────┤
+│ test                 │ testcomn                      │ 1067614306737  │ [Not specified]      │
+├──────────────────────┼───────────────────────────────┼────────────────┼──────────────────────┤
+│ todo-list            │ todo-list-2022a               │ 41803939162    │ [Not specified]      │
+└──────────────────────┴───────────────────────────────┴────────────────┴──────────────────────┘
+[info] 
+[info] 7 project(s) total.
+[debug] [2026-10-19T19:38:34.237Z] ----------------------------------------------------------------------
+[debug] [2026-10-19T19:38:34.239Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\sohag\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:databases:list --project pittybloomofficials
+[debug] [2026-10-19T19:38:34.239Z] CLI Version:   15.34.0
+[debug] [2026-10-19T19:38:34.239Z] Platform:      win32
+[debug] [2026-10-19T19:38:34.239Z] Node Version:  v24.19.0
+[debug] [2026-10-19T19:38:34.239Z] Detected Agent: codex_cli
+[debug] [2026-10-19T19:38:34.239Z] Time:          Tue Oct 20 2026 01:38:34 GMT+0600 (Bangladesh Standard Time)
+[debug] [2026-10-19T19:38:34.239Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-19T19:38:34.726Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-19T19:38:34.726Z] > authorizing via signed-in user (sohagsb123@gmail.com)
+[debug] [2026-10-19T19:38:34.726Z] [iam] checking project pittybloomofficials for permissions ["datastore.databases.list","firebase.projects.get"]
+[debug] [2026-10-19T19:38:34.733Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:34.733Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:34.734Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions [none]
+[debug] [2026-10-19T19:38:34.734Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions  x-goog-user-project=pittybloomofficials
+[debug] [2026-10-19T19:38:34.734Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["datastore.databases.list","firebase.projects.get"]}
+[debug] [2026-10-19T19:38:36.110Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions 200
+[debug] [2026-10-19T19:38:36.110Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["datastore.databases.list","firebase.projects.get"]}
+[debug] [2026-10-19T19:38:36.111Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:36.111Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:36.111Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases [none]
+[debug] [2026-10-19T19:38:36.984Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases 200
+[debug] [2026-10-19T19:38:36.985Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases {}
+[info] No databases found.
+[debug] [2026-10-19T19:38:51.339Z] ----------------------------------------------------------------------
+[debug] [2026-10-19T19:38:51.343Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\sohag\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:databases:create (default) --location asia-south1 --edition standard --project pittybloomofficials
+[debug] [2026-10-19T19:38:51.343Z] CLI Version:   15.34.0
+[debug] [2026-10-19T19:38:51.343Z] Platform:      win32
+[debug] [2026-10-19T19:38:51.343Z] Node Version:  v24.19.0
+[debug] [2026-10-19T19:38:51.343Z] Detected Agent: codex_cli
+[debug] [2026-10-19T19:38:51.343Z] Time:          Tue Oct 20 2026 01:38:51 GMT+0600 (Bangladesh Standard Time)
+[debug] [2026-10-19T19:38:51.343Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-19T19:38:51.847Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-19T19:38:51.847Z] > authorizing via signed-in user (sohagsb123@gmail.com)
+[debug] [2026-10-19T19:38:51.847Z] [iam] checking project pittybloomofficials for permissions ["datastore.databases.create","firebase.projects.get"]
+[debug] [2026-10-19T19:38:51.856Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:51.856Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:51.857Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions [none]
+[debug] [2026-10-19T19:38:51.857Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions  x-goog-user-project=pittybloomofficials
+[debug] [2026-10-19T19:38:51.857Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["datastore.databases.create","firebase.projects.get"]}
+[debug] [2026-10-19T19:38:53.189Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions 200
+[debug] [2026-10-19T19:38:53.190Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["datastore.databases.create","firebase.projects.get"]}
+[debug] [2026-10-19T19:38:53.190Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:53.190Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:38:53.190Z] >>> [apiv2][query] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases databaseId=%28default%29
+[debug] [2026-10-19T19:38:53.190Z] >>> [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases {"locationId":"asia-south1","type":"FIRESTORE_NATIVE","databaseEdition":"STANDARD","deleteProtectionState":"DELETE_PROTECTION_DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","firestoreDataAccessMode":"DATA_ACCESS_MODE_UNSPECIFIED","mongodbCompatibleDataAccessMode":"DATA_ACCESS_MODE_UNSPECIFIED"}
+[debug] [2026-10-19T19:39:02.900Z] <<< [apiv2][status] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases 200
+[debug] [2026-10-19T19:39:02.900Z] <<< [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases {"name":"projects/pittybloomofficials/databases/(default)/operations/sLGWd-dg3otjSR7FMv_cyRAqMWh0dW9zLWFpc2ELIgUQAZW9zcgQBtbZ49YIDAovGg","metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.CreateDatabaseMetadata"},"done":true,"response":{"@type":"type.googleapis.com/google.firestore.admin.v1.Database","name":"projects/pittybloomofficials/databases/(default)","uid":"c9dcff32-c51e-4963-8bde-60e77796b1b0","createTime":"2026-10-19T19:39:02.313485Z","updateTime":"2026-10-19T19:39:02.313485Z","locationId":"asia-south1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-19T19:39:02.313485Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"j","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IMuDktTqxpcDMI3UkdTqxpcD"}}
+[debug] [2026-10-19T19:39:02.901Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:02.901Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:02.901Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/operations/sLGWd-dg3otjSR7FMv_cyRAqMWh0dW9zLWFpc2ELIgUQAZW9zcgQBtbZ49YIDAovGg [none]
+[debug] [2026-10-19T19:39:03.424Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/operations/sLGWd-dg3otjSR7FMv_cyRAqMWh0dW9zLWFpc2ELIgUQAZW9zcgQBtbZ49YIDAovGg 200
+[debug] [2026-10-19T19:39:03.425Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/operations/sLGWd-dg3otjSR7FMv_cyRAqMWh0dW9zLWFpc2ELIgUQAZW9zcgQBtbZ49YIDAovGg {"name":"projects/pittybloomofficials/databases/(default)/operations/sLGWd-dg3otjSR7FMv_cyRAqMWh0dW9zLWFpc2ELIgUQAZW9zcgQBtbZ49YIDAovGg","metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.CreateDatabaseMetadata"},"done":true,"response":{"@type":"type.googleapis.com/google.firestore.admin.v1.Database","name":"projects/pittybloomofficials/databases/(default)","uid":"c9dcff32-c51e-4963-8bde-60e77796b1b0","createTime":"2026-10-19T19:39:02.313485Z","updateTime":"2026-10-19T19:39:02.313485Z","locationId":"asia-south1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-19T19:39:02.313485Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"j","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IMihstTqxpcDMI3UkdTqxpcD"}}
+[info] Successfully created projects/pittybloomofficials/databases/(default)
+[info] Please be sure to configure Firebase rules in your Firebase config file for
+the new database. By default, created databases will have closed rules that
+block any incoming third-party traffic.
+[info] Your database may be viewed at https://console.firebase.google.com/project/pittybloomofficials/firestore/databases/-default-/data
+[debug] [2026-10-19T19:39:05.831Z] ----------------------------------------------------------------------
+[debug] [2026-10-19T19:39:05.832Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\sohag\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules firestore:indexes --project pittybloomofficials
+[debug] [2026-10-19T19:39:05.832Z] CLI Version:   15.34.0
+[debug] [2026-10-19T19:39:05.833Z] Platform:      win32
+[debug] [2026-10-19T19:39:05.833Z] Node Version:  v24.19.0
+[debug] [2026-10-19T19:39:05.833Z] Detected Agent: codex_cli
+[debug] [2026-10-19T19:39:05.833Z] Time:          Tue Oct 20 2026 01:39:05 GMT+0600 (Bangladesh Standard Time)
+[debug] [2026-10-19T19:39:05.833Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-19T19:39:06.520Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-19T19:39:06.520Z] > authorizing via signed-in user (sohagsb123@gmail.com)
+[debug] [2026-10-19T19:39:06.520Z] [iam] checking project pittybloomofficials for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-10-19T19:39:06.527Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:06.527Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:06.528Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions [none]
+[debug] [2026-10-19T19:39:06.528Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions  x-goog-user-project=pittybloomofficials
+[debug] [2026-10-19T19:39:06.528Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-10-19T19:39:07.871Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions 200
+[debug] [2026-10-19T19:39:07.871Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'pittybloomofficials'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-19T19:39:07.873Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:07.873Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:07.873Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/pittybloomofficials/services/firestore.googleapis.com [none]
+[debug] [2026-10-19T19:39:07.873Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/pittybloomofficials/services/firestore.googleapis.com  x-goog-user-project=pittybloomofficials
+[debug] [2026-10-19T19:39:09.625Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/pittybloomofficials/services/firestore.googleapis.com 200
+[debug] [2026-10-19T19:39:09.625Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/pittybloomofficials/services/firestore.googleapis.com [omitted]
+[info] +  firestore: required API firestore.googleapis.com is enabled 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-10-19T19:39:09.631Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:09.631Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:09.631Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default) [none]
+[debug] [2026-10-19T19:39:09.934Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default) 200
+[debug] [2026-10-19T19:39:09.934Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default) {"name":"projects/pittybloomofficials/databases/(default)","uid":"c9dcff32-c51e-4963-8bde-60e77796b1b0","createTime":"2026-10-19T19:39:02.313485Z","updateTime":"2026-10-19T19:39:02.313485Z","locationId":"asia-south1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-19T19:39:02.313485Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"j","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IKu1v9fqxpcDMNe5gNbqxpcD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-10-19T19:39:09.935Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:09.935Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:09.935Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials:test [none]
+[debug] [2026-10-19T19:39:09.935Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials:test [omitted]
+[debug] [2026-10-19T19:39:11.353Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials:test 200
+[debug] [2026-10-19T19:39:11.354Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-10-19T19:39:11.354Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:11.354Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:11.354Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases pageSize=10&pageToken=
+[debug] [2026-10-19T19:39:12.712Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases 200
+[debug] [2026-10-19T19:39:12.713Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases {}
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-10-19T19:39:12.713Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:12.713Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:12.713Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/rulesets [none]
+[debug] [2026-10-19T19:39:12.713Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/rulesets [omitted]
+[debug] [2026-10-19T19:39:14.167Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/rulesets 200
+[debug] [2026-10-19T19:39:14.168Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/rulesets {"name":"projects/pittybloomofficials/rulesets/7a66aa65-6e70-4b9b-b061-bba05bc1133e","source":{"files":[{"content":"rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signedIn() { return request.auth != null; }\n    function isAdmin() {\n      return signedIn()\n        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))\n        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';\n    }\n\n    // Admin records are provisioned manually in the Firebase Console. A user can\n    // read their own role but cannot grant themselves or anyone else admin access.\n    match /admins/{uid} {\n      allow read: if signedIn() && request.auth.uid == uid;\n      allow write: if false;\n    }\n\n    match /orders/{orderId} {\n      allow create: if isAdmin() || (signedIn()\n        && request.resource.data.ownerUid == request.auth.uid\n        && request.resource.data.id == orderId\n        && request.resource.data.status == 'New'\n        && request.resource.data.customer.uid == request.auth.uid\n        && request.resource.data.customer.email == request.auth.token.email\n        && request.resource.data.items is list\n        && request.resource.data.total is number\n        && request.resource.data.total >= 0);\n      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n\n    match /drafts/{draftId} {\n      allow create: if signedIn()\n        && request.resource.data.ownerUid == request.auth.uid\n        && request.resource.data.id == draftId\n        && request.resource.data.status == 'draft';\n      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);\n      allow update: if isAdmin() || (signedIn()\n        && resource.data.ownerUid == request.auth.uid\n        && request.resource.data.ownerUid == request.auth.uid\n        && request.resource.data.status == 'draft');\n      allow delete: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);\n    }\n\n    match /contentData/{docId} {\n      allow read: if true;\n      allow create, update, delete: if isAdmin();\n    }\n\n    match /{document=**} { allow read, write: if false; }\n  }\n}\n","name":"firestore.rules"}]},"createTime":"2026-10-19T19:39:13.463859Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-10-19T19:39:14.168Z] [rules] created ruleset projects/pittybloomofficials/rulesets/7a66aa65-6e70-4b9b-b061-bba05bc1133e
+[info] i  firestore: deploying indexes... 
+[debug] [2026-10-19T19:39:14.168Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:14.168Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:14.169Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/-/indexes [none]
+[debug] [2026-10-19T19:39:14.450Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/-/indexes 200
+[debug] [2026-10-19T19:39:14.450Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/-/indexes {}
+[debug] [2026-10-19T19:39:14.450Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:14.450Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:14.450Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* [none]
+[debug] [2026-10-19T19:39:16.199Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* 200
+[debug] [2026-10-19T19:39:16.199Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* {"fields":[{"name":"projects/pittybloomofficials/databases/(default)/collectionGroups/__default__/fields/*","indexConfig":{"indexes":[{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"ASCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"DESCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","arrayConfig":"CONTAINS"}],"state":"READY"}]}}]}
+[debug] [2026-10-19T19:39:16.199Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.199Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.199Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default) [none]
+[debug] [2026-10-19T19:39:16.267Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default) 200
+[debug] [2026-10-19T19:39:16.267Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default) {"name":"projects/pittybloomofficials/databases/(default)","uid":"c9dcff32-c51e-4963-8bde-60e77796b1b0","createTime":"2026-10-19T19:39:02.313485Z","updateTime":"2026-10-19T19:39:02.313485Z","locationId":"asia-south1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-10-19T19:39:02.313485Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"j","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IIeSwtrqxpcDMPWwvdrqxpcD"}
+[debug] [2026-10-19T19:39:16.267Z] Creating new index: {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"ownerUid","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]}
+[debug] [2026-10-19T19:39:16.267Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.267Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.267Z] >>> [apiv2][query] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/orders/indexes [none]
+[debug] [2026-10-19T19:39:16.268Z] >>> [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/orders/indexes {"fields":[{"fieldPath":"ownerUid","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}],"queryScope":"COLLECTION"}
+[debug] [2026-10-19T19:39:16.686Z] <<< [apiv2][status] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/orders/indexes 200
+[debug] [2026-10-19T19:39:16.686Z] <<< [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/orders/indexes {"name":"projects/pittybloomofficials/databases/(default)/operations/S0U0aFhqT2dBQ0lDDCoDIDRiZTkwODI3NTRkZi0xMTM4LTdiMTQtOTU5Yi02OTQ1OGMzZiQac2VuaWxlcGlwCQpBEg","metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.IndexOperationMetadata","startTime":"2026-10-19T19:39:15.939758Z","index":"projects/pittybloomofficials/databases/(default)/collectionGroups/orders/indexes/CICAgOjXh4EK","state":"INITIALIZING"}}
+[debug] [2026-10-19T19:39:16.686Z] Creating new index: {"collectionGroup":"drafts","queryScope":"COLLECTION","fields":[{"fieldPath":"ownerUid","order":"ASCENDING"},{"fieldPath":"updatedAt","order":"DESCENDING"}]}
+[debug] [2026-10-19T19:39:16.686Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.687Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.687Z] >>> [apiv2][query] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/drafts/indexes [none]
+[debug] [2026-10-19T19:39:16.687Z] >>> [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/drafts/indexes {"fields":[{"fieldPath":"ownerUid","order":"ASCENDING"},{"fieldPath":"updatedAt","order":"DESCENDING"}],"queryScope":"COLLECTION"}
+[debug] [2026-10-19T19:39:16.820Z] <<< [apiv2][status] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/drafts/indexes 200
+[debug] [2026-10-19T19:39:16.820Z] <<< [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pittybloomofficials/databases/(default)/collectionGroups/drafts/indexes {"name":"projects/pittybloomofficials/databases/(default)/operations/S01vcFVpSmdBQ0lDDCoDIDk5YTc0NzA5M2FhMy00MDg4LTRhZjQtMDExNi00YWQ0NDE3NSQac2VuaWxlcGlwCQpBEg","metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.IndexOperationMetadata","startTime":"2026-10-19T19:39:16.231903Z","index":"projects/pittybloomofficials/databases/(default)/collectionGroups/drafts/indexes/CICAgJiUpoMK","state":"INITIALIZING"}}
+[info] +  firestore: deployed indexes in firestore.indexes.json successfully for (default) database 
+[debug] [2026-10-19T19:39:16.820Z] [rules] releasing cloud.firestore with ruleset projects/pittybloomofficials/rulesets/7a66aa65-6e70-4b9b-b061-bba05bc1133e
+[debug] [2026-10-19T19:39:16.820Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.820Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:16.820Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases/cloud.firestore [none]
+[debug] [2026-10-19T19:39:16.820Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases/cloud.firestore {"release":{"name":"projects/pittybloomofficials/releases/cloud.firestore","rulesetName":"projects/pittybloomofficials/rulesets/7a66aa65-6e70-4b9b-b061-bba05bc1133e"}}
+[debug] [2026-10-19T19:39:18.119Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases/cloud.firestore 404
+[debug] [2026-10-19T19:39:18.119Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases/cloud.firestore {"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}
+[debug] [2026-10-19T19:39:18.120Z] [rules] ruleset update failed, attempting to create instead
+[debug] [2026-10-19T19:39:18.120Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:18.120Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T19:39:18.120Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases [none]
+[debug] [2026-10-19T19:39:18.120Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases {"name":"projects/pittybloomofficials/releases/cloud.firestore","rulesetName":"projects/pittybloomofficials/rulesets/7a66aa65-6e70-4b9b-b061-bba05bc1133e"}
+[debug] [2026-10-19T19:39:19.517Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases 200
+[debug] [2026-10-19T19:39:19.517Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/pittybloomofficials/releases {"name":"projects/pittybloomofficials/releases/cloud.firestore","rulesetName":"projects/pittybloomofficials/rulesets/7a66aa65-6e70-4b9b-b061-bba05bc1133e","createTime":"2026-10-19T19:39:18.825755Z","updateTime":"2026-10-19T19:39:18.825755Z"}
+[debug] [2026-10-19T19:39:19.517Z] [rules] created release projects/pittybloomofficials/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/pittybloomofficials/overview
+[debug] [2026-10-19T20:20:41.016Z] ----------------------------------------------------------------------
+[debug] [2026-10-19T20:20:41.017Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\sohag\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting --project pittybloomofficials
+[debug] [2026-10-19T20:20:41.018Z] CLI Version:   15.34.0
+[debug] [2026-10-19T20:20:41.018Z] Platform:      win32
+[debug] [2026-10-19T20:20:41.018Z] Node Version:  v24.19.0
+[debug] [2026-10-19T20:20:41.018Z] Detected Agent: codex_cli
+[debug] [2026-10-19T20:20:41.018Z] Time:          Tue Oct 20 2026 02:20:41 GMT+0600 (Bangladesh Standard Time)
+[debug] [2026-10-19T20:20:41.018Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-19T20:20:42.346Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-19T20:20:42.346Z] > authorizing via signed-in user (sohagsb123@gmail.com)
+[debug] [2026-10-19T20:20:42.346Z] [iam] checking project pittybloomofficials for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-10-19T20:20:42.355Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:42.355Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:42.356Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions [none]
+[debug] [2026-10-19T20:20:42.356Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions  x-goog-user-project=pittybloomofficials
+[debug] [2026-10-19T20:20:42.356Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-10-19T20:20:43.729Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions 200
+[debug] [2026-10-19T20:20:43.729Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pittybloomofficials:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-10-19T20:20:43.730Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:43.730Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:43.730Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/pittybloomofficials [none]
+[debug] [2026-10-19T20:20:44.414Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/pittybloomofficials 200
+[debug] [2026-10-19T20:20:44.414Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/pittybloomofficials {"projectId":"pittybloomofficials","projectNumber":"245028761410","displayName":"pittybloom","name":"projects/pittybloomofficials","resources":{"hostingSite":"pittybloomofficials"},"state":"ACTIVE","labels":{"firebase":"enabled"},"etag":"1_0882b37a-fb4d-47ad-9d74-31c79d6a06db"}
+[info] 
+[info] === Deploying to 'pittybloomofficials'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-10-19T20:20:44.417Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:44.417Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:44.417Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials [none]
+[debug] [2026-10-19T20:20:45.604Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials 200
+[debug] [2026-10-19T20:20:45.604Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials {"name":"projects/pittybloomofficials/sites/pittybloomofficials","defaultUrl":"https://pittybloomofficials.web.app","appId":"1:245028761410:web:d7dfc259800b49f6b262db","type":"DEFAULT_SITE"}
+[debug] [2026-10-19T20:20:45.610Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:45.610Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:45.612Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions [none]
+[debug] [2026-10-19T20:20:45.612Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2026-10-19T20:20:46.813Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions 200
+[debug] [2026-10-19T20:20:46.813Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions {"name":"projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[pittybloomofficials]: beginning deploy... 
+[info] i  hosting[pittybloomofficials]: found 9 files in dist 
+[debug] [2026-10-19T20:20:46.826Z] [hosting] uploading with 200 concurrency
+[debug] [2026-10-19T20:20:46.885Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:46.885Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:46.886Z] [hosting] hash cache [ZGlzdA] stored for 9 files
+[debug] [2026-10-19T20:20:46.886Z] [hosting][hash queue][FINAL] {"max":57,"min":2,"avg":16.444444444444443,"active":0,"complete":9,"success":9,"errored":0,"retried":0,"total":9,"elapsed":59}
+[debug] [2026-10-19T20:20:46.886Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d:populateFiles [none]
+[debug] [2026-10-19T20:20:46.886Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d:populateFiles {"files":{"/logo.png":"cd9d877392a3eb87b020748bec072727cd1b3f7e609d78a9ef49cba869425259","/assets/pdf.worker.min-ocdtAcA3.js":"cfba27864721f710753d4575695b6ae71e45066a8df7abb31eabc1fe0d9517a2","/index.html":"e04ee11f6ec0890018933d82e85b9fec870689ae189527e14e78d2d24a99ab2a","/assets/index-DlIsYu_P.css":"715d2579a3c4baedc2e972d5718f26a468676361200369929bcc90a39b89a81a","/assets/firebase-auth-BnHJCtLM.js":"9fac3a0e10240a72c15f093cb92abe44e9ba25cb18fe0dd4a9b92b53a98609b0","/assets/index-By0pDb0Y.js":"572a81dd014923df427191be364b5004df72ad8ec65233e5c57fccb88c36bd93","/assets/pdf-C-olXVQ4.js":"5948ceea2b2a1ef0c3c90962ee73222c41e787115d59db36ffcda2e65669c6db","/assets/firebase-firestore-DHBIWPou.js":"1943539e03a89089fd86ada9e1753781f88c85dda9610ad4d66ae83318fc949e","/assets/pdf.worker.min-yatZIOMy.mjs":"2b4ce3030b88c0c613bcea77c393931916ced6eeb7d9d10fe7efd8b814d99b9f"}}
+[debug] [2026-10-19T20:20:47.738Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d:populateFiles 200
+[debug] [2026-10-19T20:20:47.738Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d:populateFiles {"uploadRequiredHashes":["572a81dd014923df427191be364b5004df72ad8ec65233e5c57fccb88c36bd93","715d2579a3c4baedc2e972d5718f26a468676361200369929bcc90a39b89a81a","1943539e03a89089fd86ada9e1753781f88c85dda9610ad4d66ae83318fc949e","e04ee11f6ec0890018933d82e85b9fec870689ae189527e14e78d2d24a99ab2a","9fac3a0e10240a72c15f093cb92abe44e9ba25cb18fe0dd4a9b92b53a98609b0"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files"}
+[debug] [2026-10-19T20:20:47.739Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.739Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.739Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.739Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.739Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.739Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.740Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.740Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.741Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.741Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:47.742Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/572a81dd014923df427191be364b5004df72ad8ec65233e5c57fccb88c36bd93 [none]
+[debug] [2026-10-19T20:20:47.742Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/572a81dd014923df427191be364b5004df72ad8ec65233e5c57fccb88c36bd93 [stream]
+[debug] [2026-10-19T20:20:47.745Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/715d2579a3c4baedc2e972d5718f26a468676361200369929bcc90a39b89a81a [none]
+[debug] [2026-10-19T20:20:47.745Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/715d2579a3c4baedc2e972d5718f26a468676361200369929bcc90a39b89a81a [stream]
+[debug] [2026-10-19T20:20:47.745Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/1943539e03a89089fd86ada9e1753781f88c85dda9610ad4d66ae83318fc949e [none]
+[debug] [2026-10-19T20:20:47.746Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/1943539e03a89089fd86ada9e1753781f88c85dda9610ad4d66ae83318fc949e [stream]
+[debug] [2026-10-19T20:20:47.746Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/e04ee11f6ec0890018933d82e85b9fec870689ae189527e14e78d2d24a99ab2a [none]
+[debug] [2026-10-19T20:20:47.746Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/e04ee11f6ec0890018933d82e85b9fec870689ae189527e14e78d2d24a99ab2a [stream]
+[debug] [2026-10-19T20:20:47.747Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/9fac3a0e10240a72c15f093cb92abe44e9ba25cb18fe0dd4a9b92b53a98609b0 [none]
+[debug] [2026-10-19T20:20:47.747Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/9fac3a0e10240a72c15f093cb92abe44e9ba25cb18fe0dd4a9b92b53a98609b0 [stream]
+[debug] [2026-10-19T20:20:47.750Z] [hosting][populate queue][FINAL] {"max":856,"min":856,"avg":856,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":865}
+[debug] [2026-10-19T20:20:47.750Z] [hosting] uploads queued: 5
+[info] i  hosting: uploading new files [0/5] (0%) 
+[debug] [2026-10-19T20:20:49.444Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/e04ee11f6ec0890018933d82e85b9fec870689ae189527e14e78d2d24a99ab2a 200
+[debug] [2026-10-19T20:20:49.445Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/e04ee11f6ec0890018933d82e85b9fec870689ae189527e14e78d2d24a99ab2a [stream]
+[debug] [2026-10-19T20:20:49.539Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/9fac3a0e10240a72c15f093cb92abe44e9ba25cb18fe0dd4a9b92b53a98609b0 200
+[debug] [2026-10-19T20:20:49.539Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/9fac3a0e10240a72c15f093cb92abe44e9ba25cb18fe0dd4a9b92b53a98609b0 [stream]
+[debug] [2026-10-19T20:20:49.547Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/1943539e03a89089fd86ada9e1753781f88c85dda9610ad4d66ae83318fc949e 200
+[debug] [2026-10-19T20:20:49.547Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/1943539e03a89089fd86ada9e1753781f88c85dda9610ad4d66ae83318fc949e [stream]
+[debug] [2026-10-19T20:20:49.580Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/715d2579a3c4baedc2e972d5718f26a468676361200369929bcc90a39b89a81a 200
+[debug] [2026-10-19T20:20:49.580Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/715d2579a3c4baedc2e972d5718f26a468676361200369929bcc90a39b89a81a [stream]
+[debug] [2026-10-19T20:20:49.585Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/572a81dd014923df427191be364b5004df72ad8ec65233e5c57fccb88c36bd93 200
+[debug] [2026-10-19T20:20:49.586Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/pittybloomofficials/versions/3b860b2c8ef6a41d/files/572a81dd014923df427191be364b5004df72ad8ec65233e5c57fccb88c36bd93 [stream]
+[debug] [2026-10-19T20:20:49.586Z] [hosting][upload queue][FINAL] {"max":1848,"min":1706,"avg":1800.2,"active":0,"complete":5,"success":5,"errored":0,"retried":0,"total":5,"elapsed":1848}
+[info] i  hosting: upload complete 
+[info] +  hosting[pittybloomofficials]: file upload complete 
+[debug] [2026-10-19T20:20:49.586Z] [hosting] deploy completed after 2771ms
+[debug] [2026-10-19T20:20:49.586Z] [
+  {
+    "config": {
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "site": "pittybloomofficials"
+    },
+    "version": "projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d"
+  }
+]
+[info] i  hosting[pittybloomofficials]: finalizing version... 
+[debug] [2026-10-19T20:20:49.588Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:49.588Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:49.588Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d updateMask=status%2Cconfig
+[debug] [2026-10-19T20:20:49.589Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d {"status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]}}
+[debug] [2026-10-19T20:20:50.353Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d 200
+[debug] [2026-10-19T20:20:50.353Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d {"name":"projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-19T20:20:45.457256Z","createUser":{"email":"sohagsb123@gmail.com"},"finalizeTime":"2026-10-19T20:20:49.652039Z","finalizeUser":{"email":"sohagsb123@gmail.com"}}
+[debug] [2026-10-19T20:20:50.353Z] [hosting] finalized version for pittybloomofficials:[object Object]
+[info] +  hosting[pittybloomofficials]: version finalized 
+[info] i  hosting[pittybloomofficials]: releasing new version... 
+[debug] [2026-10-19T20:20:50.354Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:50.354Z] Checked if tokens are valid: true, expires at: 1792442293345
+[debug] [2026-10-19T20:20:50.354Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/channels/live/releases versionName=projects%2Fpittybloomofficials%2Fsites%2Fpittybloomofficials%2Fversions%2F3b860b2c8ef6a41d
+[debug] [2026-10-19T20:20:50.354Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/channels/live/releases {}
+[debug] [2026-10-19T20:20:51.212Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/channels/live/releases 200
+[debug] [2026-10-19T20:20:51.213Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/pittybloomofficials/sites/pittybloomofficials/channels/live/releases {"name":"projects/pittybloomofficials/sites/pittybloomofficials/channels/live/releases/1792441249800000","version":{"name":"projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-19T20:20:45.457256Z","createUser":{"email":"sohagsb123@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocI6_vVg1mcM94Y2Eh6V_nDNfuQD7FEjjlZdBk58fqKcyd5NKXbp"},"finalizeTime":"2026-10-19T20:20:49.652039Z","finalizeUser":{"email":"sohagsb123@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocI6_vVg1mcM94Y2Eh6V_nDNfuQD7FEjjlZdBk58fqKcyd5NKXbp"}},"type":"DEPLOY","releaseTime":"2026-10-19T20:20:49.800Z","releaseUser":{"email":"sohagsb123@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocI6_vVg1mcM94Y2Eh6V_nDNfuQD7FEjjlZdBk58fqKcyd5NKXbp"}}
+[debug] [2026-10-19T20:20:51.213Z] [hosting] release: {"name":"projects/pittybloomofficials/sites/pittybloomofficials/channels/live/releases/1792441249800000","version":{"name":"projects/pittybloomofficials/sites/pittybloomofficials/versions/3b860b2c8ef6a41d","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-19T20:20:45.457256Z","createUser":{"email":"sohagsb123@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocI6_vVg1mcM94Y2Eh6V_nDNfuQD7FEjjlZdBk58fqKcyd5NKXbp"},"finalizeTime":"2026-10-19T20:20:49.652039Z","finalizeUser":{"email":"sohagsb123@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocI6_vVg1mcM94Y2Eh6V_nDNfuQD7FEjjlZdBk58fqKcyd5NKXbp"}},"type":"DEPLOY","releaseTime":"2026-10-19T20:20:49.800Z","releaseUser":{"email":"sohagsb123@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocI6_vVg1mcM94Y2Eh6V_nDNfuQD7FEjjlZdBk58fqKcyd5NKXbp"}}
+[info] +  hosting[pittybloomofficials]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/pittybloomofficials/overview
+[info] Hosting URL: https://pittybloomofficials.web.app
