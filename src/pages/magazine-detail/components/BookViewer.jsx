@@ -4,6 +4,57 @@ import { PageFlip } from 'page-flip'
 import { bookStore } from '../../../shared/services/bookStore'
 
 const MAX_PAGE_WIDTH = 520
+// Below this container width the book shows one big page at a time (still with the page-curl),
+// because two tiny pages side by side are unreadable on a phone.
+const SINGLE_PAGE_BELOW = 600
+const MAX_DPR = 3
+
+// Shrinks a page image to the exact pixel size it will be drawn at. Scaling a 1650px scan straight
+// down to ~500px makes text jagged, so halve it step by step with high-quality smoothing instead.
+async function fitPage(blob, targetWidth) {
+  try {
+    const bitmap = await createImageBitmap(blob)
+    if (bitmap.width <= targetWidth * 1.25) {
+      bitmap.close()
+      return blob
+    }
+    const targetHeight = Math.round((bitmap.height * targetWidth) / bitmap.width)
+    let current = bitmap
+    let width = bitmap.width
+    let height = bitmap.height
+    while (width / 2 > targetWidth) {
+      const step = document.createElement('canvas')
+      step.width = Math.round(width / 2)
+      step.height = Math.round(height / 2)
+      const stepContext = step.getContext('2d')
+      stepContext.imageSmoothingQuality = 'high'
+      stepContext.drawImage(current, 0, 0, step.width, step.height)
+      current.close?.()
+      current = step
+      width = step.width
+      height = step.height
+    }
+    const out = document.createElement('canvas')
+    out.width = targetWidth
+    out.height = targetHeight
+    const context = out.getContext('2d')
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(current, 0, 0, targetWidth, targetHeight)
+    current.close?.()
+    const result = await new Promise((resolve) => out.toBlob(resolve, 'image/jpeg', 0.95))
+    return result ?? blob
+  } catch {
+    return blob
+  }
+}
+
+async function fitAll(pages, targetWidth) {
+  const out = []
+  for (let i = 0; i < pages.length; i += 4) {
+    out.push(...(await Promise.all(pages.slice(i, i + 4).map((page) => fitPage(page, targetWidth)))))
+  }
+  return out
+}
 
 export default function BookViewer({ book, title, fallback }) {
   const host = useRef(null)
@@ -11,6 +62,7 @@ export default function BookViewer({ book, title, fallback }) {
   const currentPage = useRef(0)
   const [status, setStatus] = useState('loading')
   const [pageIndex, setPageIndex] = useState(0)
+  const [single, setSingle] = useState(false)
   const lastPage = book.pageCount - 1
 
   useEffect(() => {
@@ -28,23 +80,29 @@ export default function BookViewer({ book, title, fallback }) {
     mount.appendChild(element)
 
     bookStore.get(book.key, book.pageCount)
-      .then((pages) => {
+      .then(async (pages) => {
         if (cancelled) return
         if (!Array.isArray(pages) || pages.length !== book.pageCount) throw new Error('Book pages not found')
 
-        pageUrls = pages.map((page) => URL.createObjectURL(page))
+        const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+        const box = mount.clientWidth || MAX_PAGE_WIDTH * 2
+        const cssPageWidth = Math.min(MAX_PAGE_WIDTH, box < SINGLE_PAGE_BELOW ? box : box / 2)
+        const sharp = await fitAll(pages, Math.round(cssPageWidth * dpr))
+        if (cancelled) return
+
+        pageUrls = sharp.map((page) => URL.createObjectURL(page))
         const ratio = book.ratio || 1 / 1.4142
         const pageWidth = MAX_PAGE_WIDTH
         instance = new PageFlip(element, {
           width: pageWidth,
           height: Math.round(pageWidth / ratio),
           size: 'stretch',
-          minWidth: 150,
+          minWidth: SINGLE_PAGE_BELOW / 2,
           maxWidth: MAX_PAGE_WIDTH,
           minHeight: Math.round(150 / ratio),
           maxHeight: Math.round(MAX_PAGE_WIDTH / ratio),
           showCover: true,
-          usePortrait: false,
+          usePortrait: true,
           flippingTime: 900,
           maxShadowOpacity: 0.55,
           // Keep vertical page scrolling native while allowing PageFlip to receive
@@ -61,7 +119,7 @@ export default function BookViewer({ book, title, fallback }) {
           resizeCanvas()
           const canvas = ui.getCanvas()
           const bounds = canvas.getBoundingClientRect()
-          const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
+          const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
           canvas.width = Math.max(1, Math.round(bounds.width * dpr))
           canvas.height = Math.max(1, Math.round(bounds.height * dpr))
           const context = canvas.getContext('2d')
@@ -73,7 +131,9 @@ export default function BookViewer({ book, title, fallback }) {
           currentPage.current = data
           setPageIndex(data)
         })
+        instance.on('changeOrientation', ({ data }) => setSingle(data === 'portrait'))
         instance.loadFromImages(pageUrls)
+        setSingle(instance.getOrientation() === 'portrait')
         flip.current = instance
         setStatus('ready')
       })
@@ -109,7 +169,7 @@ export default function BookViewer({ book, title, fallback }) {
         <button type="button" onClick={() => flip.current?.flipPrev()} disabled={!ready || pageIndex <= 0} aria-label="Previous pages" className={arrow}>
           <ChevronLeft size={18} />
         </button>
-        <span aria-live="polite">{pageIndex === 0 ? 'Cover' : pageIndex >= lastPage ? 'Back cover' : `Pages ${pageIndex + 1}–${Math.min(pageIndex + 2, book.pageCount)}`} · {book.pageCount}</span>
+        <span aria-live="polite">{pageIndex === 0 ? 'Cover' : pageIndex >= lastPage ? 'Back cover' : single ? `Page ${pageIndex + 1}` : `Pages ${pageIndex + 1}–${Math.min(pageIndex + 2, book.pageCount)}`} · {book.pageCount}</span>
         <button type="button" onClick={() => flip.current?.flipNext()} disabled={!ready || pageIndex >= lastPage} aria-label="Next pages" className={arrow}>
           <ChevronRight size={18} />
         </button>
