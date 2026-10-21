@@ -8,6 +8,10 @@ const MAX_PAGE_WIDTH = 520
 // because two tiny pages side by side are unreadable on a phone.
 const SINGLE_PAGE_BELOW = 600
 const MAX_DPR = 3
+// Always draw the book at no less than 2x. On a normal 1x desktop monitor a 1:1 canvas shows each
+// page at exactly its screen size, and any tiny size mismatch resamples the image and softens it.
+// A 2x canvas fed with 2x images maps pixel-for-pixel and the browser then shrinks it smoothly.
+const renderScale = () => Math.min(Math.max(window.devicePixelRatio || 1, 2), MAX_DPR)
 // On phones the book is shown small and centred (one page, still flips), like a product photo,
 // instead of stretching to the full screen width.
 const PHONE_QUERY = '(max-width: 639px)'
@@ -57,7 +61,7 @@ async function fitPage(blob, targetWidth) {
     context.imageSmoothingQuality = 'high'
     context.drawImage(current, 0, 0, targetWidth, targetHeight)
     current.close?.()
-    const result = await new Promise((resolve) => out.toBlob(resolve, 'image/jpeg', 0.95))
+    const result = await new Promise((resolve) => out.toBlob(resolve, 'image/jpeg', 0.97))
     return result ?? blob
   } catch {
     return blob
@@ -102,10 +106,10 @@ export default function BookViewer({ book, title, fallback }) {
         if (cancelled) return
         if (!Array.isArray(pages) || pages.length !== book.pageCount) throw new Error('Book pages not found')
 
-        const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+        const dpr = renderScale()
         const box = mount.clientWidth || MAX_PAGE_WIDTH * 2
         const cssPageWidth = phone ? Math.min(PHONE_PAGE_MAX, box * PHONE_PAGE_SHARE) : Math.min(MAX_PAGE_WIDTH, box < SINGLE_PAGE_BELOW ? box : box / 2)
-        const sharp = await fitAll(pages, Math.round(cssPageWidth * dpr))
+        const sharp = await fitAll(pages, Math.ceil(cssPageWidth * dpr))
         if (cancelled) return
 
         pageUrls = sharp.map((page) => URL.createObjectURL(page))
@@ -141,7 +145,7 @@ export default function BookViewer({ book, title, fallback }) {
               resizeCanvas()
               const canvas = ui.getCanvas()
               const bounds = canvas.getBoundingClientRect()
-              const ratioPx = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+              const ratioPx = renderScale()
               canvas.width = Math.max(1, Math.round(bounds.width * ratioPx))
               canvas.height = Math.max(1, Math.round(bounds.height * ratioPx))
               const context = canvas.getContext('2d')
