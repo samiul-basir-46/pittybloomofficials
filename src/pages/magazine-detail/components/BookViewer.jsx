@@ -8,6 +8,22 @@ const MAX_PAGE_WIDTH = 520
 // because two tiny pages side by side are unreadable on a phone.
 const SINGLE_PAGE_BELOW = 600
 const MAX_DPR = 3
+// On phones the book is shown small and centred (one page, still flips), like a product photo,
+// instead of stretching to the full screen width.
+const PHONE_QUERY = '(max-width: 639px)'
+const PHONE_PAGE_MAX = 240
+const PHONE_PAGE_SHARE = 0.58
+
+function useIsPhone() {
+  const [phone, setPhone] = useState(() => (typeof window !== 'undefined' ? window.matchMedia(PHONE_QUERY).matches : false))
+  useEffect(() => {
+    const query = window.matchMedia(PHONE_QUERY)
+    const update = () => setPhone(query.matches)
+    query.addEventListener?.('change', update)
+    return () => query.removeEventListener?.('change', update)
+  }, [])
+  return phone
+}
 
 // Shrinks a page image to the exact pixel size it will be drawn at. Scaling a 1650px scan straight
 // down to ~500px makes text jagged, so halve it step by step with high-quality smoothing instead.
@@ -64,6 +80,7 @@ export default function BookViewer({ book, title, fallback }) {
   const [pageIndex, setPageIndex] = useState(0)
   const [single, setSingle] = useState(false)
   const lastPage = book.pageCount - 1
+  const phone = useIsPhone()
 
   useEffect(() => {
     let cancelled = false
@@ -74,7 +91,8 @@ export default function BookViewer({ book, title, fallback }) {
 
     // PageFlip removes its mount node when destroyed, so keep it outside React's managed tree.
     const element = document.createElement('div')
-    element.style.width = '100%'
+    element.style.width = phone ? `min(${PHONE_PAGE_MAX}px, ${PHONE_PAGE_SHARE * 100}%)` : '100%'
+    element.style.margin = '0 auto'
     element.style.touchAction = 'pan-y'
     element.style.webkitTapHighlightColor = 'transparent'
     mount.appendChild(element)
@@ -86,7 +104,7 @@ export default function BookViewer({ book, title, fallback }) {
 
         const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
         const box = mount.clientWidth || MAX_PAGE_WIDTH * 2
-        const cssPageWidth = Math.min(MAX_PAGE_WIDTH, box < SINGLE_PAGE_BELOW ? box : box / 2)
+        const cssPageWidth = phone ? Math.min(PHONE_PAGE_MAX, box * PHONE_PAGE_SHARE) : Math.min(MAX_PAGE_WIDTH, box < SINGLE_PAGE_BELOW ? box : box / 2)
         const sharp = await fitAll(pages, Math.round(cssPageWidth * dpr))
         if (cancelled) return
 
@@ -152,7 +170,7 @@ export default function BookViewer({ book, title, fallback }) {
       element.remove()
       pageUrls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [book.key, book.pageCount, book.ratio])
+  }, [book.key, book.pageCount, book.ratio, phone])
 
   if (status === 'error') return fallback
 
