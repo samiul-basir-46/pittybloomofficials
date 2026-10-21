@@ -155,7 +155,9 @@ export default function BookViewer({ book, title, fallback }) {
         flip.current = instance
         setStatus('ready')
       })
-      .catch(() => {
+      .catch((error) => {
+        // The page quietly falls back to the plain cover, so say why in the console.
+        console.error('[Flipbook] Could not load the book preview:', error)
         if (!cancelled) setStatus('error')
       })
 

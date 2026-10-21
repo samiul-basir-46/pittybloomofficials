@@ -95,9 +95,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url)
     let cors = corsHeaders(request, env)
-    // Uploaded catalog and product-card images are public. Anyone may view them from
+    // Uploaded catalog images, product-card images and book previews are public. Anyone may view them from
     // any site (local dev, preview channels, custom domains); only writes need an allowed origin.
-    const isPublicImageRead = ['GET', 'HEAD'].includes(request.method) && /^\/(catalog-images|manual-order-cards)\//.test(url.pathname)
+    const isPublicImageRead = ['GET', 'HEAD'].includes(request.method) && /^\/(catalog-images\/|manual-order-cards\/|books\/book-[a-z0-9-]{8,80}\/(pages\/\d{1,5}|source)$)/.test(url.pathname)
     if (!cors && isPublicImageRead) cors = { 'Access-Control-Allow-Origin': '*' }
     if (!cors) return json({ error: 'Origin is not allowed.' }, 403)
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
