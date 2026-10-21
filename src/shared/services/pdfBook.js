@@ -1,10 +1,8 @@
-// Reads an uploaded PDF, checks it is valid for the book format and renders every page to an image.
-// pdf.js is loaded on demand, so the public site never downloads it (only the admin upload does).
+// Reads an uploaded PDF, checks it is valid for the book format and renders lossless preview pages.
+// The original PDF is uploaded separately without modification.
 export const PAGE_MULTIPLE = 4
-// Keep the working canvas modest. The viewer can upscale these images, while large canvases
-// multiplied across a long PDF can exhaust browser memory before IndexedDB is even reached.
-const RENDER_WIDTH = 720
-const JPEG_QUALITY = 0.82
+// Render enough pixels for sharp phone screens and zooming while keeping per-page memory bounded.
+const RENDER_WIDTH = 1800
 
 export class PdfBookError extends Error {}
 
@@ -17,9 +15,9 @@ const loadPdfJs = () =>
     },
   ))
 
-const toJpeg = (canvas) =>
+const toPng = (canvas) =>
   new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not encode page'))), 'image/jpeg', JPEG_QUALITY),
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not encode page'))), 'image/png'),
   )
 
 export const isValidPageCount = (count) => Number.isInteger(count) && count > 0 && count % PAGE_MULTIPLE === 0
@@ -66,7 +64,7 @@ export async function readPdfBook(file, onProgress) {
       context.fillRect(0, 0, canvas.width, canvas.height)
       await page.render({ canvasContext: context, canvas, viewport }).promise
 
-      pages.push(await toJpeg(canvas))
+      pages.push(await toPng(canvas))
       canvas.width = 0
       canvas.height = 0
       page.cleanup()

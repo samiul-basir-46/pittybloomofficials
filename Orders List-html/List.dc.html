@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orders</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Fraunces:wght@500;600&amp;display=swap">
+<style>
+body{margin:0}
+.pg{font-family:Inter,system-ui,sans-serif;background:#F7F5F0;color:#2A2824;min-height:100vh;padding:32px 40px 56px;box-sizing:border-box;font-size:14px;line-height:1.5}
+.pg *{box-sizing:border-box}
+.wrap{max-width:1240px;margin:0 auto}
+.card{background:#FDFCF9;border:1px solid #E6E2D8;border-radius:16px}
+.lbl{font-size:12px;color:#6B665C;margin-bottom:2px}
+.mu{font-size:12px;color:#6B665C}
+.val{font-weight:500}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 14px;align-items:center}
+.tb{flex:none;font-family:inherit;font-size:14px;font-weight:500;min-height:44px;padding:0 16px;border-radius:99px;border:1px solid #D9D4C7;background:#FDFCF9;color:#2A2824;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.tb:hover{background:#F1EEE6}
+.tb.on{background:#2F3A33;border-color:#2F3A33;color:#FDFCF9}
+.ct{font-size:12px;opacity:.75}
+.sep{flex:none;width:1px;height:24px;background:#D9D4C7;margin:0 6px}
+.tools{display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid #EEEAE0}
+.in{font-family:inherit;font-size:14px;min-height:44px;border:1px solid #D9D4C7;border-radius:10px;background:#FFF;padding:0 14px;color:#2A2824}
+.btn{font-family:inherit;font-size:13px;font-weight:500;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #D9D4C7;background:#FDFCF9;color:#2A2824;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.btn:hover{background:#F1EEE6}
+.sm{padding:0 14px}
+.scr{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:900px}
+th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6B665C;font-weight:600;padding:12px 20px;background:#F7F4ED}
+td{padding:16px 20px;border-top:1px solid #EEEAE0;vertical-align:middle}
+tr:hover td{background:#FAF8F3}
+.oid{font-weight:600;color:#2F3A33;text-decoration:none}
+.tag{display:inline-block;padding:2px 10px;margin:2px 0;border-radius:99px;background:#EFEBE1;color:#4A463E;font-size:12px;font-weight:500}
+.urg{display:inline-block;padding:3px 12px;border-radius:99px;background:#F6E3DF;color:#8F3A31;font-size:12px;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;font-size:13px;font-weight:500}
+.pgn{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-top:1px solid #EEEAE0;flex-wrap:wrap;gap:10px}
+@media(max-width:700px){.pg{padding:20px 16px 40px}}
+</style>
+</helmet>
+<div class="pg"><div class="wrap">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:24px">
+<div><h1 style="margin:0;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:34px;letter-spacing:-.01em">Orders</h1><div style="color:#6B665C;margin-top:4px">Wednesday, 21 Oct 2026</div></div>
+</div>
+<div class="stats"><div class="card" style="padding:18px 20px"><div class="lbl">Pending dispatch</div><div style="font-size:28px;font-weight:500;font-family:Fraunces,Georgia,serif;line-height:1.2">23</div><div class="mu">6 urgent</div></div><div class="card" style="padding:18px 20px"><div class="lbl">Dispatched</div><div style="font-size:28px;font-weight:500;font-family:Fraunces,Georgia,serif;line-height:1.2">31</div><div class="mu">On the way</div></div><div class="card" style="padding:18px 20px"><div class="lbl">Completed today</div><div style="font-size:28px;font-weight:500;font-family:Fraunces,Georgia,serif;line-height:1.2">8</div><div class="mu">21 Oct</div></div><div class="card" style="padding:18px 20px"><div class="lbl">Revenue today</div><div style="font-size:28px;font-weight:500;font-family:Fraunces,Georgia,serif;line-height:1.2">৳18,640</div><div class="mu">From completed orders</div></div></div>
+<div class="tabs" role="tablist"><button type="button" class="tb on">All orders <span class="ct">128</span></button><button type="button" class="tb">Urgent <span class="ct">14</span></button><button type="button" class="tb">Standard <span class="ct">114</span></button><span class="sep"></span><button type="button" class="tb">Magazine <span class="ct">41</span></button><button type="button" class="tb">Song Book <span class="ct">18</span></button><button type="button" class="tb">Frame <span class="ct">27</span></button><button type="button" class="tb">Polaroids <span class="ct">22</span></button><button type="button" class="tb">Sticker <span class="ct">15</span></button><button type="button" class="tb">Mini Magazine <span class="ct">9</span></button></div>
+<section class="card" style="overflow:hidden">
+<div class="tools">
+<input class="in" style="flex:1;min-width:220px" placeholder="Search by order number, name or WhatsApp" aria-label="Search orders">
+<select class="in" aria-label="Status"><option>All statuses</option><option>Pending dispatch</option><option>Dispatched</option><option>Completed</option><option>Cancelled</option></select>
+<select class="in" aria-label="Date"><option>Last 7 days</option><option>Today</option><option>Last 30 days</option></select>
+</div>
+<div class="scr"><table>
+<thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Priority</th><th>Status</th><th style="text-align:right">Total</th><th></th></tr></thead>
+<tbody><tr><td><a class="oid" href="#">#BD-10484</a><div class="mu">21 Oct, 10:42 AM</div></td><td><div class="val">Nusrat Jahan</div><div class="mu">+880 1712-345678</div></td><td><span class="tag">Magazine × 2</span> <span class="tag">Frame × 2</span> </td><td><span class="urg">Urgent</span></td><td><span class="pill" style="background:#F3E9CF;color:#6B531A"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#B8892B"></circle></svg>Pending</span></td><td class="val" style="text-align:right">৳4,320</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10483</a><div class="mu">21 Oct, 09:15 AM</div></td><td><div class="val">Sadia Islam</div><div class="mu">+880 1819-554433</div></td><td><span class="tag">Frame × 1</span> </td><td><span style="color:#6B665C;font-size:13px">Standard</span></td><td><span class="pill" style="background:#E1E8EE;color:#33495C"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#4F7491"></circle></svg>Dispatched</span></td><td class="val" style="text-align:right">৳1,920</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10482</a><div class="mu">20 Oct, 08:30 PM</div></td><td><div class="val">Tanvir Ahmed</div><div class="mu">+880 1611-908070</div></td><td><span class="tag">Song Book × 1</span> </td><td><span class="urg">Urgent</span></td><td><span class="pill" style="background:#F3E9CF;color:#6B531A"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#B8892B"></circle></svg>Pending</span></td><td class="val" style="text-align:right">৳1,350</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10481</a><div class="mu">20 Oct, 06:02 PM</div></td><td><div class="val">Mim Chowdhury</div><div class="mu">+880 1911-223300</div></td><td><span class="tag">Polaroids × 1</span> <span class="tag">Sticker × 1</span> </td><td><span style="color:#6B665C;font-size:13px">Standard</span></td><td><span class="pill" style="background:#F3E9CF;color:#6B531A"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#B8892B"></circle></svg>Pending</span></td><td class="val" style="text-align:right">৳780</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10480</a><div class="mu">20 Oct, 02:47 PM</div></td><td><div class="val">Rafiul Karim</div><div class="mu">+880 1811-223344</div></td><td><span class="tag">Mini Magazine × 3</span> </td><td><span style="color:#6B665C;font-size:13px">Standard</span></td><td><span class="pill" style="background:#E0EBDD;color:#2F5230"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#4D8A4F"></circle></svg>Completed</span></td><td class="val" style="text-align:right">৳2,100</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10479</a><div class="mu">19 Oct, 11:20 AM</div></td><td><div class="val">Anika Rahman</div><div class="mu">+880 1511-667788</div></td><td><span class="tag">Magazine × 1</span> <span class="tag">Polaroids × 1</span> </td><td><span class="urg">Urgent</span></td><td><span class="pill" style="background:#E1E8EE;color:#33495C"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#4F7491"></circle></svg>Dispatched</span></td><td class="val" style="text-align:right">৳1,850</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10478</a><div class="mu">19 Oct, 09:05 AM</div></td><td><div class="val">Imran Hossain</div><div class="mu">+880 1717-101010</div></td><td><span class="tag">Sticker × 4</span> </td><td><span style="color:#6B665C;font-size:13px">Standard</span></td><td><span class="pill" style="background:#E0EBDD;color:#2F5230"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#4D8A4F"></circle></svg>Completed</span></td><td class="val" style="text-align:right">৳640</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10477</a><div class="mu">18 Oct, 07:44 PM</div></td><td><div class="val">Farhana Yeasmin</div><div class="mu">+880 1313-454545</div></td><td><span class="tag">Song Book × 1</span> <span class="tag">Frame × 1</span> </td><td><span style="color:#6B665C;font-size:13px">Standard</span></td><td><span class="pill" style="background:#ECE9E3;color:#5E5A52"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#8C877C"></circle></svg>Cancelled</span></td><td class="val" style="text-align:right">৳2,480</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr><tr><td><a class="oid" href="#">#BD-10476</a><div class="mu">18 Oct, 04:10 PM</div></td><td><div class="val">Shuvo Das</div><div class="mu">+880 1914-889900</div></td><td><span class="tag">Magazine × 1</span> </td><td><span style="color:#6B665C;font-size:13px">Standard</span></td><td><span class="pill" style="background:#F3E9CF;color:#6B531A"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="#B8892B"></circle></svg>Pending</span></td><td class="val" style="text-align:right">৳1,020</td><td style="text-align:right"><a class="btn sm" href="#">View</a></td></tr></tbody></table></div>
+<div class="pgn"><span class="mu">Showing 1–9 of 128 orders</span><span style="display:flex;gap:8px"><button class="btn" type="button">Previous</button><button class="btn" type="button">Next</button></span></div>
+</section>
+</div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1180}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

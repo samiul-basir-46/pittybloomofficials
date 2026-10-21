@@ -91,6 +91,13 @@ export const photoStore = {
       return url
     } catch { return '' }
   },
+  async getBlob(id, storageKey) {
+    try {
+      return firebaseConfigured && storageKey
+        ? await downloadRemote(storageKey)
+        : (await withStore('readonly', (store) => store.get(id)))?.blob
+    } catch { return null }
+  },
   async flush(keys) {
     // Test DOMs and a few restricted browsers do not expose IndexedDB; keep the
     // current in-memory upload flow usable there.

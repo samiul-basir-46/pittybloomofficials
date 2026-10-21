@@ -25,8 +25,8 @@ export const ORDER_DEFAULTS = {
   standardNote: 'Standard delivery is 5 days.',
 
   // Admin: an order is URGENT when it is needed within this many days (today counts as 0). Overdue is always urgent.
-  urgentDaysInside: 3,
-  urgentDaysOutside: 4,
+  urgentDaysInside: 2,
+  urgentDaysOutside: 3,
 
   // Texts shown to the customer
   photosNote:

@@ -1,223 +1,241 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronRight, ClipboardList, ClipboardCopy, Search } from 'lucide-react'
+import { Search, ClipboardList, ChevronDown } from 'lucide-react'
 import useAsync from '../shared/hooks/useAsync'
 import { getOrderSettings, ordersApi } from '../shared/services/contentService'
-import { ORDER_STATUSES } from '../shared/utils/orders'
 import { formatPrice } from '../shared/utils/format'
-import { compareByDelivery, getUrgency } from '../shared/utils/urgency'
+import { getUrgency } from '../shared/utils/urgency'
 import { inputClass } from './classes'
-import { CopyButton, LEVEL_STYLE, StatusBadge, UrgencyPill, orderSummary, when } from './orderUi'
-import { cityText, formatOrderSummary } from './orderSummary'
-import SummaryDialog from './SummaryDialog'
-import { savedDrafts } from '../pages/order/lib/savedDrafts'
+import { CopyButton } from './orderUi'
+import { groupedOrderSummaries } from './orderSummary'
 
-const PILLS = [
-  { id: 'all', label: 'All' },
-  { id: 'overdue', label: '🚨 Overdue' },
-  { id: 'urgent', label: '🔥 Urgent' },
-  { id: 'standard', label: '📅 Standard' },
+const CATEGORY_TABS = [
+  { id: 'magazine', label: 'Magazine', matches: (item) => item.kind === 'magazine' && !/mini/i.test(`${item.name} ${item.optionLabel}`) },
+  { id: 'song-book', label: 'Song Book', matches: (item) => /song\s*book/i.test(`${item.name} ${item.optionLabel}`) },
+  { id: 'frame', label: 'Frame', matches: (item) => /frame/i.test(`${item.name} ${item.optionLabel}`) },
+  { id: 'polaroids', label: 'Polaroids', matches: (item) => /polaroid/i.test(`${item.name} ${item.optionLabel}`) },
+  { id: 'sticker', label: 'Sticker', matches: (item) => /sticker/i.test(`${item.name} ${item.optionLabel}`) },
+  { id: 'mini-magazine', label: 'Mini Magazine', matches: (item) => /mini.*magazine|magazine.*mini/i.test(`${item.name} ${item.optionLabel}`) },
 ]
-const SORTS = [
-  { id: 'delivery', label: 'Delivery date (urgent first)' },
-  { id: 'newest', label: 'Newest orders first' },
-  { id: 'oldest', label: 'Oldest orders first' },
-]
-const GROUP_TITLE = { overdue: '🚨 Overdue', urgent: '🔥 Urgent', standard: '📅 Standard', none: 'Shipped, delivered or cancelled' }
 
-function Row({ order, urgency, settings, now }) {
-  const bar = LEVEL_STYLE[urgency.level].bar
-  return (
-    <li className={`flex items-center gap-2 rounded-2xl border border-l-4 border-sand bg-white pr-3 shadow-sm transition hover:border-brand/40 hover:shadow-md ${bar}`}>
-      <Link
-        to={`/admin/orders/${encodeURIComponent(order.id)}`}
-        className="group grid min-w-0 flex-1 grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 p-4 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_auto_auto_auto] sm:p-5"
-      >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="font-bold">{order.id}</p>
-            <UrgencyPill urgency={urgency} />
-          </div>
-          <p className="truncate text-sm text-ink/60">
-            {order.customer?.name} · {cityText(order)} · placed {when(order.createdAt)}
-          </p>
-        </div>
-        <p className="order-last col-span-2 truncate text-sm text-ink/70 sm:order-none sm:col-span-1">{orderSummary(order)}</p>
-        <div className="justify-self-end sm:justify-self-auto">
-          <StatusBadge status={order.status} />
-        </div>
-        <p className="hidden w-24 text-right font-extrabold sm:block">{formatPrice(order.total)}</p>
-        <ChevronRight size={18} className="hidden text-ink/40 transition group-hover:translate-x-0.5 group-hover:text-brand sm:block" />
-        <p className="col-start-1 font-extrabold sm:hidden">{formatPrice(order.total)}</p>
-      </Link>
-      <CopyButton variant="icon" label={`Copy summary of ${order.id}`} getText={() => formatOrderSummary(order, settings, now)} />
-    </li>
-  )
+const STATUS_FILTERS = [
+  { id: 'all', label: 'All statuses' },
+  { id: 'pending', label: 'Pending dispatch' },
+  { id: 'dispatched', label: 'Dispatched' },
+]
+const DATE_FILTERS = [
+  { id: '7d', label: 'Last 7 days' },
+  { id: 'today', label: 'Today' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: 'all', label: 'All dates' },
+]
+const PENDING = ['New', 'Confirmed', 'In production']
+const localDate = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+const orderDate = (order) => new Date(order.createdAt)
+const phoneOf = (order) => order.customer?.phone || order.customer?.whatsapp || order.deliveryInfo?.phone || '—'
+const categoryOf = (item) => {
+  const category = CATEGORY_TABS.find((tab) => tab.matches(item))
+  return category?.label || item.name || 'Other'
 }
 
-// The list shows just enough to find an order and to see how soon it is needed.
-// Clicking a row opens the full order on its own page. Filters live in the address, so Back keeps them.
-export default function OrdersPage() {
-  const orders = useAsync(ordersApi.list)
-  const drafts = useAsync(savedDrafts.list)
-  const settingsData = useAsync(getOrderSettings)
-  const [params, setParams] = useSearchParams()
-  const [dialog, setDialog] = useState(false)
-  const now = useMemo(() => new Date(), [])
-  const settings = settingsData.data ?? {}
+function StatusPill({ status }) {
+  const config = PENDING.includes(status)
+    ? ['bg-[#F3E9CF] text-[#6B531A]', '#B8892B', 'Pending']
+    : status === 'Shipped'
+      ? ['bg-[#E1E8EE] text-[#33495C]', '#4F7491', 'Dispatched']
+      : status === 'Delivered'
+        ? ['bg-[#E0EBDD] text-[#2F5230]', '#4D8A4F', 'Completed']
+        : ['bg-[#ECE9E3] text-[#5E5A52]', '#8C877C', status === 'Cancelled' ? 'Cancelled' : status]
+  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[13px] font-medium ${config[0]}`}><span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: config[1] }} />{config[2]}</span>
+}
 
-  const urgencyFilter = PILLS.some((p) => p.id === params.get('urgency')) ? params.get('urgency') : 'all'
-  const status = ['All', ...ORDER_STATUSES].includes(params.get('status')) ? params.get('status') : 'All'
-  const sort = SORTS.some((s) => s.id === params.get('sort')) ? params.get('sort') : 'delivery'
+function itemTags(items = []) {
+  const groups = new Map()
+  for (const item of items) {
+    const label = categoryOf(item)
+    groups.set(label, (groups.get(label) || 0) + (Number(item.qty) || 1))
+  }
+  return [...groups].map(([label, qty]) => ({ label, qty }))
+}
+
+function displayDate(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+}
+
+export default function OrdersPage({ fixedView = 'all' }) {
+  const ordersQuery = useAsync(ordersApi.list)
+  const settingsQuery = useAsync(getOrderSettings)
+  const [params, setParams] = useSearchParams()
+  const now = useMemo(() => new Date(), [])
+  const all = ordersQuery.data ?? []
+  const orderNumbers = useMemo(() => {
+    const byDay = new Map()
+    for (const order of all) {
+      const day = localDate(order.createdAt)
+      if (!day) continue
+      if (!byDay.has(day)) byDay.set(day, [])
+      byDay.get(day).push(order)
+    }
+    const numbers = new Map()
+    for (const [day, dayOrders] of byDay) {
+      dayOrders.sort((a, b) => orderDate(a) - orderDate(b) || String(a.id).localeCompare(String(b.id)))
+      const compactDay = day.slice(2).replaceAll('-', '')
+      dayOrders.forEach((order, index) => numbers.set(order.id, `PB-${compactDay}-${String(index + 1).padStart(2, '0')}`))
+    }
+    return numbers
+  }, [all])
+  const settings = settingsQuery.data ?? {}
   const query = params.get('q') ?? ''
-  const set = (key, value, fallback) => {
+  const urgencyFilter = ['all', 'overdue', 'urgent', 'standard'].includes(params.get('urgency')) ? params.get('urgency') : 'all'
+  const category = CATEGORY_TABS.some((tab) => tab.id === params.get('category')) ? params.get('category') : 'all'
+  const statusOptions = fixedView === 'completed'
+    ? [{ id: 'all', label: 'All statuses' }, { id: 'completed', label: 'Completed' }]
+    : fixedView === 'cancelled'
+      ? [{ id: 'all', label: 'All statuses' }, { id: 'cancelled', label: 'Cancelled' }]
+      : STATUS_FILTERS
+  const statusFilter = statusOptions.some((filter) => filter.id === params.get('status')) ? params.get('status') : 'all'
+  const dateFilter = DATE_FILTERS.some((filter) => filter.id === params.get('date')) ? params.get('date') : fixedView === 'all' ? '7d' : 'all'
+  const requestedPage = Math.max(1, Number(params.get('page')) || 1)
+
+  const set = (key, value, fallback, resetPage = true) => {
     const next = new URLSearchParams(params)
     if (value === fallback || value === '') next.delete(key)
     else next.set(key, value)
+    if (resetPage && key !== 'page') next.delete('page')
+    if (['status', 'category', 'urgency'].includes(key)) next.delete('view')
+    setParams(next, { replace: true })
+  }
+  const selectAll = () => {
+    const next = new URLSearchParams(params)
+    next.delete('urgency')
+    next.delete('status')
+    next.delete('category')
+    next.delete('page')
     setParams(next, { replace: true })
   }
 
-  const all = orders.data ?? []
-  const q = query.trim().toLowerCase()
-  const draftRows = (drafts.data ?? []).filter((d) => !q || [d.id, d.magazineTitle, d.draft?.contact?.name, d.draft?.contact?.phone].some((v) => String(v ?? '').toLowerCase().includes(q)))
-  const withUrgency = useMemo(
-    () =>
-      all
-        .filter(
-          (o) =>
-            (status === 'All' || o.status === status) &&
-            (!q || [o.id, o.customer?.name, o.customer?.phone, o.customer?.instagram, ...o.items.map((i) => i.name), ...o.items.map((i) => i.optionLabel)].some((v) => String(v ?? '').toLowerCase().includes(q))),
-        )
-        .map((order) => ({ order, urgency: getUrgency(order, settings, now) })),
-    [all, status, q, settings, now],
-  )
-  const count = (level) => withUrgency.filter((x) => x.urgency.level === level).length
-  const counts = { all: withUrgency.length, overdue: count('overdue'), urgent: count('urgent'), standard: count('standard') }
-  const urgentTotal = counts.overdue + counts.urgent
+  const search = query.trim().toLowerCase()
+  const matching = useMemo(() => all.map((order) => ({ order, urgency: getUrgency(order, settings, now) })).filter(({ order, urgency }) => {
+    const created = orderDate(order)
+    const age = now.getTime() - created.getTime()
+    const matchesDate = dateFilter === 'all' || (dateFilter === 'today' ? localDate(order.createdAt) === localDate(now) : dateFilter === '30d' ? age <= 30 * 86400000 && age >= 0 : age <= 7 * 86400000 && age >= 0)
+    const statusMatchesList = fixedView === 'completed' ? order.status === 'Delivered' : fixedView === 'cancelled' ? order.status === 'Cancelled' : [...PENDING, 'Shipped'].includes(order.status)
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'pending' ? PENDING.includes(order.status) : statusFilter === 'dispatched' ? order.status === 'Shipped' : statusFilter === 'completed' ? order.status === 'Delivered' : order.status === 'Cancelled')
+    const matchesSearch = !search || [orderNumbers.get(order.id), order.id, order.customer?.name, phoneOf(order), order.customer?.instagram, ...order.items.flatMap((item) => [item.name, item.optionLabel])].some((value) => String(value ?? '').toLowerCase().includes(search))
+    const selectedCategory = CATEGORY_TABS.find((tab) => tab.id === category)
+    const matchesCategory = !selectedCategory || order.items.some(selectedCategory.matches)
+    const matchesUrgency = urgencyFilter === 'all' || urgency.level === urgencyFilter
+    return statusMatchesList && matchesDate && matchesStatus && matchesSearch && matchesCategory && (fixedView !== 'all' || matchesUrgency)
+  }), [all, now, dateFilter, statusFilter, fixedView, search, category, urgencyFilter, settings]).sort((a, b) => {
+    if (fixedView !== 'all') return String(b.order.createdAt).localeCompare(String(a.order.createdAt))
+    const rank = (entry) => entry.order.status === 'Shipped' ? 3 : ({ overdue: 0, urgent: 1, standard: 2 }[entry.urgency.level] ?? 2)
+    const difference = rank(a) - rank(b)
+    if (difference) return difference
+    if (rank(a) < 3 && a.urgency.date !== b.urgency.date) {
+      if (!a.urgency.date) return 1
+      if (!b.urgency.date) return -1
+      return a.urgency.date.localeCompare(b.urgency.date)
+    }
+    return String(b.order.createdAt).localeCompare(String(a.order.createdAt))
+  })
 
-  const shown = withUrgency
-    .filter((x) => urgencyFilter === 'all' || x.urgency.level === urgencyFilter)
-    .sort((a, b) =>
-      sort === 'delivery'
-        ? compareByDelivery(a.order, b.order, settings, now)
-        : sort === 'oldest'
-          ? String(a.order.createdAt).localeCompare(String(b.order.createdAt))
-          : String(b.order.createdAt).localeCompare(String(a.order.createdAt)),
-    )
-  // With "Delivery date" sorting the list is split under headings, so the urgent ones cannot be missed
-  const grouped = sort === 'delivery' && urgencyFilter === 'all'
-  const groups = grouped
-    ? ['overdue', 'urgent', 'standard', 'none'].map((level) => ({ level, rows: shown.filter((x) => x.urgency.level === level) })).filter((g) => g.rows.length)
-    : [{ level: '', rows: shown }]
+  const deliveredToday = all.filter((order) => order.status === 'Delivered' && localDate(order.completedAt) === localDate(now))
+  const pendingCount = all.filter((order) => PENDING.includes(order.status)).length
+  const overdueCount = all.filter((order) => PENDING.includes(order.status) && getUrgency(order, settings, now).level === 'overdue').length
+  const urgentCount = all.filter((order) => PENDING.includes(order.status) && getUrgency(order, settings, now).level === 'urgent').length
+  const dispatchedCount = all.filter((order) => order.status === 'Shipped').length
+  const revenueToday = deliveredToday.reduce((sum, order) => sum + (Number(order.total) || 0), 0)
+  const urgentOrders = all.filter((order) => PENDING.includes(order.status) && ['overdue', 'urgent'].includes(getUrgency(order, settings, now).level))
+  const tabsCount = (matcher) => all.filter((order) => [...PENDING, 'Shipped'].includes(order.status) && order.items.some(matcher)).length
+  const tabClass = (active) => `tb inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium transition ${active ? 'border-[#2F3A33] bg-[#2F3A33] text-[#FDFCF9]' : 'border-[#D9D4C7] bg-[#FDFCF9] text-[#2A2824] hover:bg-[#F1EEE6]'}`
+  const pages = Math.max(1, Math.ceil(matching.length / 9))
+  const page = Math.min(requestedPage, pages)
+  const pageRows = matching.slice((page - 1) * 9, page * 9)
+  const first = matching.length ? (page - 1) * 9 + 1 : 0
+  const last = Math.min(page * 9, matching.length)
 
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-3xl">Orders</h1>
-          <p className="mt-1 text-sm text-ink/60">{all.length} submitted · {draftRows.length} incomplete drafts</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setDialog(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-brand-dark"
-        >
-          <ClipboardCopy size={16} /> Copy summaries
-          {urgentTotal > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs" aria-label={`${urgentTotal} urgent`}>{urgentTotal} urgent</span>}
-        </button>
-      </div>
+    <div className="orders-list-page -m-4 min-h-screen bg-[#F7F5F0] p-4 text-[#2A2824] sm:-m-8 sm:p-8 lg:-mx-6 lg:-my-8 lg:px-6 lg:py-8">
+      <div className="mx-auto max-w-[1240px] pb-6">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div><h1 className="font-serif text-[34px] font-medium leading-tight tracking-[-.01em]">{fixedView === 'completed' ? 'Completed orders' : fixedView === 'cancelled' ? 'Cancelled orders' : 'Orders'}</h1><p className="mt-1 text-sm text-[#6B665C]">{now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}</p></div>
+          {fixedView === 'all' && <CopyButton label="Copy urgent summary" doneLabel="Urgent orders copied!" className={`!rounded-[10px] !bg-[#2F3A33] px-4 py-2.5 ${urgentOrders.length ? '' : 'pointer-events-none opacity-45'}`} getText={() => groupedOrderSummaries(urgentOrders, settings, now)} />}
+        </header>
 
-      {draftRows.length > 0 && <section className="mb-8" aria-labelledby="draft-orders-heading">
-        <h2 id="draft-orders-heading" className="mb-3 text-sm font-bold uppercase tracking-widest text-ink/60">Incomplete drafts ({draftRows.length})</h2>
-        <ul className="space-y-2">
-          {draftRows.map((d) => <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 px-4 py-3">
-            <div className="min-w-0">
-              <p className="truncate font-semibold">{d.draft?.contact?.name || 'Customer not provided'} · {d.magazineTitle}</p>
-              <p className="text-sm text-ink/60">{d.summary || 'Magazine configuration not selected'} · Step {d.step} of {d.totalSteps}{d.photoCount ? ` · ${d.photoCount} saved photos` : ''}</p>
+        <section className="orders-summary-row -mx-1 mb-4 flex gap-2.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:mb-6 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0" aria-label="Order summary">
+          <Stat label="Pending dispatch" value={pendingCount} note={`${overdueCount} overdue · ${urgentCount} urgent`} />
+          <Stat label="Dispatched" value={dispatchedCount} note="On the way" />
+          <Stat label="Completed today" value={deliveredToday.length} note={now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} />
+          <Stat label="Revenue today" value={formatPrice(revenueToday)} note="From completed orders" />
+        </section>
+
+        <nav className="orders-filter-tabs mb-2 flex items-center gap-3 overflow-x-auto pb-3" aria-label="Order filters">
+          {fixedView === 'all' && <>
+          <button type="button" aria-pressed={urgencyFilter === 'all' && category === 'all'} onClick={selectAll} className={tabClass(urgencyFilter === 'all' && category === 'all')}>All orders <span className="text-xs opacity-75">{all.filter((order) => [...PENDING, 'Shipped'].includes(order.status)).length}</span></button>
+          <label className="relative inline-flex shrink-0">
+            <span className="sr-only">Filter by priority</span>
+            <select aria-label="Filter by priority" value={urgencyFilter} onChange={(event) => set('urgency', event.target.value, 'all')} className="min-h-11 appearance-none rounded-full border border-[#D9D4C7] bg-[#FDFCF9] py-2 pl-4 pr-10 text-sm font-medium text-[#2A2824] outline-none hover:bg-[#F1EEE6] focus:border-[#2F3A33]">
+              <option value="all">All</option>
+              <option value="overdue">Overdue ({overdueCount})</option>
+              <option value="urgent">Urgent ({urgentCount})</option>
+              <option value="standard">Standard ({all.filter((order) => PENDING.includes(order.status) && getUrgency(order, settings, now).level === 'standard').length})</option>
+            </select>
+            <ChevronDown size={15} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#6B665C]" />
+          </label>
+          <span aria-hidden="true" className="mx-1 h-6 w-px shrink-0 bg-[#D9D4C7]" />
+          </>}
+          {CATEGORY_TABS.map((tab) => <button key={tab.id} type="button" aria-pressed={category === tab.id} onClick={() => set('category', tab.id, 'all')} className={tabClass(category === tab.id)}>{tab.label}<span className="text-xs opacity-75">{tabsCount(tab.matches)}</span></button>)}
+        </nav>
+
+        <section className="min-w-0 overflow-hidden rounded-2xl border border-[#E6E2D8] bg-[#FDFCF9]" aria-label="Orders">
+          <div className="grid grid-cols-[minmax(105px,1fr)_minmax(76px,.72fr)_minmax(78px,.72fr)] gap-1.5 border-b border-[#EEEAE0] bg-[#FBFAF7] px-2.5 py-2.5 sm:grid-cols-[minmax(0,1fr)_168px_148px] sm:items-center sm:gap-3 sm:px-5 sm:py-3.5">
+            <label className="relative block min-w-0">
+              <span className="sr-only">Search by order number, name or WhatsApp</span>
+              <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#817B70] sm:left-3.5 sm:size-[17px]" />
+              <input type="search" className={`${inputClass} min-h-10 w-full rounded-lg border-[#E4DED2] bg-white pl-8 pr-1.5 text-[11px] shadow-[0_1px_2px_rgba(42,40,36,0.03)] transition focus:border-[#9A8870] focus:ring-2 focus:ring-[#9A8870]/15 sm:min-h-11 sm:rounded-xl sm:pl-10 sm:pr-3 sm:text-sm`} placeholder="Search orders…" value={query} onChange={(event) => set('q', event.target.value, '')} />
+            </label>
+            <FilterSelect label="Status" value={statusFilter} onChange={(value) => set('status', value, 'all')} options={statusOptions} />
+            <FilterSelect label="Date" value={dateFilter} onChange={(value) => set('date', value, '7d')} options={DATE_FILTERS} />
+          </div>
+
+          {ordersQuery.error ? <p role="alert" className="m-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">The orders could not be loaded. Please refresh the page.</p> : ordersQuery.loading && !ordersQuery.data ? <p className="py-12 text-center text-sm text-[#6B665C]">Loading orders…</p> : matching.length === 0 ? <div className="py-16 text-center text-[#6B665C]"><ClipboardList className="mx-auto mb-3" />{all.length ? 'No orders match these filters.' : 'No orders yet.'}</div> : <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-sm">
+                <thead><tr className="bg-[#F7F4ED] text-left text-xs font-semibold uppercase tracking-[.06em] text-[#6B665C]"><th className="px-5 py-3">Order</th><th className="px-5 py-3">Customer</th><th className="px-5 py-3">Items</th><th className="px-5 py-3">Priority</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Total</th><th className="px-5 py-3" /></tr></thead>
+                <tbody>{pageRows.map(({ order, urgency }) => <tr key={order.id} className="border-t border-[#EEEAE0] hover:bg-[#FAF8F3]">
+                  <td className="px-5 py-4"><Link className="font-semibold text-[#2F3A33] hover:underline" to={`/admin/orders/${encodeURIComponent(order.id)}`}>#{orderNumbers.get(order.id) || order.id}</Link><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{displayDate(order.createdAt)}</div></td>
+                  <td className="px-5 py-4"><div className="max-w-48 truncate font-medium">{order.customer?.name || '—'}</div><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{phoneOf(order)}</div></td>
+                  <td className="max-w-[300px] px-5 py-4">{itemTags(order.items).map((tag) => <span key={tag.label} className="mr-1 inline-block whitespace-nowrap rounded-full bg-[#EFEBE1] px-2.5 py-0.5 text-xs font-medium text-[#4A463E]">{tag.label}{tag.qty > 1 ? ` × ${tag.qty}` : ''}</span>)}</td>
+                  <td className="px-5 py-4">{urgency.level === 'urgent' || urgency.level === 'overdue' ? <span className="inline-block whitespace-nowrap rounded-full bg-[#F6E3DF] px-3 py-1 text-xs font-semibold text-[#8F3A31]">{urgency.level === 'overdue' ? 'Overdue' : 'Urgent'}</span> : <span className="whitespace-nowrap text-[13px] text-[#6B665C]">{PENDING.includes(order.status) ? 'Standard' : '—'}</span>}</td>
+                  <td className="px-5 py-4"><StatusPill status={order.status} /></td><td className="whitespace-nowrap px-5 py-4 text-right font-medium">{formatPrice(order.total)}</td><td className="px-5 py-4 text-right"><Link className="inline-flex min-h-10 items-center justify-center rounded-[10px] border border-[#D9D4C7] bg-[#FDFCF9] px-3.5 text-[13px] font-medium text-[#2A2824] hover:bg-[#F1EEE6]" to={`/admin/orders/${encodeURIComponent(order.id)}`}>View</Link></td>
+                </tr>)}</tbody>
+              </table>
             </div>
-            <Link className="shrink-0 text-sm font-semibold text-brand hover:underline" to={`/admin/drafts/${encodeURIComponent(d.id)}`}>View draft</Link>
-          </li>)}
-        </ul>
-      </section>}
-
-      <div className="mb-4 flex flex-wrap gap-3">
-        <label className="relative min-w-0 flex-1 basis-60">
-          <span className="sr-only">Search orders</span>
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
-          <input
-            type="search"
-            className={`${inputClass} pl-9`}
-            placeholder="Search by order ID, name, phone or Instagram"
-            value={query}
-            onChange={(e) => set('q', e.target.value, '')}
-          />
-        </label>
-        <select aria-label="Filter by status" className={`${inputClass} w-auto`} value={status} onChange={(e) => set('status', e.target.value, 'All')}>
-          {['All', ...ORDER_STATUSES].map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-        <select aria-label="Sort orders" className={`${inputClass} w-auto`} value={sort} onChange={(e) => set('sort', e.target.value, 'delivery')}>
-          {SORTS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#EEEAE0] px-4 py-3.5 sm:px-5"><span className="text-xs text-[#6B665C]">Showing {first}–{last} of {matching.length} orders</span><div className="flex gap-2"><button type="button" disabled={page <= 1} onClick={() => set('page', String(page - 1), '1', false)} className="inline-flex min-h-11 items-center rounded-[10px] border border-[#D9D4C7] bg-[#FDFCF9] px-4 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-45">Previous</button><button type="button" disabled={page >= pages} onClick={() => set('page', String(page + 1), '1', false)} className="inline-flex min-h-11 items-center rounded-[10px] border border-[#D9D4C7] bg-[#FDFCF9] px-4 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-45">Next</button></div></footer>
+          </>}
+        </section>
       </div>
-
-      <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by delivery urgency">
-        {PILLS.map((p) => {
-          const on = urgencyFilter === p.id
-          return (
-            <button
-              key={p.id}
-              type="button"
-              aria-pressed={on}
-              onClick={() => set('urgency', p.id, 'all')}
-              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
-                on ? 'border-brand bg-brand text-white shadow' : 'border-sand bg-white text-ink/70 hover:border-brand/40'
-              }`}
-            >
-              {p.label} <span className={on ? 'text-white/80' : 'text-ink/50'}>({counts[p.id]})</span>
-            </button>
-          )
-        })}
-      </div>
-
-      <p className="mb-6 text-xs text-ink/50">Order data is stored in this browser. A shared backend is needed before customer submissions can appear on a separate admin device.</p>
-
-      {orders.error ? (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          The orders could not be loaded. Please refresh the page.
-        </p>
-      ) : orders.loading && !orders.data ? (
-        <p className="py-10 text-center text-ink/60">Loading…</p>
-      ) : shown.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-sand bg-white py-16 text-center text-ink/50">
-          <ClipboardList className="mx-auto mb-3" />
-          {all.length ? 'No orders match these filters.' : 'No orders yet.'}
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {groups.map((g) => (
-            <section key={g.level || 'all'} aria-label={g.level ? GROUP_TITLE[g.level] : 'Orders'}>
-              {g.level && (
-                <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-ink/60">
-                  {GROUP_TITLE[g.level]} <span className="font-normal">({g.rows.length})</span>
-                </h2>
-              )}
-              <ul className="space-y-3">
-                {g.rows.map(({ order, urgency }) => (
-                  <Row key={order.id} order={order} urgency={urgency} settings={settings} now={now} />
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
-
-      {dialog && <SummaryDialog orders={all} settings={settings} now={now} onClose={() => setDialog(false)} />}
+      <style>{`.orders-list-page{font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.5}.orders-list-page .font-serif{font-family:Fraunces,Georgia,serif}.orders-filter-tabs,.orders-summary-row{scrollbar-width:none}.orders-filter-tabs::-webkit-scrollbar,.orders-summary-row::-webkit-scrollbar{display:none}`}</style>
     </div>
   )
+}
+
+function Stat({ label, value, note }) {
+  return <div className="min-w-[136px] shrink-0 rounded-2xl border border-[#E6E2D8] bg-[#FDFCF9] px-3.5 py-3 sm:min-w-0 sm:px-5 sm:py-[18px]"><div className="mb-0.5 whitespace-nowrap text-[11px] text-[#6B665C] sm:text-xs">{label}</div><div className="font-serif text-[25px] font-medium leading-[1.15] sm:text-[28px] sm:leading-[1.2]">{value}</div><div className="whitespace-nowrap text-[10px] text-[#6B665C] sm:text-xs">{note}</div></div>
+}
+
+function FilterSelect({ label, value, onChange, options }) {
+  return <label className="relative block min-w-0">
+    <span className="sr-only">{label}</span>
+    <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className={`${inputClass} min-h-10 w-full appearance-none rounded-lg border-[#E4DED2] bg-white py-1 pl-2 pr-6 text-[10px] shadow-[0_1px_2px_rgba(42,40,36,0.03)] transition hover:border-[#C9C0B1] focus:border-[#9A8870] focus:ring-2 focus:ring-[#9A8870]/15 sm:min-h-11 sm:rounded-xl sm:py-2 sm:pl-3.5 sm:pr-10 sm:text-sm`}>
+      {options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+    </select>
+    <ChevronDown size={14} aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#6B665C] sm:right-3.5 sm:size-[15px]" />
+  </label>
 }

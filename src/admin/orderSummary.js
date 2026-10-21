@@ -67,3 +67,78 @@ export function summariesFor(orders, scope, settings, now = new Date()) {
     .sort((a, b) => compareByDelivery(a, b, settings, now))
     .map((order) => ({ order, text: formatOrderSummary(order, settings, now) }))
 }
+
+const productSection = (item) => {
+  const name = `${item.name ?? ''} ${item.optionLabel ?? ''}`.toLowerCase()
+  if (/mini.*mag|mag.*mini/.test(name)) return 'Mini Magazine'
+  if (item.kind === 'magazine') return 'Magazine'
+  if (/polaroid/.test(name)) return 'Polaroid'
+  if (/frame/.test(name)) return 'Frame'
+  if (/song\s*book/.test(name)) return 'Song Book'
+  if (/sticker/.test(name)) return 'Sticker'
+  return item.name || 'Other'
+}
+
+const detailValue = (item, pattern) => item.details?.find((row) => pattern.test(row.label))?.value?.trim() ?? ''
+const titleCase = (text) => text ? text[0].toLocaleUpperCase() + text.slice(1) : ''
+
+function magazineText(items) {
+  const variants = new Map()
+  for (const item of items) {
+    const label = item.optionLabel ?? ''
+    const format = item.meta?.format ?? label.match(/\bA[45]\b/)?.[0] ?? 'A4'
+    const pages = (item.meta?.pages ?? Number(label.match(/(\d+)\s*Pages?/i)?.[1])) || ''
+    const key = `${format}-${pages}`
+    const current = variants.get(key) ?? { format, pages, qty: 0 }
+    current.qty += Number(item.qty) || 1
+    variants.set(key, current)
+  }
+  return [...variants.values()].map((variant) => `${variant.format}(${variant.qty}pcs${variant.pages ? `, ${variant.pages}p` : ''})`).join(' + ')
+}
+
+function orderLine(order, section, items, sectionCount, settings, now) {
+  const customer = order.customer ?? {}
+  const phone = customer.phone || customer.deliveryPhone || order.customerPhone || 'N/A'
+  const instagram = (customer.instagram ?? '').trim().replace(/^@+/, '') || 'no_ig'
+  const magazine = section === 'Magazine'
+  const products = magazine
+    ? magazineText(items)
+    : items.map((item) => `${item.name}${Number(item.qty) > 1 ? ` (${item.qty}pcs)` : ''}`).join(' + ')
+  const occasions = magazine ? [...new Set(items.map((item) => detailValue(item, /^occasion$/i)).filter(Boolean).map((value) => titleCase(value.replace(/^[^\p{L}\p{N}]+/u, '').trim())))].join(' | ') : ''
+  const personal = magazine ? [...new Set(items.flatMap((item) => (item.details ?? []).filter((row) => !/^occasion$/i.test(row.label) && !/note/i.test(row.label)).map((row) => row.value?.trim()).filter(Boolean)))].join(' , ') : ''
+  const emoji = magazine ? items.map((item) => detailValue(item, /^occasion$/i).match(/^\p{Extended_Pictographic}/u)?.[0] ?? '').find(Boolean) ?? '' : ''
+  const personalization = personal ? ` [${emoji ? `${emoji} ` : ''}${personal}]` : ''
+  const itemSubtotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.qty) || 1), 0)
+  const rush = Number(order.rushCharge) || 0
+  const amount = sectionCount === 1 ? Math.max(0, (Number(order.total) || itemSubtotal) - rush) : itemSubtotal
+  const rushText = rush > 0 ? ` + urgent ${rush}tk` : ''
+  const date = deliveryDateOf(order)
+  const need = date ? ` - need ${needDate(date)}` : ''
+  const city = cityText(order)
+  return `${phone} (${instagram}) - ${[occasions, `${products}${personalization}`].filter(Boolean).join(' - ')} - ${amount}tk${rushText}${need} - ${city}`
+}
+
+export function groupedOrderSummaries(orders, settings, now = new Date()) {
+  const sections = new Map()
+  for (const order of orders) {
+    const groups = new Map()
+    for (const item of order.items ?? []) {
+      const name = productSection(item)
+      const items = groups.get(name) ?? []
+      items.push(item)
+      groups.set(name, items)
+    }
+    for (const [name, items] of groups) {
+      const rows = sections.get(name) ?? []
+      rows.push(orderLine(order, name, items, groups.size, settings, now))
+      sections.set(name, rows)
+    }
+  }
+  const preferred = ['Magazine', 'Mini Magazine', 'Polaroid', 'Frame', 'Song Book', 'Sticker']
+  const names = [...sections.keys()].sort((a, b) => {
+    const ai = preferred.indexOf(a)
+    const bi = preferred.indexOf(b)
+    return (ai < 0 ? preferred.length : ai) - (bi < 0 ? preferred.length : bi) || a.localeCompare(b)
+  })
+  return names.map((name) => `-------------${name}----------------\n\n${sections.get(name).join('\n')}`).join('\n\n')
+}

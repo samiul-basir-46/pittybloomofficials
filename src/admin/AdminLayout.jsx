@@ -1,20 +1,30 @@
-import { useSyncExternalStore } from 'react'
-import { Link, NavLink, Outlet, useMatch } from 'react-router-dom'
-import { Check, ClipboardList, ExternalLink, LayoutDashboard, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router-dom'
+import { Check, CircleCheck, CircleX, ClipboardList, ExternalLink, LayoutDashboard, Menu, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
 import { SECTIONS } from './sections'
 import { dismissBookUpload, getBookUploads, subscribeBookUploads } from '../shared/services/bookUploadQueue'
 
-const NAV = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/orders', label: 'Orders', icon: ClipboardList },
-  { to: '/admin/order-settings', label: 'Order Settings', icon: SlidersHorizontal },
-  ...SECTIONS.map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
-  { to: '/admin/settings', label: 'Site Settings', icon: Settings },
+const NAV_GROUPS = [
+  { links: [
+    { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: '/admin/orders', label: 'Orders', icon: ClipboardList },
+    { to: '/admin/completed-orders', label: 'Completed orders', icon: CircleCheck },
+    { to: '/admin/cancelled-orders', label: 'Cancelled orders', icon: CircleX },
+  ] },
+  { title: 'Catalog', links: SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })) },
+  { title: 'Store setup', links: [
+    { to: '/admin/order-settings', label: 'Order Settings', icon: SlidersHorizontal },
+    ...SECTIONS.filter((s) => ['sizes', 'occasions'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
+  ] },
+  { title: 'Content', links: [
+    ...SECTIONS.filter((s) => ['faq', 'policies', 'menu'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
+    { to: '/admin/settings', label: 'Site Settings', icon: Settings },
+  ] },
 ]
 
 const linkClass = ({ isActive }) =>
   `flex items-center gap-3 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
-    isActive ? 'bg-brand text-white shadow-sm' : 'text-ink/70 hover:bg-sand/70 hover:text-ink'
+    isActive ? 'bg-brand text-white shadow-sm' : 'text-ink/80 hover:bg-sand/70 hover:text-ink'
   }`
 
 function UploadActivity() {
@@ -52,31 +62,69 @@ function UploadActivity() {
 export default function AdminLayout() {
   // An order's own page has room for two columns
   const wide = useMatch('/admin/orders/:id')
+  const ordersList = useMatch({ path: '/admin/orders', end: true })
+  const completedOrdersList = useMatch('/admin/completed-orders')
+  const cancelledOrdersList = useMatch('/admin/cancelled-orders')
+  const wideList = ordersList || completedOrdersList || cancelledOrdersList
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+
+  useEffect(() => setMenuOpen(false), [location.pathname])
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [menuOpen])
+
   return (
     <div className="min-h-screen bg-cream md:flex">
-      <aside className="border-b border-sand bg-white md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r">
-        <div className="flex items-center justify-between p-5 md:block md:p-6">
-          <div>
-            <p className="font-serif text-2xl font-bold">Admin</p>
-            <p className="hidden text-xs text-ink/50 md:block">Manage your site content</p>
+      <header className="sticky top-0 z-30 flex items-center justify-start gap-3 border-b border-sand bg-white px-4 py-3 md:hidden">
+        <button type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="admin-navigation" onClick={() => setMenuOpen(!menuOpen)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-sand text-brand transition hover:bg-sand/60">
+          {menuOpen ? <X size={21} /> : <Menu size={21} />}
+        </button>
+        <div>
+          <p className="font-serif text-xl font-bold leading-tight">Admin</p>
+          <p className="text-xs text-ink/55">Manage your site content</p>
+        </div>
+      </header>
+
+      {menuOpen && <button type="button" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-ink/35 md:hidden" />}
+      <aside id="admin-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[min(19rem,88vw)] flex-col overflow-y-auto border-r border-sand bg-white shadow-2xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:h-screen md:w-64 md:shrink-0 md:translate-x-0 md:border-r md:shadow-none ${menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <div className="p-5 md:px-6 md:pb-5 md:pt-7">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-serif text-2xl font-bold">Admin</p>
+              <p className="text-xs text-ink/55">Manage your site content</p>
+            </div>
+            <button type="button" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} className="-mr-2 -mt-1 inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-ink/60 hover:bg-sand md:hidden"><X size={19} /></button>
           </div>
+          <div className="mt-4">
           <Link
             to="/"
-            className="flex items-center gap-1.5 rounded-lg border border-sand px-3 py-1.5 text-sm text-brand hover:bg-sand/60 md:mt-4 md:w-fit"
+            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-sand px-3.5 text-sm font-medium text-brand transition hover:bg-sand/60 md:w-auto"
           >
-            <ExternalLink size={14} /> View site
+            <ExternalLink size={15} /> View site
           </Link>
+          </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:pb-6">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={linkClass}>
-              <Icon size={18} /> {label}
-            </NavLink>
+        <nav className="flex-1 px-3 pb-5 md:px-3 md:pb-6" aria-label="Admin navigation">
+          {NAV_GROUPS.map((group, index) => (
+            <div key={group.title ?? 'primary'} className={index ? 'mt-5' : ''}>
+              {group.title && <p className="mb-2 px-3 text-xs font-medium tracking-wide text-ink/55">{group.title}</p>}
+              <div className="space-y-1">
+                {group.links.map(({ to, label, icon: Icon, end }) => (
+                  <NavLink key={to} to={to} end={end} className={linkClass}>
+                    <Icon size={17} strokeWidth={1.8} className="shrink-0" /> <span>{label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </aside>
-      <main className="min-w-0 flex-1 p-5 sm:p-8 lg:p-10">
-        <div className={`mx-auto ${wide ? 'max-w-6xl' : 'max-w-4xl'}`}>
+      <main className={`min-w-0 flex-1 p-4 sm:p-8 ${ordersList ? 'lg:px-6 lg:py-8' : 'lg:p-10'}`}>
+        <div className={`mx-auto ${wide ? 'max-w-6xl' : wideList ? 'max-w-none' : 'max-w-4xl'}`}>
           <Outlet />
         </div>
       </main>

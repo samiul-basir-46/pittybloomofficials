@@ -19,7 +19,7 @@ function Group({ title, hint, children }) {
   )
 }
 
-const NUMBERS = ['urgentDaysInside', 'urgentDaysOutside', 'a4MaxPages', 'a5MaxPages', 'maxCopies', 'insideDhakaCharge', 'outsideDhakaCharge', 'cutoffHour', 'outsideMinDays']
+const NUMBERS = ['a4MaxPages', 'a5MaxPages', 'maxCopies', 'insideDhakaCharge', 'outsideDhakaCharge', 'cutoffHour', 'outsideMinDays']
 
 // Checks the form and returns the first problem in plain words, or '' when it is fine.
 const check = (f) => {
@@ -114,9 +114,8 @@ export default function OrderSettingsPage() {
         <Field label="Extra sentence shown under the calendar" value={form.standardNote} onChange={set('standardNote')} />
       </Group>
 
-      <Group title="Urgent orders" hint="Orders are sorted by the delivery date the customer chose. An open order is Urgent when it is needed within this many days (0 means today). Past dates are always Overdue.">
-        {num('urgentDaysInside', 'Inside Dhaka: urgent when needed within (days)')}
-        {num('urgentDaysOutside', 'Outside Dhaka: urgent when needed within (days)')}
+      <Group title="Urgent orders" hint="Orders are sorted by the requested delivery date. Past dates are Overdue. Inside Dhaka becomes Urgent within 2 days; Outside Dhaka within 3 days.">
+        <p className="rounded-xl bg-cream p-4 text-sm text-ink/70">Urgency timing is fixed: 2 days for Inside Dhaka and 3 days for Outside Dhaka.</p>
       </Group>
 
       <Group title="Texts customers see">

@@ -8,8 +8,8 @@ export default function CoverViewer({ images, title }) {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="flex w-full justify-center bg-linear-to-b from-white to-cream pb-8 pt-6 sm:pt-10">
-        <div className="relative aspect-[37/52] w-[min(70%,370px)] shadow-[0_25px_40px_rgba(0,0,0,0.12)]">
+      <div className="flex w-full justify-center bg-linear-to-b from-white to-cream pb-8 pt-4 sm:pt-10">
+        <div className="relative aspect-[37/52] w-[min(50%,230px)] shadow-[0_25px_40px_rgba(0,0,0,0.12)] sm:w-[min(70%,370px)]">
           <span className="absolute -left-2 inset-y-0 w-2 bg-brand/30" />
           <SmartImage src={images[index]} alt={title} />
         </div>

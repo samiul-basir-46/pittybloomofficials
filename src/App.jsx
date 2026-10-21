@@ -63,6 +63,8 @@ export default function App() {
             <Route key={s.path} path={s.path} element={<ItemManager key={s.path} {...s} />} />
           ))}
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="completed-orders" element={<OrdersPage fixedView="completed" />} />
+          <Route path="cancelled-orders" element={<OrdersPage fixedView="cancelled" />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="drafts/:id" element={<DraftDetailPage />} />
           <Route path="order-settings" element={<OrderSettingsPage />} />

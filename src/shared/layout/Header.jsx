@@ -1,5 +1,6 @@
-import { Link, NavLink } from 'react-router-dom'
-import { LogOut, ShoppingCart, User } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
+import { LogOut, Menu, ShoppingCart, User, X } from 'lucide-react'
 import Container from '../ui/Container'
 import SmartImage from '../ui/SmartImage'
 import useAsync from '../hooks/useAsync'
@@ -12,15 +13,25 @@ const linkClass = ({ isActive }) =>
   `text-sm font-medium uppercase tracking-wide transition-colors hover:text-brand ${isActive ? 'text-brand' : ''}`
 
 export default function Header() {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
   const { count } = useCart()
   const { user, signOut, configured } = useAuth()
   const { settings } = useSettings()
   const nav = useAsync(getNavLinks)
 
+  useEffect(() => setMenuOpen(false), [location.pathname])
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [menuOpen])
+
   return (
-    <header className="border-b border-sand bg-white">
-      <Container className="grid h-20 grid-cols-3 items-center sm:h-[120px]">
-        <nav className="flex gap-5 sm:gap-8">
+    <header className="relative z-50 border-b border-sand bg-white">
+      <Container className="grid h-16 grid-cols-3 items-center sm:h-[120px]">
+        <nav className="hidden gap-5 sm:flex sm:gap-8">
           {(nav.data ?? []).map((l) => (
             <NavLink key={l.id} to={l.to} end className={linkClass}>
               {l.label}
@@ -30,7 +41,7 @@ export default function Header() {
         <Link
           to="/"
           aria-label={settings.name}
-          className="size-14 justify-self-center overflow-hidden rounded-full bg-brand sm:size-[84px]"
+          className="size-10 justify-self-center overflow-hidden rounded-full bg-brand sm:size-[84px]"
         >
           <SmartImage src={settings.logo} alt={settings.name} />
         </Link>
@@ -43,14 +54,23 @@ export default function Header() {
               </span>
             )}
           </Link>
-          <Link to="/account" aria-label="Account">
+          <Link to="/account" aria-label="Account" className="hidden sm:block">
             <User size={20} />
           </Link>
           {configured && user && <button onClick={signOut} className="hidden items-center gap-2 text-xs uppercase tracking-wide text-ink/70 sm:flex">
             <LogOut size={16} /> Logout
           </button>}
         </div>
+        <button type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="mobile-site-navigation" onClick={() => setMenuOpen((open) => !open)} className="absolute left-4 top-1/2 inline-grid size-10 -translate-y-1/2 place-items-center rounded-lg text-ink sm:hidden">
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </Container>
+      {menuOpen && <div id="mobile-site-navigation" className="absolute inset-x-0 top-full border-t border-sand bg-white px-4 py-3 shadow-lg sm:hidden">
+        <nav aria-label="Main navigation" className="space-y-1">
+          {(nav.data ?? []).map((link) => <NavLink key={link.id} to={link.to} end onClick={() => setMenuOpen(false)} className={({ isActive }) => `block rounded-lg px-3 py-2.5 text-sm font-medium uppercase tracking-wide ${isActive ? 'bg-cream text-brand' : 'text-ink hover:bg-cream'}`}>{link.label}</NavLink>)}
+          <Link to="/account" onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-cream">My account</Link>
+        </nav>
+      </div>}
     </header>
   )
 }

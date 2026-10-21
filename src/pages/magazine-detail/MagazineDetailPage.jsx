@@ -32,10 +32,16 @@ function Detail({ magazine, sizes, settings }) {
   // The flipbook is only used for a valid book (page count divisible by 4); otherwise the cover images are shown
   const hasBook = Boolean(magazine.book?.key) && isValidPageCount(magazine.book.pageCount)
   const orderItem = () => magazineLine(magazine, size)
+  const addToCart = () => add(orderItem())
+  const startOrder = () => {
+    photoStore.clear()
+    orderDraft.set(freshDraft(magazine.id, size))
+    navigate(`/magazines/${magazine.id}/order`)
+  }
   const cover = <CoverViewer images={[magazine.image, magazine.backImage].filter(Boolean)} title={magazine.title} />
 
   return (
-    <Container className="pb-20 pt-4">
+    <Container className="pb-28 pt-4 sm:pb-20">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <button
           // location.key is "default" when the page was opened directly, so there is nothing to go back to
@@ -44,7 +50,7 @@ function Detail({ magazine, sizes, settings }) {
         >
           <ArrowLeft size={16} /> Back
         </button>
-        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm text-ink/60">
+        <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm text-ink/60 sm:flex">
           <Link to="/" className="hover:text-brand">
             Home
           </Link>
@@ -57,18 +63,18 @@ function Detail({ magazine, sizes, settings }) {
         </nav>
       </div>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-14">
+      <div className="mt-5 grid gap-7 lg:mt-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-14">
         {hasBook ? (
           <BookViewer book={magazine.book} title={magazine.title} fallback={cover} />
         ) : (
           cover
         )}
         <div className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Magazine</p>
-          <h1 className="mt-4 font-serif text-4xl sm:text-5xl">{magazine.title}</h1>
-          <p className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {save > 0 && <span className="text-2xl text-ink/50 line-through">{formatPrice(size.mrp)}</span>}
-            <span className="text-3xl font-extrabold sm:text-4xl">Price: {formatPrice(size.price)}</span>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand sm:text-sm">Magazine</p>
+          <h1 className="mt-3 font-serif text-[1.35rem] sm:mt-4 sm:text-5xl">{magazine.title}</h1>
+          <p className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:mt-6">
+            {save > 0 && <span className="text-xl text-ink/50 line-through sm:text-2xl">{formatPrice(size.mrp)}</span>}
+            <span className="text-2xl font-extrabold sm:text-4xl">Price: {formatPrice(size.price)}</span>
             {save > 0 && (
               <span className="rounded-full border border-sand bg-cream px-3 py-1 text-xs font-semibold text-warm">
                 Save {formatPrice(save)}
@@ -82,18 +88,14 @@ function Detail({ magazine, sizes, settings }) {
           </div>
           <p className="mb-5 mt-10 font-semibold">Choose Magazine Size</p>
           <SizeSelector sizes={sizes} formats={formats} value={size.id} onChange={setSizeId} />
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <Button variant="outline" className="h-[76px] gap-2" onClick={() => add(orderItem())}>
+          <div className="mt-8 hidden gap-4 sm:grid sm:grid-cols-2">
+            <Button variant="outline" className="h-[76px] gap-2" onClick={addToCart}>
               <ShoppingCart size={18} /> Add to Cart
             </Button>
             <Button
               className="h-[76px] flex-col shadow-lg"
               // Buy Now always starts a fresh order with the size chosen here
-              onClick={() => {
-                photoStore.clear()
-                orderDraft.set(freshDraft(magazine.id, size))
-                navigate(`/magazines/${magazine.id}/order`)
-              }}
+              onClick={startOrder}
             >
               <span className="flex items-center gap-2 text-xl font-extrabold uppercase">
                 Buy now <ArrowRight size={18} />
@@ -120,6 +122,16 @@ function Detail({ magazine, sizes, settings }) {
               <MagazineMiniCard key={m.id} magazine={m} />
             ))}
         </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 gap-2 border-t border-sand bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(42,26,28,0.08)] backdrop-blur sm:hidden">
+        <Button variant="outline" size="sm" className="h-11 gap-2 px-3" onClick={addToCart}>
+          <ShoppingCart size={16} /> Add to Cart
+        </Button>
+        <Button size="sm" className="h-11 flex-col gap-0 px-3 leading-tight" onClick={startOrder}>
+          <span className="flex items-center gap-1 text-xs">Buy Now <ArrowRight size={14} /></span>
+          <span className="flex items-center gap-1 text-[10px] font-medium text-white/80"><Gift size={11} /> {productInfo.buyNote}</span>
+        </Button>
       </div>
     </Container>
   )

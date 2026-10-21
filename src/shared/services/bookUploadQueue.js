@@ -31,10 +31,10 @@ export function startBookUpload(file) {
         update(id, { phase: 'Preparing pages', done, total }),
       )
       update(id, { phase: 'Uploading to Cloudflare', done: 0, total: pages.length })
-      const key = await bookStore.save(pages, { name: file.name, ratio }, (done, total) =>
+      const key = await bookStore.save(pages, { name: file.name, ratio }, file, (done, total) =>
         update(id, { phase: 'Uploading to Cloudflare', done, total }),
       )
-      const book = { key, pageCount: pages.length, ratio, name: file.name }
+      const book = { key, pageCount: pages.length, ratio, name: file.name, sourceAvailable: true }
       update(id, { status: 'complete', phase: 'Ready to attach', book, done: pages.length, total: pages.length })
       return book
     } catch (error) {

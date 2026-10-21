@@ -84,9 +84,12 @@ export const ordersApi = !firebaseConfigured ? localOrdersApi : {
     const user = requireSignedIn()
     const ref = doc(db, 'orders', order.id)
     const existing = await getDoc(ref)
-    if (existing.exists() && existing.data().ownerUid === user.uid) return existing.data()
-    if (existing.exists() && !(await userIsAdmin(user))) throw new Error('This order ID is already in use.')
-    const next = existing.exists() ? order : {
+    const isAdmin = existing.exists() ? await userIsAdmin(user) : false
+    if (existing.exists() && !isAdmin) {
+      if (existing.data().ownerUid === user.uid) return existing.data()
+      throw new Error('This order ID is already in use.')
+    }
+    const next = existing.exists() ? { ...order, ownerUid: existing.data().ownerUid } : {
       ...order,
       ownerUid: user.uid,
       customer: { ...order.customer, uid: user.uid, contactEmail: order.customer?.email || '', email: user.email || '' },

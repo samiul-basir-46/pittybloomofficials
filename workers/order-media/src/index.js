@@ -68,7 +68,7 @@ function corsHeaders(request, env) {
   if (!allowed.includes(origin)) return null
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Name',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -80,6 +80,26 @@ function isAdmin(claims, env) {
   // The configured admin uses Firebase Email/Password auth, which may have an
   // unverified email claim even though the account is separately admin-approved.
   return allowed.includes(String(claims.email || '').toLowerCase())
+}
+
+async function hasAdminRole(request, env, claims) {
+  // Match the web app's authority check: admins/{uid}.role must equal "admin".
+  // A Firebase ID token makes this REST read subject to the same Firestore rules
+  // that allow a signed-in user to read only their own admin record.
+  const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/i)?.[1]
+  if (!token || !env.FIREBASE_PROJECT_ID) return isAdmin(claims, env)
+  const endpoint = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/admins/${encodeURIComponent(claims.sub)}`
+  try {
+    const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } })
+    if (response.ok) {
+      const document = await response.json()
+      return document.fields?.role?.stringValue === 'admin' || isAdmin(claims, env)
+    }
+    if (response.status === 403 || response.status === 404) return isAdmin(claims, env)
+  } catch (error) {
+    console.error('Could not check the Firebase admin record', error)
+  }
+  return isAdmin(claims, env)
 }
 
 export default {
@@ -98,9 +118,73 @@ export default {
       headers.set('Cache-Control', 'public, max-age=3600')
       return new Response(object.body, { headers })
     }
+    const publicSource = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/source$/)
+    if (request.method === 'GET' && publicSource) {
+      const object = await env.MEDIA_BUCKET.get(`books/${publicSource[1]}/source.pdf`)
+      if (!object) return json({ error: 'Original PDF not found.' }, 404, cors)
+      const headers = new Headers(cors)
+      object.writeHttpMetadata(headers)
+      headers.set('Cache-Control', 'public, max-age=3600')
+      headers.set('Content-Disposition', 'inline; filename="magazine.pdf"')
+      return new Response(object.body, { headers })
+    }
 
     const claims = await verifyFirebaseToken(request, env).catch(() => null)
     if (!claims) return json({ error: 'A valid Firebase sign-in is required.' }, 401, cors)
+
+    if (request.method === 'POST' && url.pathname === '/steadfast/dispatch') {
+      if (!await hasAdminRole(request, env, claims)) return json({ error: 'Admin access is required to dispatch orders.' }, 403, cors)
+      if (!env.STEADFAST_API_KEY || !env.STEADFAST_SECRET_KEY) {
+        return json({ error: 'Steadfast API credentials are not configured on the media Worker.' }, 503, cors)
+      }
+      let input
+      try { input = await request.json() } catch { return json({ error: 'Invalid dispatch details.' }, 400, cors) }
+      const invoice = String(input.invoice || '').trim().slice(0, 80)
+      const recipientName = String(input.recipient_name || '').trim().slice(0, 100)
+      const rawPhone = String(input.recipient_phone || '').replace(/[^\d]/g, '')
+      const recipientPhone = rawPhone.startsWith('8801') && rawPhone.length === 13 ? `0${rawPhone.slice(3)}` : rawPhone.slice(0, 20)
+      const recipientAddress = String(input.recipient_address || '').trim().slice(0, 250)
+      const codAmount = Number(input.cod_amount)
+      if (!invoice || !recipientName || recipientPhone.length < 11 || !recipientAddress || !Number.isFinite(codAmount) || codAmount < 0) {
+        return json({ error: 'Enter a valid recipient name, phone, address, and COD amount.' }, 400, cors)
+      }
+      const rawAlternativePhone = String(input.alternative_phone || '').replace(/[^\d]/g, '')
+      const payload = {
+        invoice,
+        recipient_name: recipientName,
+        recipient_phone: recipientPhone,
+        recipient_address: recipientAddress,
+        cod_amount: String(Math.round(codAmount)),
+        recipient_email: String(input.recipient_email || '').trim().slice(0, 180),
+        alternative_phone: rawAlternativePhone.startsWith('8801') && rawAlternativePhone.length === 13 ? `0${rawAlternativePhone.slice(3)}` : rawAlternativePhone.slice(0, 20),
+        item_description: String(input.item_description || 'Customized magazine order').trim().slice(0, 200),
+        note: String(input.note || '').trim().slice(0, 250),
+      }
+      let courierResponse
+      try {
+        courierResponse = await fetch('https://portal.packzy.com/api/v1/create_order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': env.STEADFAST_API_KEY,
+            'secret-key': env.STEADFAST_SECRET_KEY,
+          },
+          body: JSON.stringify(payload),
+        })
+      } catch (error) {
+        console.error('Steadfast request failed', error)
+        return json({ error: 'Could not connect to Steadfast. Please retry.' }, 502, cors)
+      }
+      const result = await courierResponse.json().catch(() => ({}))
+      if (!courierResponse.ok || result.status !== 200 || !result.consignment) {
+        return json({ error: String(result.message || 'Steadfast could not create this consignment.').slice(0, 240) }, 502, cors)
+      }
+      return json({
+        tracking_code: String(result.consignment.tracking_code || ''),
+        consignment_id: String(result.consignment.consignment_id || ''),
+        consignment: result.consignment,
+      }, 201, cors)
+    }
 
     if (request.method === 'GET' && url.pathname === '/books') {
       const books = []
@@ -128,6 +212,7 @@ export default {
         pageCount: manifest.pageCount,
         ratio: manifest.ratio,
         name: String(manifest.name || 'Book PDF').slice(0, 180),
+        sourceAvailable: true,
         uploadedAt: new Date().toISOString(),
       }
       await env.MEDIA_BUCKET.put(`books/${record.key}/manifest.json`, JSON.stringify(record), {
@@ -136,12 +221,31 @@ export default {
       return json({ book: record }, 201, cors)
     }
 
+    const uploadSource = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/source$/)
+    if (request.method === 'PUT' && uploadSource) {
+      const length = Number(request.headers.get('Content-Length') || 0)
+      if (request.headers.get('Content-Type') !== 'application/pdf') return json({ error: 'An original PDF file is required.' }, 415, cors)
+      if (length > 100 * 1024 * 1024) return json({ error: 'PDF files must be 100 MB or smaller.' }, 413, cors)
+      if (!request.body) return json({ error: 'The PDF file is empty.' }, 400, cors)
+      try {
+        await env.MEDIA_BUCKET.put(`books/${uploadSource[1]}/source.pdf`, request.body, {
+          httpMetadata: { contentType: 'application/pdf', cacheControl: 'public, max-age=3600' },
+          customMetadata: { ownerUid: claims.sub },
+        })
+      } catch (error) {
+        console.error('Cloudflare R2 original PDF upload failed', error)
+        return json({ error: 'Cloudflare R2 could not store the original PDF.' }, 502, cors)
+      }
+      return json({ ok: true }, 201, cors)
+    }
+
     const uploadPage = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/pages\/(\d{1,5})$/)
     if (request.method === 'PUT' && uploadPage) {
-      if (!request.headers.get('Content-Type')?.startsWith('image/')) return json({ error: 'A rendered book page image is required.' }, 415, cors)
+      const contentType = request.headers.get('Content-Type') || ''
+      if (!['image/png', 'image/jpeg'].includes(contentType)) return json({ error: 'A rendered book page image is required.' }, 415, cors)
       try {
         await env.MEDIA_BUCKET.put(`books/${uploadPage[1]}/pages/${uploadPage[2]}`, request.body, {
-          httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=3600' },
+          httpMetadata: { contentType, cacheControl: 'public, max-age=3600' },
           customMetadata: { ownerUid: claims.sub },
         })
       } catch (error) {
@@ -152,7 +256,7 @@ export default {
     }
     const deleteBook = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})$/)
     if (request.method === 'DELETE' && deleteBook) {
-      const prefix = `books/${deleteBook[1]}/pages/`
+      const prefix = `books/${deleteBook[1]}/`
       let cursor
       do {
         const listed = await env.MEDIA_BUCKET.list({ prefix, cursor })
@@ -197,7 +301,7 @@ export default {
     if (request.method === 'GET' && url.pathname === '/media') {
       const key = url.searchParams.get('key') || ''
       const match = key.match(/^users\/([A-Za-z0-9_-]{1,128})\/images\/([a-zA-Z0-9_-]{8,80})$/)
-      if (!match || (match[1] !== claims.sub && !isAdmin(claims, env))) return json({ error: 'Photo not found.' }, 404, cors)
+      if (!match || (match[1] !== claims.sub && !await hasAdminRole(request, env, claims))) return json({ error: 'Photo not found.' }, 404, cors)
       const object = await env.MEDIA_BUCKET.get(key)
       if (!object) return json({ error: 'Photo not found.' }, 404, cors)
       const headers = new Headers(cors)

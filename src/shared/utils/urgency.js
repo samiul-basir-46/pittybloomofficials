@@ -5,7 +5,6 @@ export const ACTIVE_STATUSES = ['New', 'Confirmed', 'In production']
 
 export const LEVELS = ['overdue', 'urgent', 'standard', 'none']
 
-const num = (v, fallback) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Number(v) : fallback)
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 // 'YYYY-MM-DD' the customer picked as "when do you need the magazine", or '' for orders without one (old cart orders).
@@ -14,7 +13,14 @@ export const deliveryDateOf = (order) => {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''
 }
 
-export const locationOf = (order) => order?.deliveryInfo?.location ?? ''
+export const locationOf = (order) => {
+  const location = order?.deliveryInfo?.location ?? ''
+  if (location === 'inside' || location === 'outside') return location
+  const label = `${order?.deliveryInfo?.locationLabel ?? ''} ${order?.delivery ?? ''}`
+  if (/outside\s+dhaka/i.test(label)) return 'outside'
+  if (/inside\s+dhaka/i.test(label)) return 'inside'
+  return location
+}
 
 // "19 October"
 export const needDate = (iso) => {
@@ -32,18 +38,18 @@ export const compactDate = (iso) => {
 /**
  * How soon an order is needed.
  *   level  'overdue'  the date has passed and the order is still open
- *          'urgent'   needed within the urgent window (3 days Inside Dhaka, 4 days Outside Dhaka, both editable)
+ *          'urgent'   needed within 2 days Inside Dhaka or 3 days Outside Dhaka
  *          'standard' open order with more time left, or with no date
  *          'none'     nothing to do any more (Shipped, Delivered, Cancelled)
  */
-export function getUrgency(order, settings = {}, now = new Date()) {
+export function getUrgency(order, _settings = {}, now = new Date()) {
   const date = deliveryDateOf(order)
   const base = { date, daysLeft: null, level: 'none', label: '', short: '' }
   if (!ACTIVE_STATUSES.includes(order?.status)) return { ...base, label: date ? compactDate(date) : '', short: date ? compactDate(date) : '' }
   if (!date) return { ...base, level: 'standard', label: 'No delivery date', short: 'No date' }
 
   const daysLeft = daysBetween(toISO(now), date)
-  const window = locationOf(order) === 'outside' ? num(settings.urgentDaysOutside, 4) : num(settings.urgentDaysInside, 3)
+  const window = locationOf(order) === 'outside' ? 3 : 2
   const when = daysLeft < 0 ? `Overdue by ${-daysLeft} day${daysLeft === -1 ? '' : 's'}` : daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Tomorrow' : `In ${daysLeft} days`
   const level = daysLeft < 0 ? 'overdue' : daysLeft <= window ? 'urgent' : 'standard'
   return { ...base, level, daysLeft, label: when, short: when }

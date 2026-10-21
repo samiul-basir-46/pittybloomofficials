@@ -3,6 +3,10 @@ main = "src/index.js"
 account_id = "ae87bccdb4cc9542c668c9869d6f9d98"
 compatibility_date = "2026-10-19"
 
+[secrets]
+# Add both in the Cloudflare dashboard as Worker secrets before deployment.
+required = ["STEADFAST_API_KEY", "STEADFAST_SECRET_KEY"]
+
 [vars]
 FIREBASE_PROJECT_ID = "pittybloomofficials"
 APP_ORIGIN = "http://localhost:5173,http://127.0.0.1:5173,https://pittybloomofficials.web.app"
