@@ -93,10 +93,14 @@ async function hasAdminRole(request, env, claims) {
 
 export default {
   async fetch(request, env) {
-    const cors = corsHeaders(request, env)
+    const url = new URL(request.url)
+    let cors = corsHeaders(request, env)
+    // Uploaded catalog and product-card images are public. Anyone may view them from
+    // any site (local dev, preview channels, custom domains); only writes need an allowed origin.
+    const isPublicImageRead = ['GET', 'HEAD'].includes(request.method) && /^\/(catalog-images|manual-order-cards)\//.test(url.pathname)
+    if (!cors && isPublicImageRead) cors = { 'Access-Control-Allow-Origin': '*' }
     if (!cors) return json({ error: 'Origin is not allowed.' }, 403)
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
-    const url = new URL(request.url)
     if (url.pathname === '/guest-orders' && request.method === 'POST') return handleGuestOrder(request, env, cors)
     const manualCardImage = url.pathname.match(/^\/manual-order-cards\/(polaroids|frames|miniMagazines|magazines|songBooks)$/)
     if (manualCardImage && request.method === 'GET') {
