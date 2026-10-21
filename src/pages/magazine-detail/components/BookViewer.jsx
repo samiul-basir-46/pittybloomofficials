@@ -129,28 +129,36 @@ export default function BookViewer({ book, title, fallback }) {
           drawShadow: true,
           startPage: 0,
         })
-        // PageFlip sizes its canvas at CSS pixels, which looks soft on Retina/mobile
-        // screens. Keep the same visual size but render the canvas at a higher DPR.
-        const ui = instance.getUI()
-        const resizeCanvas = ui.resizeCanvas.bind(ui)
-        ui.resizeCanvas = () => {
-          resizeCanvas()
-          const canvas = ui.getCanvas()
-          const bounds = canvas.getBoundingClientRect()
-          const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
-          canvas.width = Math.max(1, Math.round(bounds.width * dpr))
-          canvas.height = Math.max(1, Math.round(bounds.height * dpr))
-          const context = canvas.getContext('2d')
-          context?.setTransform(dpr, 0, 0, dpr, 0, 0)
-          if (context) context.imageSmoothingQuality = 'high'
+        instance.loadFromImages(pageUrls)
+        // PageFlip sizes its canvas at CSS pixels, which looks soft on Retina/mobile screens.
+        // Keep the same visual size but render the canvas at a higher DPR. The UI only exists
+        // after the pages are loaded, and a failure here must never take the whole book down.
+        try {
+          const ui = instance.getUI()
+          if (ui) {
+            const resizeCanvas = ui.resizeCanvas.bind(ui)
+            ui.resizeCanvas = () => {
+              resizeCanvas()
+              const canvas = ui.getCanvas()
+              const bounds = canvas.getBoundingClientRect()
+              const ratioPx = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+              canvas.width = Math.max(1, Math.round(bounds.width * ratioPx))
+              canvas.height = Math.max(1, Math.round(bounds.height * ratioPx))
+              const context = canvas.getContext('2d')
+              context?.setTransform(ratioPx, 0, 0, ratioPx, 0, 0)
+              if (context) context.imageSmoothingQuality = 'high'
+            }
+            ui.resizeCanvas()
+            instance.update?.()
+          }
+        } catch (error) {
+          console.warn('[Flipbook] Sharp canvas mode unavailable, using the default:', error)
         }
-        ui.resizeCanvas()
         instance.on('flip', ({ data }) => {
           currentPage.current = data
           setPageIndex(data)
         })
         instance.on('changeOrientation', ({ data }) => setSingle(data === 'portrait'))
-        instance.loadFromImages(pageUrls)
         setSingle(instance.getOrientation() === 'portrait')
         flip.current = instance
         setStatus('ready')
