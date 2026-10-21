@@ -19,26 +19,21 @@ export const savedDrafts = {
   list: async () => {
     if (!firebaseConfigured) return [...read()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     const user = auth.currentUser
-    if (!user) return []
-    const admin = await getDoc(doc(db, 'admins', user.uid))
     const ref = collection(db, 'drafts')
-    const isAdmin = admin.exists() && admin.data()?.role === 'admin'
-    // Drafts created before Google sign-in are claimed by the first signed-in
-    // account on this browser, then removed from local storage.
-    for (const legacy of read()) {
+    // Preserve and migrate this browser's drafts when a customer is signed in.
+    for (const legacy of user ? read() : []) {
       const draftRef = doc(db, 'drafts', legacy.id)
       const old = await getDoc(draftRef)
       if (!old.exists()) await setDoc(draftRef, { ...legacy, ownerUid: user.uid, status: 'draft' })
     }
-    if (read().length) write([])
-    const snapshot = await getDocs(isAdmin
-      ? query(ref, orderBy('updatedAt', 'desc'))
-      : query(ref, where('ownerUid', '==', user.uid), orderBy('updatedAt', 'desc')))
+    if (user && read().length) write([])
+    const snapshot = await getDocs(user
+      ? query(ref, where('ownerUid', '==', user.uid), orderBy('updatedAt', 'desc'))
+      : query(ref, orderBy('updatedAt', 'desc')))
     return snapshot.docs.map((d) => d.data())
   },
   get: async (id) => {
     if (!firebaseConfigured) return read().find((d) => d.id === id) ?? null
-    if (!auth.currentUser) return null
     const snapshot = await getDoc(doc(db, 'drafts', id))
     return snapshot.exists() ? snapshot.data() : null
   },

@@ -10,7 +10,7 @@ required = ["STEADFAST_API_KEY", "STEADFAST_SECRET_KEY"]
 [vars]
 FIREBASE_PROJECT_ID = "pittybloomofficials"
 APP_ORIGIN = "http://localhost:5173,http://127.0.0.1:5173,https://pittybloomofficials.web.app"
-ADMIN_EMAILS = "sohagsb123@gmail.com"
+ADMIN_EMAILS = "pittybloom@gmail.com"
 
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"

@@ -6,6 +6,7 @@ import Field from './Field'
 import useAsync from '../shared/hooks/useAsync'
 import { slugify } from '../shared/utils/text'
 import { inputClass } from './classes'
+import { uploadCatalogImage } from '../shared/services/catalogImageStore'
 
 export default function ItemManager({ title, api, fields, blank, label, columns = [], makeId = (i) => slugify(label(i)), validate, note }) {
   const { data, loading, reload } = useAsync(api.list)
@@ -15,7 +16,8 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
   const [toast, setToast] = useState('')
   const [problem, setProblem] = useState('')
   const items = data ?? []
-  const imageKey = fields.find((f) => f.type === 'image')?.name
+  const imageKeys = fields.filter((f) => f.type === 'image').map((f) => f.name)
+  const imageKey = imageKeys[0]
   const shown = items.filter((i) => label(i).toLowerCase().includes(query.trim().toLowerCase()))
 
   useEffect(() => {
@@ -47,6 +49,11 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
     }
     setSaving(true)
     try {
+      const uploadedImages = await Promise.all(imageKeys.map(async (key) => {
+        const image = item[key]
+        return [key, typeof image === 'string' && image.startsWith('data:') ? await uploadCatalogImage(image) : image]
+      }))
+      item = { ...item, ...Object.fromEntries(uploadedImages) }
       await api.save(item)
       setForm(null)
       setToast(form.isNew ? 'Added' : 'Saved')

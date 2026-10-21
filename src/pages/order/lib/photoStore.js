@@ -81,19 +81,17 @@ export const photoStore = {
   },
   async getUrl(id, storageKey) {
     if (objectUrls.has(id)) return objectUrls.get(id)
-    try {
-      const blob = firebaseConfigured && storageKey
-        ? await downloadRemote(storageKey)
-        : (await withStore('readonly', (store) => store.get(id)))?.blob
-      if (!blob) return ''
-      const url = URL.createObjectURL(blob)
-      objectUrls.set(id, url)
-      return url
-    } catch { return '' }
+    const blob = storageKey
+      ? await downloadRemote(storageKey)
+      : (await withStore('readonly', (store) => store.get(id)))?.blob
+    if (!blob) return ''
+    const url = URL.createObjectURL(blob)
+    objectUrls.set(id, url)
+    return url
   },
   async getBlob(id, storageKey) {
     try {
-      return firebaseConfigured && storageKey
+      return storageKey
         ? await downloadRemote(storageKey)
         : (await withStore('readonly', (store) => store.get(id)))?.blob
     } catch { return null }
@@ -149,9 +147,17 @@ export const photoStore = {
 }
 
 async function downloadRemote(storageKey) {
+  if (storageKey?.startsWith('manual-orders/')) {
+    if (!MEDIA_API) throw new Error('Cloud photo storage is not configured.')
+    if (!auth?.currentUser) throw new Error('Sign in to view customer order photos.')
+    const token = await auth.currentUser.getIdToken()
+    const response = await fetch(`${MEDIA_API}/guest-media?key=${encodeURIComponent(storageKey)}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!response.ok) throw new Error(`Could not load a guest order photo (HTTP ${response.status}).`)
+    return response.blob()
+  }
   if (!MEDIA_API || !auth?.currentUser) throw new Error('Cloud photo storage is not configured or you are signed out.')
   const token = await auth.currentUser.getIdToken()
   const response = await fetch(`${MEDIA_API}/media?key=${encodeURIComponent(storageKey)}`, { headers: { Authorization: `Bearer ${token}` } })
-  if (!response.ok) throw new Error('Could not load a photo from Cloudflare R2.')
+  if (!response.ok) throw new Error(`Could not load a photo from Cloudflare R2 (HTTP ${response.status}).`)
   return response.blob()
 }

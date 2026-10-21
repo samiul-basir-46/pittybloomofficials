@@ -1,8 +1,8 @@
-// Reads an uploaded PDF, checks it is valid for the book format and renders lossless preview pages.
+// Reads an uploaded PDF and renders lossless preview pages for the book viewer.
 // The original PDF is uploaded separately without modification.
-export const PAGE_MULTIPLE = 4
-// Render enough pixels for sharp phone screens and zooming while keeping per-page memory bounded.
-const RENDER_WIDTH = 1800
+// Render at 200 DPI: enough detail for the viewer's 520px page width, with
+// substantially smaller preview files. The original PDF remains untouched.
+const PREVIEW_DPI = 200
 
 export class PdfBookError extends Error {}
 
@@ -15,17 +15,16 @@ const loadPdfJs = () =>
     },
   ))
 
-const toPng = (canvas) =>
+const toJpeg = (canvas) =>
   new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not encode page'))), 'image/png'),
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not encode page'))), 'image/jpeg', 0.94),
   )
 
-export const isValidPageCount = (count) => Number.isInteger(count) && count > 0 && count % PAGE_MULTIPLE === 0
+export const isValidPageCount = (count) => Number.isInteger(count) && count > 0
 
 /**
  * Returns { pages: Blob[], ratio } where ratio is page width / height.
- * Throws PdfBookError (with a message safe to show) when the file cannot be used as a book.
- * Nothing is rendered when the page count is invalid, so an invalid PDF can never become a book.
+ * Throws PdfBookError (with a message safe to show) when the file cannot be read.
  */
 export async function readPdfBook(file, onProgress) {
   if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
@@ -42,18 +41,12 @@ export async function readPdfBook(file, onProgress) {
 
   try {
     const count = pdf.numPages
-    if (!isValidPageCount(count)) {
-      throw new PdfBookError(
-        `This PDF has ${count} page${count === 1 ? '' : 's'}. For the book format, the total number of pages must be divisible by 4 (4, 8, 12, 16…). Please fix the PDF and upload it again.`,
-      )
-    }
-
     const pages = []
     let ratio = 1 / 1.4142 // A4
     for (let n = 1; n <= count; n++) {
       const page = await pdf.getPage(n)
       const base = page.getViewport({ scale: 1 })
-      const viewport = page.getViewport({ scale: RENDER_WIDTH / base.width })
+      const viewport = page.getViewport({ scale: PREVIEW_DPI / 72 })
       if (n === 1) ratio = viewport.width / viewport.height
 
       const canvas = document.createElement('canvas')
@@ -64,7 +57,7 @@ export async function readPdfBook(file, onProgress) {
       context.fillRect(0, 0, canvas.width, canvas.height)
       await page.render({ canvasContext: context, canvas, viewport }).promise
 
-      pages.push(await toPng(canvas))
+      pages.push(await toJpeg(canvas))
       canvas.width = 0
       canvas.height = 0
       page.cleanup()

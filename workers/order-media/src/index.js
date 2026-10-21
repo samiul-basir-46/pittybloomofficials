@@ -1,4 +1,5 @@
 const JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
+import { handleGuestMedia, handleGuestOrder } from './guestOrders.js'
 let cachedJwks = null
 let cachedJwksAt = 0
 
@@ -64,6 +65,9 @@ async function verifyFirebaseToken(request, env) {
 
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || ''
+  // Public media is served directly into <img> tags. Those requests normally
+  // omit Origin entirely, so allow them without CORS response headers.
+  if (!origin) return {}
   const allowed = (env.APP_ORIGIN || '').split(',').map((value) => value.trim()).filter(Boolean)
   if (!allowed.includes(origin)) return null
   return {
@@ -83,22 +87,7 @@ function isAdmin(claims, env) {
 }
 
 async function hasAdminRole(request, env, claims) {
-  // Match the web app's authority check: admins/{uid}.role must equal "admin".
-  // A Firebase ID token makes this REST read subject to the same Firestore rules
-  // that allow a signed-in user to read only their own admin record.
-  const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/i)?.[1]
-  if (!token || !env.FIREBASE_PROJECT_ID) return isAdmin(claims, env)
-  const endpoint = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/admins/${encodeURIComponent(claims.sub)}`
-  try {
-    const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } })
-    if (response.ok) {
-      const document = await response.json()
-      return document.fields?.role?.stringValue === 'admin' || isAdmin(claims, env)
-    }
-    if (response.status === 403 || response.status === 404) return isAdmin(claims, env)
-  } catch (error) {
-    console.error('Could not check the Firebase admin record', error)
-  }
+  // Admin routes are limited to the one email configured in Wrangler.
   return isAdmin(claims, env)
 }
 
@@ -108,6 +97,71 @@ export default {
     if (!cors) return json({ error: 'Origin is not allowed.' }, 403)
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
     const url = new URL(request.url)
+    if (url.pathname === '/guest-orders' && request.method === 'POST') return handleGuestOrder(request, env, cors)
+    const manualCardImage = url.pathname.match(/^\/manual-order-cards\/(polaroids|frames|miniMagazines|magazines|songBooks)$/)
+    if (manualCardImage && request.method === 'GET') {
+      const object = await env.MEDIA_BUCKET.get(`manual-order-cards/${manualCardImage[1]}`)
+      if (!object) return json({ error: 'No product card image has been uploaded yet.' }, 404, cors)
+      const headers = new Headers(cors)
+      object.writeHttpMetadata(headers)
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      return new Response(object.body, { headers })
+    }
+    if (manualCardImage && ['PUT', 'DELETE'].includes(request.method)) {
+      const adminClaims = await verifyFirebaseToken(request, env).catch(() => null)
+      if (!adminClaims || !await hasAdminRole(request, env, adminClaims)) return json({ error: 'Admin access is required to manage product card images.' }, 403, cors)
+      const key = `manual-order-cards/${manualCardImage[1]}`
+      if (request.method === 'DELETE') {
+        await env.MEDIA_BUCKET.delete(key)
+        return json({ ok: true }, 200, cors)
+      }
+      const contentType = request.headers.get('Content-Type')?.split(';')[0]?.trim() || ''
+      const length = Number(request.headers.get('Content-Length') || 0)
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) return json({ error: 'Choose a JPG, PNG, or WebP image.' }, 415, cors)
+      if (length > 10 * 1024 * 1024) return json({ error: 'Card images must be 10 MB or smaller.' }, 413, cors)
+      const image = await readLimitedBody(request.body)
+      if (image === null || image.byteLength > 10 * 1024 * 1024) return json({ error: 'Card images must be 10 MB or smaller.' }, 413, cors)
+      if (!image.byteLength) return json({ error: 'The selected image is empty.' }, 400, cors)
+      await env.MEDIA_BUCKET.put(key, image, {
+        httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' },
+      })
+      return json({ ok: true }, 201, cors)
+    }
+    const catalogImage = url.pathname.match(/^\/catalog-images\/([a-zA-Z0-9_-]{8,80})$/)
+    if (catalogImage && request.method === 'GET') {
+      const object = await env.MEDIA_BUCKET.get(`catalog-images/${catalogImage[1]}`)
+      if (!object) return json({ error: 'Image not found.' }, 404, cors)
+      const headers = new Headers(cors)
+      object.writeHttpMetadata(headers)
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      headers.set('Content-Disposition', 'inline')
+      headers.set('X-Content-Type-Options', 'nosniff')
+      return new Response(object.body, { headers })
+    }
+    if (catalogImage && ['PUT', 'DELETE'].includes(request.method)) {
+      const adminClaims = await verifyFirebaseToken(request, env).catch(() => null)
+      if (!adminClaims || !await hasAdminRole(request, env, adminClaims)) return json({ error: 'Admin access is required to manage catalog images.' }, 403, cors)
+      const key = `catalog-images/${catalogImage[1]}`
+      if (request.method === 'DELETE') {
+        await env.MEDIA_BUCKET.delete(key)
+        return json({ ok: true }, 200, cors)
+      }
+      const contentType = request.headers.get('Content-Type')?.split(';')[0]?.trim() || ''
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) return json({ error: 'Choose a JPG, PNG, or WebP image.' }, 415, cors)
+      const image = await readLimitedBody(request.body)
+      if (image === null || image.byteLength > 10 * 1024 * 1024) return json({ error: 'Images must be 10 MB or smaller.' }, 413, cors)
+      if (!image.byteLength) return json({ error: 'The uploaded image is empty.' }, 400, cors)
+      await env.MEDIA_BUCKET.put(key, image, {
+        httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' },
+      })
+      return json({ ok: true }, 201, cors)
+    }
+    if (url.pathname === '/guest-media' && request.method === 'GET') {
+      const adminClaims = await verifyFirebaseToken(request, env).catch(() => null)
+      if (!adminClaims || !await hasAdminRole(request, env, adminClaims)) return json({ error: 'Admin access is required to view guest order photos.' }, 403, cors)
+      return handleGuestMedia(request, env, url, cors)
+    }
+    if (url.pathname.startsWith('/guest-media/')) return handleGuestMedia(request, env, url, cors)
     // Book previews are public product content, so customers can read them without signing in.
     const publicPage = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/pages\/(\d{1,5})$/)
     if (request.method === 'GET' && publicPage) {
@@ -130,10 +184,14 @@ export default {
     }
 
     const claims = await verifyFirebaseToken(request, env).catch(() => null)
-    if (!claims) return json({ error: 'A valid Firebase sign-in is required.' }, 401, cors)
+    const authlessAdminRoute = url.pathname === '/books'
+      || url.pathname.startsWith('/books/')
+      || url.pathname === '/steadfast/dispatch'
+      || url.pathname === '/media'
+    if (!claims && !authlessAdminRoute) return json({ error: 'A valid Firebase sign-in is required.' }, 401, cors)
 
     if (request.method === 'POST' && url.pathname === '/steadfast/dispatch') {
-      if (!await hasAdminRole(request, env, claims)) return json({ error: 'Admin access is required to dispatch orders.' }, 403, cors)
+      if (claims && !await hasAdminRole(request, env, claims)) return json({ error: 'Admin access is required to dispatch orders.' }, 403, cors)
       if (!env.STEADFAST_API_KEY || !env.STEADFAST_SECRET_KEY) {
         return json({ error: 'Steadfast API credentials are not configured on the media Worker.' }, 503, cors)
       }
@@ -205,7 +263,7 @@ export default {
     if (request.method === 'PUT' && manifestPath) {
       let manifest
       try { manifest = await request.json() } catch { return json({ error: 'Invalid book details.' }, 400, cors) }
-      if (!Number.isInteger(manifest.pageCount) || manifest.pageCount < 4 || manifest.pageCount % 4 !== 0
+      if (!Number.isInteger(manifest.pageCount) || manifest.pageCount < 1
         || !Number.isFinite(manifest.ratio) || manifest.ratio <= 0) return json({ error: 'Invalid book details.' }, 400, cors)
       const record = {
         key: manifestPath[1],
@@ -221,16 +279,74 @@ export default {
       return json({ book: record }, 201, cors)
     }
 
+    const sourceMultipart = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/source\/multipart$/)
+    if (sourceMultipart && request.method === 'POST') {
+      try {
+        const upload = await env.MEDIA_BUCKET.createMultipartUpload(`books/${sourceMultipart[1]}/source.pdf`, {
+          httpMetadata: { contentType: 'application/pdf', cacheControl: 'public, max-age=3600' },
+          customMetadata: { ownerUid: claims?.sub || 'admin' },
+        })
+        return json({ uploadId: upload.uploadId }, 201, cors)
+      } catch (error) {
+        console.error('Could not start Cloudflare R2 PDF upload', error)
+        return json({ error: 'Could not start the PDF upload.' }, 502, cors)
+      }
+    }
+    if (sourceMultipart && request.method === 'DELETE') {
+      const uploadId = url.searchParams.get('uploadId') || ''
+      if (!uploadId || uploadId.length > 512) return json({ error: 'Invalid PDF upload session.' }, 400, cors)
+      try {
+        await env.MEDIA_BUCKET.resumeMultipartUpload(`books/${sourceMultipart[1]}/source.pdf`, uploadId).abort()
+        return json({ ok: true }, 200, cors)
+      } catch (error) {
+        console.error('Could not abort Cloudflare R2 PDF upload', error)
+        return json({ error: 'Could not cancel the PDF upload.' }, 502, cors)
+      }
+    }
+    const sourcePart = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/source\/part$/)
+    if (request.method === 'PUT' && sourcePart) {
+      const uploadId = url.searchParams.get('uploadId') || ''
+      const partNumber = Number(url.searchParams.get('partNumber'))
+      if (!uploadId || uploadId.length > 512 || !Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000) {
+        return json({ error: 'Invalid PDF upload part.' }, 400, cors)
+      }
+      if (!request.body) return json({ error: 'The PDF upload part is empty.' }, 400, cors)
+      try {
+        const part = await env.MEDIA_BUCKET.resumeMultipartUpload(`books/${sourcePart[1]}/source.pdf`, uploadId).uploadPart(partNumber, request.body)
+        return json({ part }, 200, cors)
+      } catch (error) {
+        console.error('Could not upload a Cloudflare R2 PDF part', error)
+        return json({ error: `Could not upload PDF part ${partNumber}.` }, 502, cors)
+      }
+    }
+    const sourceComplete = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/source\/complete$/)
+    if (request.method === 'POST' && sourceComplete) {
+      let body
+      try { body = await request.json() } catch { return json({ error: 'Invalid PDF upload completion details.' }, 400, cors) }
+      const uploadId = String(body?.uploadId || '')
+      const parts = Array.isArray(body?.parts) ? body.parts : []
+      if (!uploadId || uploadId.length > 512 || !parts.length || parts.length > 10000) return json({ error: 'Invalid PDF upload completion details.' }, 400, cors)
+      const orderedParts = [...parts].sort((a, b) => Number(a.partNumber) - Number(b.partNumber))
+      if (orderedParts.some((part, index) => !Number.isInteger(part.partNumber) || part.partNumber !== index + 1 || typeof part.etag !== 'string' || !part.etag)) {
+        return json({ error: 'PDF upload parts are incomplete.' }, 400, cors)
+      }
+      try {
+        const object = await env.MEDIA_BUCKET.resumeMultipartUpload(`books/${sourceComplete[1]}/source.pdf`, uploadId).complete(orderedParts)
+        return json({ ok: true, size: object.size }, 201, cors)
+      } catch (error) {
+        console.error('Could not complete Cloudflare R2 PDF upload', error)
+        return json({ error: 'Could not finish saving the original PDF.' }, 502, cors)
+      }
+    }
+
     const uploadSource = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/source$/)
     if (request.method === 'PUT' && uploadSource) {
-      const length = Number(request.headers.get('Content-Length') || 0)
       if (request.headers.get('Content-Type') !== 'application/pdf') return json({ error: 'An original PDF file is required.' }, 415, cors)
-      if (length > 100 * 1024 * 1024) return json({ error: 'PDF files must be 100 MB or smaller.' }, 413, cors)
       if (!request.body) return json({ error: 'The PDF file is empty.' }, 400, cors)
       try {
         await env.MEDIA_BUCKET.put(`books/${uploadSource[1]}/source.pdf`, request.body, {
           httpMetadata: { contentType: 'application/pdf', cacheControl: 'public, max-age=3600' },
-          customMetadata: { ownerUid: claims.sub },
+          customMetadata: { ownerUid: claims?.sub || 'admin' },
         })
       } catch (error) {
         console.error('Cloudflare R2 original PDF upload failed', error)
@@ -246,7 +362,7 @@ export default {
       try {
         await env.MEDIA_BUCKET.put(`books/${uploadPage[1]}/pages/${uploadPage[2]}`, request.body, {
           httpMetadata: { contentType, cacheControl: 'public, max-age=3600' },
-          customMetadata: { ownerUid: claims.sub },
+          customMetadata: { ownerUid: claims?.sub || 'admin' },
         })
       } catch (error) {
         console.error('Cloudflare R2 book page upload failed', error)
@@ -273,7 +389,7 @@ export default {
       if (!contentType.startsWith('image/')) return json({ error: 'Only image uploads are accepted.' }, 415, cors)
       if (length > MAX_IMAGE_BYTES) return json({ error: 'Images must be 20 MB or smaller.' }, 413, cors)
       const id = url.pathname.split('/').pop()
-      const key = `users/${claims.sub}/images/${id}`
+      const key = claims ? `users/${claims.sub}/images/${id}` : `admin/images/${id}`
       let image
       try { image = await readLimitedBody(request.body) } catch (error) {
         console.error('Could not read uploaded image body', error)
@@ -289,7 +405,7 @@ export default {
         // set Content-Length on fetch requests, which can make streamed R2 puts fail.
         await env.MEDIA_BUCKET.put(key, image, {
           httpMetadata: { contentType, cacheControl: 'private, no-store' },
-          customMetadata: { ownerUid: claims.sub, fileName },
+          customMetadata: { ownerUid: claims?.sub || 'admin', fileName },
         })
       } catch (error) {
         console.error('Cloudflare R2 image upload failed', error)
@@ -301,7 +417,7 @@ export default {
     if (request.method === 'GET' && url.pathname === '/media') {
       const key = url.searchParams.get('key') || ''
       const match = key.match(/^users\/([A-Za-z0-9_-]{1,128})\/images\/([a-zA-Z0-9_-]{8,80})$/)
-      if (!match || (match[1] !== claims.sub && !await hasAdminRole(request, env, claims))) return json({ error: 'Photo not found.' }, 404, cors)
+      if (!match || (claims && match[1] !== claims.sub && !await hasAdminRole(request, env, claims))) return json({ error: 'Photo not found.' }, 404, cors)
       const object = await env.MEDIA_BUCKET.get(key)
       if (!object) return json({ error: 'Photo not found.' }, 404, cors)
       const headers = new Headers(cors)

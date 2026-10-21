@@ -5,9 +5,8 @@ import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
-import { useSettings } from '../../shared/context/SettingsContext'
-import { getActiveAddons, getMagazine, getOccasions, getOrderSettings, getSizes, ordersApi } from '../../shared/services/contentService'
-import { makeOrderId } from '../../shared/utils/orders'
+import { useAuth } from '../../shared/context/AuthContext'
+import { customerProfileApi, getActiveAddons, getMagazine, getOccasions, getOrderSettings, getSizes, ordersApi } from '../../shared/services/contentService'
 import { formatPrice } from '../../shared/utils/format'
 import { STEPS } from './data'
 import { buildCopies, defaultSizeFor, getFormats, sizesFor, withFields } from './lib/copies'
@@ -16,7 +15,6 @@ import { emptyContact, freshDraft, orderDraft } from './lib/orderDraft'
 import { photoStore } from './lib/photoStore'
 import { newDraftId, savedDrafts } from './lib/savedDrafts'
 import { buildMagazineOrder } from './lib/buildOrder'
-import { buildOrderMessage } from './lib/message'
 import { validateContact, validateCustomize, validateDelivery, validateMagazine } from './lib/validation'
 import Stepper from './components/Stepper'
 import PriceSummary from './components/PriceSummary'
@@ -52,15 +50,14 @@ function reconcile(draft, { sizes, formats, addons, settings }) {
   return { ...draft, picks, contact: { ...emptyContact, ...draft.contact }, addons: draft.addons.filter((id) => addons.some((a) => a.id === id)) }
 }
 
-function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, resumeDraft }) {
+function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, resumeDraft, customerProfile, customerEmail }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { settings: site } = useSettings()
   const now = useMemo(() => new Date(), [])
   const formats = useMemo(() => getFormats(settings), [settings])
   const topRef = useRef(null)
   const submitting = useRef(false)
-  const orderId = useRef(null)
+  const submissionKey = useRef(null)
 
   const [draft, setDraft] = useState(() => {
     const start = freshDraft(
@@ -71,9 +68,27 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
     // (it is updated on every keystroke, so a refresh of a resumed order keeps what was typed after resuming).
     const mine = orderDraft.get(magazine.id)
     const resumed = resumeDraft && !(mine && mine.savedId === resumeDraft.id) ? resumeDraft.draft : null
-    return reconcile(resumed ?? mine ?? start, { sizes, formats, addons, settings })
+    const existing = reconcile(resumed ?? mine ?? start, { sizes, formats, addons, settings })
+    return {
+      ...existing,
+      contact: {
+        ...existing.contact,
+        name: existing.contact.name || customerProfile.name || '',
+        phone: existing.contact.phone || customerProfile.phone || '',
+        instagram: existing.contact.instagram || customerProfile.instagram || '',
+        email: existing.contact.email || customerEmail || '',
+      },
+      delivery: {
+        ...existing.delivery,
+        recipient: existing.delivery.recipient || customerProfile.name || '',
+        phone: existing.delivery.phone || customerProfile.phone || '',
+        address: existing.delivery.address || customerProfile.address || '',
+        city: existing.delivery.city || customerProfile.city || '',
+      },
+    }
   })
   const [errors, setErrors] = useState({})
+  const [returnToReviewFrom, setReturnToReviewFrom] = useState(null)
   const [status, setStatus] = useState('idle') // idle | submitting | error | done
   const [submitError, setSubmitError] = useState('')
   const [result, setResult] = useState(null)
@@ -105,6 +120,13 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
   const clear = (...keys) =>
     setErrors((e) => (keys.some((k) => k in e) ? Object.fromEntries(Object.entries(e).filter(([k]) => !keys.includes(k))) : e))
   const goTo = (n) => {
+    setReturnToReviewFrom(null)
+    setErrors({})
+    setSubmitError('')
+    setParams({ step: n })
+  }
+  const editFromReview = (n) => {
+    setReturnToReviewFrom(n)
     setErrors({})
     setSubmitError('')
     setParams({ step: n })
@@ -194,26 +216,19 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
     setSubmitError('')
     try {
       await photoStore.flush(copies.map((copy) => copy.key))
-      // The ID is made once, so retrying after an error can never create a second order
-      orderId.current ??= makeOrderId([])
-      const order = buildMagazineOrder({ id: orderId.current, draft, copies, occasions, addons: chosenAddons, magazine, totals, settings, now, longDate })
+      // Keep one request key across retries so a timed-out response cannot create a duplicate.
+      submissionKey.current ??= globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const order = buildMagazineOrder({ id: '', draft, copies, occasions, addons: chosenAddons, magazine, totals, settings, now, longDate })
 
       // The order must be saved before anything else happens. If saving fails we land in the catch below:
       // no success screen, no message opened, and the draft is kept so the customer can try again.
-      await ordersApi.save(order)
-      const text = buildOrderMessage(order, site.name)
-      const number = (site.whatsapp || '').replace(/\D/g, '')
-      const url = number
-        ? `https://wa.me/${number}?text=${encodeURIComponent(text)}`
-        : `mailto:${site.email}?subject=${encodeURIComponent(`New order ${order.id}`)}&body=${encodeURIComponent(text)}`
+      const savedOrder = await ordersApi.place(order, submissionKey.current)
 
       // The order is placed, so its saved cart draft is no longer needed
       if (draft.savedId) await savedDrafts.remove(draft.savedId).catch(() => {})
       orderDraft.clear()
-      setResult({ order })
+      setResult({ order: savedOrder })
       setStatus('done')
-      if (number) window.open(url, '_blank', 'noopener')
-      else window.location.href = url
     } catch (error) {
       console.error('Magazine order submission failed:', error)
       submitting.current = false
@@ -235,6 +250,11 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
       return
     }
     setErrors({})
+    if (returnToReviewFrom === step) {
+      setReturnToReviewFrom(null)
+      setParams({ step: STEPS.length })
+      return
+    }
     update((d) => ({ ...d, reached: Math.max(d.reached, step + 1) }))
     setParams({ step: step + 1 })
   }
@@ -251,7 +271,7 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
 
   if (!photosReady) return <p className="py-32 text-center text-ink/60">Restoring your saved photos…</p>
 
-  const ctx = { magazine, sizes, addons, chosenAddons, addonsFailed, occasions, settings, formats, copies, draft, update, errors, clear, totals, now, goTo, submitError }
+  const ctx = { magazine, sizes, addons, chosenAddons, addonsFailed, occasions, settings, formats, copies, draft, update, errors, clear, totals, now, goTo, editFromReview, submitError }
   const StepView = STEP_COMPONENTS[step - 1]
   const heading = HEADINGS[step - 1]
   const last = step === STEPS.length
@@ -352,19 +372,21 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
 }
 
 export default function OrderPage() {
+  const { user } = useAuth()
   const { id } = useParams()
   const magazine = useAsync(() => getMagazine(id), [id])
   const sizes = useAsync(getSizes)
   const addons = useAsync(getActiveAddons)
   const occasions = useAsync(getOccasions)
   const settings = useAsync(getOrderSettings)
+  const profile = useAsync(() => customerProfileApi.get(user?.uid), [user?.uid])
   // ?draft=ID is a link from the cart that resumes a saved draft
   const [search] = useSearchParams()
   const resumeId = search.get('draft')
   const resume = useAsync(() => (resumeId ? savedDrafts.get(resumeId) : Promise.resolve(null)), [resumeId])
 
   const parts = [magazine, sizes, occasions, settings]
-  if (parts.some((p) => p.loading) || addons.loading || resume.loading) return <p className="py-32 text-center text-ink/60">Loading…</p>
+  if (parts.some((p) => p.loading) || addons.loading || resume.loading || profile.loading) return <p className="py-32 text-center text-ink/60">Loading…</p>
   if (parts.some((p) => p.error))
     return (
       <div className="py-32 text-center">
@@ -387,6 +409,8 @@ export default function OrderPage() {
       addonsFailed={Boolean(addons.error)}
       occasions={occasions.data.map(withFields)}
       settings={settings.data}
+      customerProfile={profile.data || {}}
+      customerEmail={user?.email || ''}
       resumeDraft={resume.data?.magazineId === magazine.data.id ? resume.data : null}
     />
   )

@@ -10,6 +10,7 @@ import { inputClass } from './classes'
 import { LEVEL_STYLE, StatusBadge, UrgencyPill, when } from './orderUi'
 import { cityText, formatOrderSummary } from './orderSummary'
 import { photoStore } from '../pages/order/lib/photoStore'
+import { useAuth } from '../shared/context/AuthContext'
 import { longDate } from '../pages/order/lib/pricing'
 import { createSteadfastConsignment } from './steadfastApi'
 import { downloadPhotoZip } from './photoZip'
@@ -26,20 +27,38 @@ const EMPTY_PHOTO_FILES = []
 const safeFilenamePart = (value) => String(value || '').normalize('NFKC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim().replace(/\s+/g, '-').slice(0, 60)
 
 export function PhotoGallery({ photos }) {
+  const { user, configured, signInWithGoogle } = useAuth()
   const pageSize = 12
   const [urls, setUrls] = useState({})
   const [preview, setPreview] = useState(null)
   const [page, setPage] = useState(0)
+  const [loadingPhotos, setLoadingPhotos] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const [signingIn, setSigningIn] = useState(false)
+  const [retry, setRetry] = useState(0)
   const files = photos?.files ?? EMPTY_PHOTO_FILES
   const pageCount = Math.ceil(files.length / pageSize)
   const visibleFiles = useMemo(() => files.slice(page * pageSize, (page + 1) * pageSize), [files, page])
   useEffect(() => setPage(0), [files])
   useEffect(() => {
+    if (!user) {
+      setUrls({})
+      setPhotoError('Sign in with the admin account to view order photos.')
+      return undefined
+    }
     let active = true
+    setLoadingPhotos(true)
+    setPhotoError('')
     Promise.all(visibleFiles.map(async (file) => [file.id, await photoStore.getUrl(file.id, file.storageKey)]))
-      .then((entries) => { if (active) setUrls(Object.fromEntries(entries)) })
+      .then((entries) => {
+        if (!active) return
+        setUrls((current) => ({ ...current, ...Object.fromEntries(entries) }))
+        if (entries.some(([, url]) => !url)) setPhotoError('Some photos could not load. Check the admin account and try again.')
+      })
+      .catch((error) => { if (active) setPhotoError(`${error instanceof Error ? error.message : 'Photos could not load.'} Check the admin account and try again.`) })
+      .finally(() => { if (active) setLoadingPhotos(false) })
     return () => { active = false }
-  }, [visibleFiles])
+  }, [visibleFiles, user?.uid, retry])
   if (!files.length) return photos?.count ? <p className="mt-3 text-xs text-ink/55">{photos.count} photo{photos.count === 1 ? '' : 's'} selected; files are unavailable on this device.</p> : null
   const download = (file) => {
     if (!urls[file.id]) return
@@ -48,7 +67,19 @@ export function PhotoGallery({ photos }) {
     anchor.download = file.name || 'order-photo'
     anchor.click()
   }
+  const signInToViewPhotos = async () => {
+    if (!configured) { setPhotoError('Firebase sign-in is not configured on this site.'); return }
+    setSigningIn(true)
+    setPhotoError('')
+    try { await signInWithGoogle() }
+    catch (error) { setPhotoError(error instanceof Error ? error.message : 'Could not sign in. Please try again.') }
+    finally { setSigningIn(false) }
+  }
   return <>
+    {photoError && <div role={user ? 'alert' : 'status'} className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sand bg-[#FFFAF8] p-3 text-xs text-ink/70">
+      <span>{photoError}{loadingPhotos && ' Loading…'}</span>
+      {!user ? <button type="button" disabled={signingIn} onClick={signInToViewPhotos} className="min-h-9 rounded-lg bg-brand px-3 font-semibold text-white disabled:opacity-60">{signingIn ? 'Signing in…' : 'Sign in to view photos'}</button> : <div className="flex gap-2"><button type="button" onClick={() => setRetry((current) => current + 1)} className="min-h-9 rounded-lg border border-sand bg-white px-3 font-semibold text-brand">Try again</button><button type="button" disabled={signingIn} onClick={signInToViewPhotos} className="min-h-9 rounded-lg bg-brand px-3 font-semibold text-white disabled:opacity-60">{signingIn ? 'Signing in…' : 'Use admin account'}</button></div>}
+    </div>}
     <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2.5 xl:grid-cols-6">
       {visibleFiles.map((file) => <div key={file.id} className="min-w-0">
         <button type="button" onClick={() => urls[file.id] && setPreview({ ...file, url: urls[file.id] })} className="block aspect-square w-full overflow-hidden rounded-xl border border-sand bg-cream text-left">
@@ -80,7 +111,7 @@ function OrderItem({ item, index, image, onDownloadPhotos, zipLoading }) {
     {(item.details?.length > 0 || item.note || item.photos) && <div className="border-t border-sand px-4 pb-4 sm:px-5">
       {item.details?.length > 0 && <><h3 className="mb-2 mt-4 text-xs font-semibold text-ink/65">Personalization</h3><dl className="grid gap-2 sm:grid-cols-2">{item.details.map((row, n) => <LabelValue key={`${row.label}-${n}`} label={row.label}>{row.value}</LabelValue>)}</dl></>}
       {item.note && <div className="mt-4"><p className="mb-1 text-xs text-ink/55">Customer note</p><p className="rounded-lg bg-cream p-3 text-sm text-ink/80">{item.note}</p></div>}
-      {item.photos && <><div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-semibold text-ink/65">Item photos{item.photos.count ? ` · ${item.photos.count}` : ''}</h3>{item.photos.files?.length > 0 && <button type="button" disabled={zipLoading} onClick={onDownloadPhotos} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-sand bg-white px-3 text-xs font-medium hover:bg-cream disabled:opacity-50"><ArrowDownToLine size={14} />{zipLoading ? 'Preparing ZIP…' : 'Download photos (ZIP)'}</button>}</div><PhotoGallery photos={item.photos} /></>}
+      {item.photos && <><div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-semibold text-ink/65">Item photos{item.photos.count ? ` · ${item.photos.count}` : ''}</h3>{item.photos.files?.length > 0 && <button type="button" disabled={zipLoading} onClick={onDownloadPhotos} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-sand bg-white px-3 text-xs font-medium hover:bg-cream disabled:opacity-50"><ArrowDownToLine size={14} />{zipLoading ? 'Preparing ZIP…' : 'Download photos (ZIP)'}</button>}</div>{(item.photos.front || item.photos.back) && <p className="mt-2 text-xs leading-5 text-ink/60">Front cover: {item.photos.front || 'not selected'} · Back cover: {item.photos.back || 'not selected'}</p>}<PhotoGallery photos={item.photos} />{item.photos.reference && <div className="mt-4"><h4 className="mb-2 text-xs font-semibold text-ink/65">Design reference</h4><PhotoGallery photos={{ count: 1, files: [item.photos.reference] }} /></div>}</>}
     </div>}
   </article>
 }
@@ -114,8 +145,12 @@ export default function OrderDetailPage() {
     setNotice({ type: '', text: '' })
     try {
       const changedAt = new Date().toISOString()
-      await ordersApi.save({ ...order, status, statusUpdatedAt: changedAt, ...(status === 'Delivered' ? { completedAt: changedAt } : {}) })
+      await ordersApi.updateStatus(order.id, status, { statusUpdatedAt: changedAt, ...(status === 'Delivered' ? { completedAt: changedAt } : {}) })
       await orders.reload()
+      if (status === 'In production') {
+        setNotice({ type: 'ok', text: 'Order marked as preparing. Customer tracking has been updated.' })
+        return
+      }
       const destination = status === 'Delivered'
         ? '/admin/completed-orders?date=all'
         : status === 'Cancelled'
@@ -305,6 +340,7 @@ export default function OrderDetailPage() {
       <aside className="order-first space-y-5 xl:sticky xl:top-5 xl:order-last">
         <Card title="Order actions">
           <div className="flex flex-col gap-2.5">
+            {['New', 'Confirmed'].includes(order.status) && <button type="button" onClick={() => changeStatus('In production')} className="min-h-11 rounded-xl border border-[#D9C79A] bg-[#F7F0DC] px-4 text-sm font-semibold text-[#6B531A] hover:bg-[#F1E8CE]">Start preparing</button>}
             <button type="button" disabled={!['New', 'Confirmed', 'In production'].includes(order.status) || !!order.trackingNumber} onClick={openDispatch} className="min-h-11 rounded-xl border border-brand bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45">Dispatch order</button>
             <div className="grid grid-cols-2 gap-2.5">
               <button type="button" onClick={openEditor} className="min-h-11 rounded-xl border border-sand bg-white px-4 text-sm font-medium hover:bg-cream"><Pencil size={14} className="mr-1.5 inline" />Edit</button>

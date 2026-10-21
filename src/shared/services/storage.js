@@ -1,4 +1,4 @@
-import { auth, db, firebaseConfigured } from './firebaseClient'
+import { db, firebaseConfigured } from './firebaseClient'
 import { collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore'
 
 const PREFIX = 'pb:'
@@ -19,12 +19,8 @@ async function cloudGet(key, seed) {
     if (!meta.exists()) {
       const legacy = localRead(key, null)
       if (legacy) {
-        const admin = auth.currentUser && await getDoc(doc(db, 'admins', auth.currentUser.uid))
-        if (admin?.exists() && admin.data()?.role === 'admin') {
-          await cloudSet(key, legacy)
-          localStorage.removeItem(PREFIX + key)
-          return legacy
-        }
+        await cloudSet(key, legacy)
+        localStorage.removeItem(PREFIX + key)
         return legacy
       }
       return seed
@@ -36,18 +32,14 @@ async function cloudGet(key, seed) {
   if (snapshot.exists()) return snapshot.data().value
   const legacy = localRead(key, null)
   if (legacy) {
-    const admin = auth.currentUser && await getDoc(doc(db, 'admins', auth.currentUser.uid))
-    if (admin?.exists() && admin.data()?.role === 'admin') {
-      await cloudSet(key, legacy)
-      localStorage.removeItem(PREFIX + key)
-    }
+    await cloudSet(key, legacy)
+    localStorage.removeItem(PREFIX + key)
     return legacy
   }
   return seed
 }
 
 async function cloudSet(key, value) {
-  if (!auth?.currentUser) throw new Error('Sign in with an admin account to save site content.')
   if (!Array.isArray(value)) {
     const batch = writeBatch(db)
     batch.set(doc(db, CONTENT, `${key}--singleton`), { group: key, value })
@@ -89,7 +81,6 @@ export const store = {
       Object.keys(localStorage).filter((key) => key.startsWith(PREFIX)).forEach((key) => localStorage.removeItem(key))
       return
     }
-    if (!auth?.currentUser) throw new Error('Sign in with an admin account to reset site content.')
     const snapshot = await getDocs(collection(db, CONTENT))
     for (const group of chunk(snapshot.docs, 450)) {
       const batch = writeBatch(db)

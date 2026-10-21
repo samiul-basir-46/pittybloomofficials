@@ -1,13 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
-import { auth, db, firebaseConfigured, googleProvider } from '../services/firebaseClient'
+import { auth, firebaseConfigured, googleProvider } from '../services/firebaseClient'
 
 const AuthContext = createContext(null)
+const ADMIN_EMAILS = new Set((import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean))
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(firebaseConfigured)
 
   useEffect(() => {
@@ -17,39 +16,32 @@ export function AuthProvider({ children }) {
       if (!active) return
       setLoading(true)
       setUser(nextUser)
-      setIsAdmin(false)
       if (!nextUser) { setLoading(false); return }
-      try {
-        const adminDoc = await getDoc(doc(db, 'admins', nextUser.uid))
-        if (active) setIsAdmin(adminDoc.exists() && adminDoc.data()?.role === 'admin')
-      } catch {
-        if (active) setIsAdmin(false)
-      } finally {
-        if (active) setLoading(false)
-      }
+      setLoading(false)
     })
     return () => { active = false; unsubscribe() }
   }, [])
 
+  const isAdmin = Boolean(user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()))
   const value = useMemo(() => ({
-    user, isAdmin, loading, configured: firebaseConfigured,
-    signInWithGoogle: async () => { if (!firebaseConfigured) throw new Error('Firebase config is missing. Add the VITE_FIREBASE_* values to .env.') ; return signInWithPopup(auth, googleProvider) },
+    user, loading, configured: firebaseConfigured, isAdmin,
     signInWithPassword: async (email, password) => {
       if (!firebaseConfigured) throw new Error('Firebase config is missing. Add the VITE_FIREBASE_* values to .env.')
       return signInWithEmailAndPassword(auth, email.trim(), password)
     },
+    signInWithGoogle: async () => { if (!firebaseConfigured) throw new Error('Firebase config is missing. Add the VITE_FIREBASE_* values to .env.') ; return signInWithPopup(auth, googleProvider) },
     signOut: async () => { if (firebaseConfigured) await signOut(auth) },
-  }), [user, isAdmin, loading])
+  }), [user, loading, isAdmin])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => useContext(AuthContext) ?? {
   user: null,
-  isAdmin: false,
   loading: false,
+  isAdmin: false,
   configured: firebaseConfigured,
-  signInWithGoogle: async () => { throw new Error('Wrap the app in AuthProvider before signing in.') },
   signInWithPassword: async () => { throw new Error('Wrap the app in AuthProvider before signing in.') },
+  signInWithGoogle: async () => { throw new Error('Wrap the app in AuthProvider before signing in.') },
   signOut: async () => {},
 }

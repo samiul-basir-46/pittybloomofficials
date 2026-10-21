@@ -12,7 +12,6 @@ import StickerPage from './pages/sticker/StickerPage'
 import PhotoStripPage from './pages/photo-strip/PhotoStripPage'
 import CartPage from './pages/cart/CartPage'
 import AccountPage from './pages/account/AccountPage'
-import AdminLoginPage from './admin/AdminLoginPage'
 import ProductPage from './pages/products/ProductPage'
 import NotFoundPage from './pages/not-found/NotFoundPage'
 import AdminLayout from './admin/AdminLayout'
@@ -25,16 +24,21 @@ import OrderDetailsPage from './pages/order-details/OrderDetailsPage'
 import OrderPage from './pages/order/OrderPage'
 import OrderSettingsPage from './admin/OrderSettingsPage'
 import { SECTIONS } from './admin/sections'
-import { RequireAdmin, RequireCustomer } from './shared/ui/RouteGuards'
+import { RequireCustomer } from './shared/ui/RouteGuards'
 import DraftDetailPage from './admin/DraftDetailPage'
+import ManualOrderPage from './pages/manual-order/ManualOrderPage'
+import AdminLoginPage from './admin/AdminLoginPage'
+import ManualOrderCatalogPage from './admin/ManualOrderCatalogPage'
 
 export default function App() {
   return (
     <>
       <ScrollToTop />
       <Routes>
+        <Route path="admin/login" element={<AdminLoginPage />} />
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="custom-order" element={<ManualOrderPage />} />
 
           <Route path="magazines" element={<MagazinesPage />} />
           <Route path="magazines/:id" element={<MagazineDetailPage />} />
@@ -50,14 +54,12 @@ export default function App() {
 
           <Route path="cart" element={<CartPage />} />
           <Route path="account" element={<AccountPage />} />
-          <Route path="admin/login" element={<AdminLoginPage />} />
-
           <Route path="faq" element={<FaqPage />} />
           <Route path="policies/:id" element={<PolicyPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 
-        <Route path="admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+        <Route path="admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           {SECTIONS.map((s) => (
             <Route key={s.path} path={s.path} element={<ItemManager key={s.path} {...s} />} />
@@ -68,6 +70,7 @@ export default function App() {
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="drafts/:id" element={<DraftDetailPage />} />
           <Route path="order-settings" element={<OrderSettingsPage />} />
+          <Route path="manual-order" element={<ManualOrderCatalogPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

@@ -3,8 +3,22 @@ import { Check, Plus, Trash2 } from 'lucide-react'
 import Button from '../shared/ui/Button'
 import Field from './Field'
 import { useSettings } from '../shared/context/SettingsContext'
+import { uploadCatalogImage } from '../shared/services/catalogImageStore'
 
-const MAX_SLIDES = 5
+async function uploadImages(images = []) {
+  const result = [...images]
+  let next = 0
+  const worker = async () => {
+    while (next < result.length) {
+      const index = next++
+      if (typeof result[index] === 'string' && result[index].startsWith('data:')) {
+        result[index] = await uploadCatalogImage(result[index])
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(3, result.length) }, worker))
+  return result
+}
 
 function Group({ title, hint, children }) {
   return (
@@ -22,6 +36,7 @@ export default function SettingsPage() {
   const { settings, save } = useSettings()
   const [form, setForm] = useState(settings)
   const [status, setStatus] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => setForm(settings), [settings])
@@ -52,10 +67,16 @@ export default function SettingsPage() {
   const submit = async (e) => {
     e.preventDefault()
     setSaving(true)
+    setErrorMessage('')
     try {
-      await save({ ...form, heroImages: form.heroImages.filter((s, i) => i === 0 || s) })
+      const [heroImages, aboutImages] = await Promise.all([
+        uploadImages(form.heroImages),
+        uploadImages(form.aboutImages),
+      ])
+      await save({ ...form, heroImages: heroImages.filter((s, i) => i === 0 || s), aboutImages })
       setStatus('saved')
-    } catch {
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Could not save site settings.')
       setStatus('error')
     } finally {
       setSaving(false)
@@ -71,7 +92,15 @@ export default function SettingsPage() {
 
       <Group title="Brand">
         <Field label="Brand name" value={form.name} onChange={set('name')} required />
-        <Field label="Logo" type="image" value={form.logo} onChange={set('logo')} />
+        <div>
+          <div className="mb-1.5 text-sm font-medium">Logo</div>
+          <div className="flex items-center gap-3 rounded-xl border border-sand p-3">
+            <div className="size-16 overflow-hidden rounded-2xl bg-[#FFF0F0]">
+              <img src="/logo.jpeg" alt="Current PittyBloom logo" className="size-full rounded-2xl object-contain" />
+            </div>
+            <span className="text-sm text-ink/60">Using the current logo from the site assets.</span>
+          </div>
+        </div>
         <Field label="Big hero word" value={form.heroWord} onChange={set('heroWord')} required />
       </Group>
 
@@ -96,11 +125,9 @@ export default function SettingsPage() {
             )}
           </div>
         ))}
-        {form.heroImages.length < MAX_SLIDES && (
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addSlide}>
-            <Plus size={14} /> Add slide
-          </Button>
-        )}
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addSlide}>
+          <Plus size={14} /> Add slide
+        </Button>
         <Field label="Quote line 1" value={form.quote[0]} onChange={setAt('quote', 0)} />
         <Field label="Quote line 2" value={form.quote[1]} onChange={setAt('quote', 1)} />
         <Field label="Button text" value={form.ctaLabel} onChange={set('ctaLabel')} />
@@ -146,6 +173,7 @@ export default function SettingsPage() {
         <Field label="Email" type="email" value={form.email} onChange={set('email')} />
         <Field label="Instagram handle" value={form.instagram} onChange={set('instagram')} />
         <Field label="Instagram link" value={form.instagramUrl} onChange={set('instagramUrl')} />
+        <Field label="Facebook link" value={form.facebookUrl} onChange={set('facebookUrl')} />
       </Group>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-5 py-3 backdrop-blur md:left-64">
@@ -160,7 +188,7 @@ export default function SettingsPage() {
             </span>
           )}
           {status === 'error' && (
-            <span className="text-sm text-red-500">Could not save. An image may be too large for browser storage.</span>
+            <span className="text-sm text-red-500">{errorMessage}</span>
           )}
         </div>
       </div>

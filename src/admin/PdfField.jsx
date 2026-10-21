@@ -26,10 +26,6 @@ export default function PdfField({ value, onChange }) {
     event.target.value = ''
     if (!file) return
     setError('')
-    if (file.size > 100 * 1024 * 1024) {
-      setError('PDF files must be 100 MB or smaller.')
-      return
-    }
     setProgress(true)
     const job = startBookUpload(file)
     job.promise.then((book) => {
@@ -70,7 +66,7 @@ export default function PdfField({ value, onChange }) {
         <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={pick} disabled={progress} />
       </label>
 
-      <p className="text-xs text-ink/50">The original PDF is kept unchanged. A sharp, lossless preview is made for the page-flip viewer. A4 pages; total pages must be divisible by 4 (4, 8, 12, 16…). Maximum file size: 100 MB.</p>
+      <p className="text-xs text-ink/50">The original PDF is stored unchanged at full quality. High-resolution 200 DPI previews are generated for the flipbook.</p>
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
 
       {uploadedBooks.length > 0 && (

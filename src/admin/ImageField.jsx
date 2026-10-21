@@ -6,7 +6,7 @@ import { inputClass } from './classes'
 
 export default function ImageField({ value, onChange }) {
   const [busy, setBusy] = useState(false)
-  const uploaded = value?.startsWith('data:')
+  const uploaded = value?.startsWith('data:') || value?.includes('/catalog-images/')
 
   const pick = async (e) => {
     const file = e.target.files[0]
@@ -37,7 +37,7 @@ export default function ImageField({ value, onChange }) {
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-sand bg-white px-3 py-1.5 text-xs font-medium hover:bg-sand/60">
             <ImagePlus size={14} /> {busy ? 'Processing…' : 'Upload image'}
-            <input type="file" accept="image/*" className="hidden" onChange={pick} disabled={busy} />
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pick} disabled={busy} />
           </label>
           {value && (
             <button

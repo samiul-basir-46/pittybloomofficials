@@ -74,22 +74,6 @@ export default function OrdersPage({ fixedView = 'all' }) {
   const [params, setParams] = useSearchParams()
   const now = useMemo(() => new Date(), [])
   const all = ordersQuery.data ?? []
-  const orderNumbers = useMemo(() => {
-    const byDay = new Map()
-    for (const order of all) {
-      const day = localDate(order.createdAt)
-      if (!day) continue
-      if (!byDay.has(day)) byDay.set(day, [])
-      byDay.get(day).push(order)
-    }
-    const numbers = new Map()
-    for (const [day, dayOrders] of byDay) {
-      dayOrders.sort((a, b) => orderDate(a) - orderDate(b) || String(a.id).localeCompare(String(b.id)))
-      const compactDay = day.slice(2).replaceAll('-', '')
-      dayOrders.forEach((order, index) => numbers.set(order.id, `PB-${compactDay}-${String(index + 1).padStart(2, '0')}`))
-    }
-    return numbers
-  }, [all])
   const settings = settingsQuery.data ?? {}
   const query = params.get('q') ?? ''
   const urgencyFilter = ['all', 'overdue', 'urgent', 'standard'].includes(params.get('urgency')) ? params.get('urgency') : 'all'
@@ -127,7 +111,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
     const matchesDate = dateFilter === 'all' || (dateFilter === 'today' ? localDate(order.createdAt) === localDate(now) : dateFilter === '30d' ? age <= 30 * 86400000 && age >= 0 : age <= 7 * 86400000 && age >= 0)
     const statusMatchesList = fixedView === 'completed' ? order.status === 'Delivered' : fixedView === 'cancelled' ? order.status === 'Cancelled' : [...PENDING, 'Shipped'].includes(order.status)
     const matchesStatus = statusFilter === 'all' || (statusFilter === 'pending' ? PENDING.includes(order.status) : statusFilter === 'dispatched' ? order.status === 'Shipped' : statusFilter === 'completed' ? order.status === 'Delivered' : order.status === 'Cancelled')
-    const matchesSearch = !search || [orderNumbers.get(order.id), order.id, order.customer?.name, phoneOf(order), order.customer?.instagram, ...order.items.flatMap((item) => [item.name, item.optionLabel])].some((value) => String(value ?? '').toLowerCase().includes(search))
+    const matchesSearch = !search || [order.id, order.customer?.name, phoneOf(order), order.customer?.instagram, ...order.items.flatMap((item) => [item.name, item.optionLabel])].some((value) => String(value ?? '').toLowerCase().includes(search))
     const selectedCategory = CATEGORY_TABS.find((tab) => tab.id === category)
     const matchesCategory = !selectedCategory || order.items.some(selectedCategory.matches)
     const matchesUrgency = urgencyFilter === 'all' || urgency.level === urgencyFilter
@@ -209,7 +193,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
               <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead><tr className="bg-[#F7F4ED] text-left text-xs font-semibold uppercase tracking-[.06em] text-[#6B665C]"><th className="px-5 py-3">Order</th><th className="px-5 py-3">Customer</th><th className="px-5 py-3">Items</th><th className="px-5 py-3">Priority</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Total</th><th className="px-5 py-3" /></tr></thead>
                 <tbody>{pageRows.map(({ order, urgency }) => <tr key={order.id} className="border-t border-[#EEEAE0] hover:bg-[#FAF8F3]">
-                  <td className="px-5 py-4"><Link className="font-semibold text-[#2F3A33] hover:underline" to={`/admin/orders/${encodeURIComponent(order.id)}`}>#{orderNumbers.get(order.id) || order.id}</Link><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{displayDate(order.createdAt)}</div></td>
+                  <td className="px-5 py-4"><Link className="font-semibold text-[#2F3A33] hover:underline" to={`/admin/orders/${encodeURIComponent(order.id)}`}>#{order.id}</Link><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{displayDate(order.createdAt)}</div></td>
                   <td className="px-5 py-4"><div className="max-w-48 truncate font-medium">{order.customer?.name || '—'}</div><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{phoneOf(order)}</div></td>
                   <td className="max-w-[300px] px-5 py-4">{itemTags(order.items).map((tag) => <span key={tag.label} className="mr-1 inline-block whitespace-nowrap rounded-full bg-[#EFEBE1] px-2.5 py-0.5 text-xs font-medium text-[#4A463E]">{tag.label}{tag.qty > 1 ? ` × ${tag.qty}` : ''}</span>)}</td>
                   <td className="px-5 py-4">{urgency.level === 'urgent' || urgency.level === 'overdue' ? <span className="inline-block whitespace-nowrap rounded-full bg-[#F6E3DF] px-3 py-1 text-xs font-semibold text-[#8F3A31]">{urgency.level === 'overdue' ? 'Overdue' : 'Urgent'}</span> : <span className="whitespace-nowrap text-[13px] text-[#6B665C]">{PENDING.includes(order.status) ? 'Standard' : '—'}</span>}</td>

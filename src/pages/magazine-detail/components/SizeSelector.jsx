@@ -18,7 +18,7 @@ export default function SizeSelector({ sizes, formats, value, onChange }) {
   return (
     <div>
       {available.length > 1 && (
-        <div role="radiogroup" aria-label="Magazine size" className="mx-auto mb-4 grid max-w-sm grid-cols-2 gap-2 rounded-full bg-sand p-1">
+        <div role="radiogroup" aria-label="Magazine size" className="mx-auto mb-3 grid max-w-sm grid-cols-2 gap-1.5 rounded-full bg-sand p-1 sm:mb-4 sm:gap-2">
           {available.map((f) => (
             <button
               key={f.id}
@@ -26,7 +26,7 @@ export default function SizeSelector({ sizes, formats, value, onChange }) {
               role="radio"
               aria-checked={f.id === format}
               onClick={() => chooseFormat(f.id)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors sm:px-4 sm:text-sm ${
                 f.id === format ? 'bg-brand text-white shadow' : 'text-ink/70 hover:text-ink'
               }`}
             >
@@ -35,7 +35,7 @@ export default function SizeSelector({ sizes, formats, value, onChange }) {
           ))}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         {shown.map((s) => {
           const on = s.id === active.id
           return (
@@ -44,16 +44,16 @@ export default function SizeSelector({ sizes, formats, value, onChange }) {
               type="button"
               onClick={() => onChange(s.id)}
               aria-pressed={on}
-              className={`relative rounded-xl border bg-white px-3 py-4 text-center ${on ? 'border-2 border-brand bg-cream' : 'border-sand'}`}
+              className={`relative rounded-xl border bg-white px-2.5 py-3 text-center sm:px-3 sm:py-4 ${on ? 'border-2 border-brand bg-cream' : 'border-sand'}`}
             >
               {s.tag && (
                 <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-brand">
                   ✦ {s.tag} ✦
                 </span>
               )}
-              <p className="text-sm font-semibold">{s.pages} Pages</p>
-              {s.photos && <p className="mt-1 text-xs text-ink/50">{s.photos} Photos</p>}
-              <p className="mt-2 font-bold text-warm">{formatPrice(s.price)}</p>
+              <p className="text-xs font-semibold sm:text-sm">{s.pages} Pages</p>
+              {s.photos && <p className="mt-1 text-[11px] text-ink/50 sm:text-xs">{s.photos} Photos</p>}
+              <p className="mt-1.5 text-sm font-bold text-warm sm:mt-2 sm:text-base">{formatPrice(s.price)}</p>
             </button>
           )
         })}

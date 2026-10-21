@@ -1,13 +1,16 @@
 import { Link } from 'react-router-dom'
-import { Instagram, Mail } from 'lucide-react'
+import { Facebook, Instagram, Mail, MessageCircle } from 'lucide-react'
 import Container from '../ui/Container'
 import useAsync from '../hooks/useAsync'
 import { useSettings } from '../context/SettingsContext'
 import { getPolicies } from '../services/contentService'
+import { whatsappNumber } from '../utils/social'
 
 export default function Footer() {
   const { settings } = useSettings()
   const policies = useAsync(getPolicies)
+  const waNumber = whatsappNumber(settings.whatsapp)
+  const waDisplay = waNumber.startsWith('880') ? `0${waNumber.slice(3)}` : waNumber
 
   return (
     <footer className="border-t border-sand bg-cream">
@@ -39,6 +42,8 @@ export default function Footer() {
                 <Instagram size={20} /> {settings.instagram}
               </a>
             </li>
+            {settings.facebookUrl && <li><a href={settings.facebookUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-brand"><Facebook size={20} /> Facebook</a></li>}
+            {waNumber && <li><a href={`https://wa.me/${waNumber}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-brand"><MessageCircle size={20} /> WhatsApp · {waDisplay}</a></li>}
           </ul>
         </div>
       </Container>

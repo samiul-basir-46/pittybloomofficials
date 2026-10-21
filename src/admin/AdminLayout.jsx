@@ -1,13 +1,15 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router-dom'
-import { Check, CircleCheck, CircleX, ClipboardList, ExternalLink, LayoutDashboard, Menu, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
+import { Link, NavLink, Navigate, Outlet, useLocation, useMatch } from 'react-router-dom'
+import { Check, CircleCheck, CircleX, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
 import { SECTIONS } from './sections'
 import { dismissBookUpload, getBookUploads, subscribeBookUploads } from '../shared/services/bookUploadQueue'
+import { useAuth } from '../shared/context/AuthContext'
 
 const NAV_GROUPS = [
   { links: [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
     { to: '/admin/orders', label: 'Orders', icon: ClipboardList },
+    { to: '/admin/manual-order', label: 'Manual order', icon: PackagePlus },
     { to: '/admin/completed-orders', label: 'Completed orders', icon: CircleCheck },
     { to: '/admin/cancelled-orders', label: 'Cancelled orders', icon: CircleX },
   ] },
@@ -62,12 +64,14 @@ function UploadActivity() {
 export default function AdminLayout() {
   // An order's own page has room for two columns
   const wide = useMatch('/admin/orders/:id')
+  const dashboard = useMatch({ path: '/admin', end: true })
   const ordersList = useMatch({ path: '/admin/orders', end: true })
   const completedOrdersList = useMatch('/admin/completed-orders')
   const cancelledOrdersList = useMatch('/admin/cancelled-orders')
   const wideList = ordersList || completedOrdersList || cancelledOrdersList
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const { user, loading, configured, isAdmin, signOut } = useAuth()
 
   useEffect(() => setMenuOpen(false), [location.pathname])
   useEffect(() => {
@@ -76,6 +80,10 @@ export default function AdminLayout() {
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [menuOpen])
+
+  if (loading) return <div className="grid min-h-screen place-items-center text-sm text-ink/60">Checking admin access…</div>
+  if (!configured) return <div className="grid min-h-screen place-items-center p-6 text-center text-sm text-red-700">Admin sign-in is unavailable because Firebase is not configured.</div>
+  if (!user || !isAdmin) return <Navigate to={`/admin/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
 
   return (
     <div className="min-h-screen bg-cream md:flex">
@@ -122,9 +130,15 @@ export default function AdminLayout() {
             </div>
           ))}
         </nav>
+        <div className="border-t border-sand p-3">
+          <div className="mb-2 truncate px-3 text-xs text-ink/55" title={user.email}>{user.email}</div>
+          <button type="button" onClick={() => signOut()} className="flex min-h-10 w-full items-center gap-3 rounded-xl px-4 text-sm font-medium text-ink/80 transition hover:bg-sand/70 hover:text-ink">
+            <LogOut size={17} strokeWidth={1.8} /> Sign out
+          </button>
+        </div>
       </aside>
       <main className={`min-w-0 flex-1 p-4 sm:p-8 ${ordersList ? 'lg:px-6 lg:py-8' : 'lg:p-10'}`}>
-        <div className={`mx-auto ${wide ? 'max-w-6xl' : wideList ? 'max-w-none' : 'max-w-4xl'}`}>
+        <div className={`mx-auto ${wide ? 'max-w-6xl' : wideList || dashboard ? 'max-w-none' : 'max-w-4xl'}`}>
           <Outlet />
         </div>
       </main>

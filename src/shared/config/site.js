@@ -1,8 +1,8 @@
 export const SITE = {
   name: 'PittyBloom',
-  logo: '/logo.png',
+  logo: '/logo.jpeg',
   heroWord: 'PITTYBLOOM',
-  heroImages: ['/images/hero/1.jpg', '/images/hero/2.jpg', '/images/hero/3.jpg', ''],
+  heroImages: [],
   quote: ['make every memory', 'bloom into a keepsake'],
   ctaLabel: 'Explore Products',
   ctaLink: '/magazines',
@@ -17,7 +17,7 @@ export const SITE = {
     'Share your photos and your story, and we take care of the layout, printing and packaging.',
     'New ideas are always on the way, so keep an eye out for what blooms next.',
   ],
-  aboutImages: ['/images/about/1.jpg', '/images/about/2.jpg', '/images/about/3.jpg'],
+  aboutImages: [],
   magazinesTitle: 'Magazines',
   productInfo: {
     tagline: 'A magazine made from your own story.',
@@ -33,11 +33,12 @@ export const SITE = {
     notes: ['Delivery across Bangladesh', 'Made to order, just for you'],
     buyNote: 'Wrapped with care',
   },
-  whatsapp: '',
+  whatsapp: '8801622000471',
   deliveryNote: 'Delivery charge and payment details are confirmed with you after we receive your order.',
   email: 'hello@pittybloom.com',
-  instagram: '@pittybloomofficials',
-  instagramUrl: 'https://www.instagram.com/pittybloomofficials',
+  instagram: '@pitty_bloom',
+  instagramUrl: 'https://www.instagram.com/pitty_bloom/',
+  facebookUrl: 'https://www.facebook.com/pittybloom.bd',
 }
 
 // Mobile positions come first (images sit in the narrow right column next to the text);

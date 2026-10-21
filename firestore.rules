@@ -2,49 +2,63 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function isAdmin() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Admin records are provisioned manually in the Firebase Console. A user can
-    // read their own role but cannot grant themselves or anyone else admin access.
-    match /admins/{uid} {
-      allow read: if signedIn() && request.auth.uid == uid;
-      allow write: if false;
-    }
-
     match /orders/{orderId} {
-      allow create: if isAdmin() || (signedIn()
+      // Admin is intentionally operated without sign-in. This makes order data
+      // publicly readable and writable; keep customer order creation flow intact.
+      allow read, create, update, delete: if true;
+    }
+
+    // Daily serials are allocated atomically with their order. A customer can
+    // only advance the counter by one when that transaction creates their order.
+    match /orderSequences/{day} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && day.matches('^[0-9]{6}$')
+        && request.resource.data.count == 1
+        && request.resource.data.lastOrderId.matches('^PB-' + day + '-[0-9]{2,}$')
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.ownerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.sequenceDay == day
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.sequenceNumber == request.resource.data.count;
+      allow update: if signedIn()
+        && day.matches('^[0-9]{6}$')
+        && request.resource.data.count == resource.data.count + 1
+        && request.resource.data.lastOrderId.matches('^PB-' + day + '-[0-9]{2,}$')
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.ownerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.sequenceDay == day
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.sequenceNumber == request.resource.data.count;
+      allow delete: if false;
+    }
+
+    // This private idempotency key lets a customer safely retry a timed-out
+    // submission without placing a second order or consuming another serial.
+    match /orderRequests/{requestKey} {
+      allow get: if signedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
+      allow list: if false;
+      allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.id == orderId
-        && request.resource.data.status == 'New'
-        && request.resource.data.customer.uid == request.auth.uid
-        && request.resource.data.customer.email == request.auth.token.email
-        && request.resource.data.items is list
-        && request.resource.data.total is number
-        && request.resource.data.total >= 0);
-      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
-      allow update, delete: if isAdmin();
+        && request.resource.data.orderId.matches('^PB-[0-9]{6}-[0-9]{2,}$')
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.ownerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.submissionKey == requestKey;
+      allow update, delete: if false;
+    }
+
+    match /customerProfiles/{uid} {
+      // The document path itself is the UID, so this also lets an owner check
+      // for their profile before the document has been created.
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
 
     match /drafts/{draftId} {
-      allow create: if signedIn()
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.id == draftId
-        && request.resource.data.status == 'draft';
-      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
-      allow update: if isAdmin() || (signedIn()
-        && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.status == 'draft');
-      allow delete: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow read, create, update, delete: if true;
     }
 
     match /contentData/{docId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if true;
     }
 
     match /{document=**} { allow read, write: if false; }
