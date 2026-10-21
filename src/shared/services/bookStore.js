@@ -85,13 +85,16 @@ export const bookStore = {
       throw error
     }
   },
-  async get(key, pageCount) {
+  async get(key, pageCount, onProgress) {
     if (!MEDIA_API) throw new Error('Cloudflare media storage is not configured.')
+    let done = 0
     return Promise.all(Array.from({ length: pageCount }, async (_, index) => {
       // Stable R2 URLs can be reused from the browser cache on repeat visits.
       const response = await fetch(`${MEDIA_API}/books/${key}/pages/${index + 1}`, { cache: 'force-cache' })
       if (!response.ok) throw new Error(`Could not load preview page ${index + 1} from Cloudflare R2.`)
-      return response.blob()
+      const blob = await response.blob()
+      onProgress?.(++done)
+      return blob
     }))
   },
   async list() {

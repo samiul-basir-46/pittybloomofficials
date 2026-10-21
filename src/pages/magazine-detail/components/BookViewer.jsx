@@ -4,30 +4,11 @@ import { PageFlip } from 'page-flip'
 import { bookStore } from '../../../shared/services/bookStore'
 
 const MAX_PAGE_WIDTH = 520
-// Below this container width the book shows one big page at a time (still with the page-curl),
-// because two tiny pages side by side are unreadable on a phone.
-const SINGLE_PAGE_BELOW = 600
 const MAX_DPR = 3
 // Always draw the book at no less than 2x. On a normal 1x desktop monitor a 1:1 canvas shows each
 // page at exactly its screen size, and any tiny size mismatch resamples the image and softens it.
 // A 2x canvas fed with 2x images maps pixel-for-pixel and the browser then shrinks it smoothly.
 const renderScale = () => Math.min(Math.max(window.devicePixelRatio || 1, 2), MAX_DPR)
-// On phones the book is shown small and centred (one page, still flips), like a product photo,
-// instead of stretching to the full screen width.
-const PHONE_QUERY = '(max-width: 639px)'
-const PHONE_PAGE_MAX = 240
-const PHONE_PAGE_SHARE = 0.58
-
-function useIsPhone() {
-  const [phone, setPhone] = useState(() => (typeof window !== 'undefined' ? window.matchMedia(PHONE_QUERY).matches : false))
-  useEffect(() => {
-    const query = window.matchMedia(PHONE_QUERY)
-    const update = () => setPhone(query.matches)
-    query.addEventListener?.('change', update)
-    return () => query.removeEventListener?.('change', update)
-  }, [])
-  return phone
-}
 
 // Shrinks a page image to the exact pixel size it will be drawn at. Scaling a 1650px scan straight
 // down to ~500px makes text jagged, so halve it step by step with high-quality smoothing instead.
@@ -82,9 +63,8 @@ export default function BookViewer({ book, title, fallback }) {
   const currentPage = useRef(0)
   const [status, setStatus] = useState('loading')
   const [pageIndex, setPageIndex] = useState(0)
-  const [single, setSingle] = useState(false)
+  const [loaded, setLoaded] = useState(0)
   const lastPage = book.pageCount - 1
-  const phone = useIsPhone()
 
   useEffect(() => {
     let cancelled = false
@@ -94,37 +74,36 @@ export default function BookViewer({ book, title, fallback }) {
     if (!mount) return undefined
 
     // PageFlip removes its mount node when destroyed, so keep it outside React's managed tree.
+    const holder = document.createElement('div')
+    holder.style.width = '100%'
+    holder.style.margin = '0 auto'
     const element = document.createElement('div')
-    element.style.width = phone ? `min(${PHONE_PAGE_MAX}px, ${PHONE_PAGE_SHARE * 100}%)` : '100%'
-    element.style.margin = '0 auto'
     element.style.touchAction = 'pan-y'
     element.style.webkitTapHighlightColor = 'transparent'
-    mount.appendChild(element)
+    holder.appendChild(element)
+    mount.appendChild(holder)
 
-    bookStore.get(book.key, book.pageCount)
-      .then(async (pages) => {
+    bookStore.get(book.key, book.pageCount, (done) => !cancelled && setLoaded(done))
+      .then((pages) => {
         if (cancelled) return
         if (!Array.isArray(pages) || pages.length !== book.pageCount) throw new Error('Book pages not found')
 
-        const dpr = renderScale()
-        const box = mount.clientWidth || MAX_PAGE_WIDTH * 2
-        const cssPageWidth = phone ? Math.min(PHONE_PAGE_MAX, box * PHONE_PAGE_SHARE) : Math.min(MAX_PAGE_WIDTH, box < SINGLE_PAGE_BELOW ? box : box / 2)
-        const sharp = await fitAll(pages, Math.ceil(cssPageWidth * dpr))
-        if (cancelled) return
-
-        pageUrls = sharp.map((page) => URL.createObjectURL(page))
+        // Show the book straight away with the pages as downloaded; the sharper, pre-scaled
+        // versions are swapped in afterwards so a slow phone is never left waiting on them.
+        pageUrls = pages.map((page) => URL.createObjectURL(page))
         const ratio = book.ratio || 1 / 1.4142
         const pageWidth = MAX_PAGE_WIDTH
         instance = new PageFlip(element, {
           width: pageWidth,
           height: Math.round(pageWidth / ratio),
           size: 'stretch',
-          minWidth: SINGLE_PAGE_BELOW / 2,
+          minWidth: 120,
           maxWidth: MAX_PAGE_WIDTH,
           minHeight: Math.round(150 / ratio),
           maxHeight: Math.round(MAX_PAGE_WIDTH / ratio),
           showCover: true,
-          usePortrait: true,
+          // Always the two-page spread, also on phones (just smaller), like a real open book.
+          usePortrait: false,
           flippingTime: 900,
           maxShadowOpacity: 0.55,
           // Keep vertical page scrolling native while allowing PageFlip to receive
@@ -162,10 +141,22 @@ export default function BookViewer({ book, title, fallback }) {
           currentPage.current = data
           setPageIndex(data)
         })
-        instance.on('changeOrientation', ({ data }) => setSingle(data === 'portrait'))
-        setSingle(instance.getOrientation() === 'portrait')
         flip.current = instance
         setStatus('ready')
+
+        const dpr = renderScale()
+        const box = mount.clientWidth || MAX_PAGE_WIDTH * 2
+        const cssPageWidth = Math.min(MAX_PAGE_WIDTH, box / 2)
+        fitAll(pages, Math.ceil(cssPageWidth * dpr))
+          .then((sharp) => {
+            if (cancelled || flip.current !== instance) return
+            const sharpUrls = sharp.map((page) => URL.createObjectURL(page))
+            const previous = pageUrls
+            pageUrls = sharpUrls
+            instance.updateFromImages(sharpUrls)
+            previous.forEach((url) => URL.revokeObjectURL(url))
+          })
+          .catch((error) => console.warn('[Flipbook] Keeping the original page images:', error))
       })
       .catch((error) => {
         // The page quietly falls back to the plain cover, so say why in the console.
@@ -181,10 +172,10 @@ export default function BookViewer({ book, title, fallback }) {
       } catch {
         // PageFlip can already be torn down when the route changes.
       }
-      element.remove()
+      holder.remove()
       pageUrls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [book.key, book.pageCount, book.ratio, phone])
+  }, [book.key, book.pageCount, book.ratio])
 
   if (status === 'error') return fallback
 
@@ -195,13 +186,13 @@ export default function BookViewer({ book, title, fallback }) {
     <div className="flex min-w-0 flex-col items-center">
       <div className="relative w-full overflow-hidden rounded-xl bg-[#FBF7F7] px-0 py-2 sm:rounded-none sm:bg-transparent sm:py-0">
         <div ref={host} role="img" aria-label={`${title} book preview`} className="mx-auto min-h-[260px] w-full max-w-[1040px] sm:min-h-[320px]" />
-        {!ready && <p className="absolute inset-0 grid place-items-center text-sm text-ink/50">Loading preview…</p>}
+        {!ready && <p className="absolute inset-0 grid place-items-center text-sm text-ink/50">Loading preview… {loaded > 0 ? `${loaded}/${book.pageCount}` : ''}</p>}
       </div>
       <div className="mt-3 flex items-center gap-3 text-xs text-ink/60 sm:mt-5 sm:gap-5 sm:uppercase sm:tracking-widest">
         <button type="button" onClick={() => flip.current?.flipPrev()} disabled={!ready || pageIndex <= 0} aria-label="Previous pages" className={arrow}>
           <ChevronLeft size={18} />
         </button>
-        <span aria-live="polite">{pageIndex === 0 ? 'Cover' : pageIndex >= lastPage ? 'Back cover' : single ? `Page ${pageIndex + 1}` : `Pages ${pageIndex + 1}–${Math.min(pageIndex + 2, book.pageCount)}`} · {book.pageCount}</span>
+        <span aria-live="polite">{pageIndex === 0 ? 'Cover' : pageIndex >= lastPage ? 'Back cover' : `Pages ${pageIndex + 1}–${Math.min(pageIndex + 2, book.pageCount)}`} · {book.pageCount}</span>
         <button type="button" onClick={() => flip.current?.flipNext()} disabled={!ready || pageIndex >= lastPage} aria-label="Next pages" className={arrow}>
           <ChevronRight size={18} />
         </button>
