@@ -8,6 +8,11 @@ import { slugify } from '../shared/utils/text'
 import { inputClass } from './classes'
 import { uploadCatalogImage } from '../shared/services/catalogImageStore'
 
+const parseEditableOptions = (text = '') => text.split('\n').map((line) => {
+  const [label = '', price = '', mrp = '', tag = ''] = line.split('|').map((value) => value.trim())
+  return { label, price, mrp, tag }
+}).filter((option) => option.label || option.price || option.mrp || option.tag)
+
 export default function ItemManager({ title, api, fields, blank, label, columns = [], makeId = (i) => slugify(label(i)), validate, note }) {
   const { data, loading, reload } = useAsync(api.list)
   const [form, setForm] = useState(null)
@@ -19,6 +24,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
   const imageKeys = fields.filter((f) => f.type === 'image').map((f) => f.name)
   const imageKey = imageKeys[0]
   const shown = items.filter((i) => label(i).toLowerCase().includes(query.trim().toLowerCase()))
+  const updateFrameOptions = (options) => setForm((current) => ({ ...current, item: { ...current.item, options: options.map((option) => `${option.label} | ${option.price}${option.mrp ? ` | ${option.mrp}` : ''}${option.tag ? ` | ${option.tag}` : ''}`).join('\n') } }))
 
   useEffect(() => {
     if (!form) return
@@ -40,6 +46,21 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
     const message = validate ? await validate(item, { items, isNew: form.isNew }) : ''
     if (message) {
       setProblem(message)
+      return
+    }
+    if (item.id === 'frame') {
+      const frameOptions = parseEditableOptions(item.options)
+      if (!frameOptions.length || frameOptions.some((option) => !option.label.trim() || !Number.isFinite(Number(option.price)) || Number(option.price) < 1)) {
+        setProblem('Each frame size needs a name and a price of at least ৳1.')
+        return
+      }
+      if (new Set(frameOptions.map((option) => option.label.trim().toLowerCase())).size !== frameOptions.length) {
+        setProblem('Each frame size must have a different name.')
+        return
+      }
+    }
+    if (item.id === 'polaroids' && (!Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 1 || !Number.isInteger(Number(item.minQuantity)) || Number(item.minQuantity) < 1)) {
+      setProblem('Enter a per-piece price of at least ৳1 and a minimum quantity of at least 1.')
       return
     }
     setProblem('')
@@ -167,7 +188,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
                 <X size={20} />
               </button>
             </div>
-            {fields.map((f) => (
+            {fields.filter((field) => !(['frame', 'polaroids'].includes(form.item.id) && field.name === 'options')).map((f) => (
               <Field
                 key={f.name}
                 label={f.label}
@@ -178,6 +199,17 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
                 onChange={(v) => setForm({ ...form, item: { ...form.item, [f.name]: v } })}
               />
             ))}
+            {form.item.id === 'frame' && <div className="space-y-3 rounded-2xl border border-sand bg-cream/50 p-4">
+              <div><h3 className="font-semibold">Frame sizes and prices</h3><p className="mt-1 text-xs leading-5 text-ink/60">These choices appear on the customer frame order page. Remove a size to stop offering it.</p></div>
+              {parseEditableOptions(form.item.options).map((option, index, options) => <div key={`${index}-${option.label}`} className="grid gap-2 rounded-xl border border-sand bg-white p-3 sm:grid-cols-2">
+                <label className="text-xs font-medium text-ink/60">Size name<input aria-label={`Frame size ${index + 1}`} className={`${inputClass} mt-1`} value={option.label} onChange={(event) => updateFrameOptions(options.map((row, rowIndex) => rowIndex === index ? { ...row, label: event.target.value } : row))} /></label>
+                <label className="text-xs font-medium text-ink/60">Price (BDT)<input aria-label={`Frame price ${index + 1}`} type="number" min="1" className={`${inputClass} mt-1`} value={option.price} onChange={(event) => updateFrameOptions(options.map((row, rowIndex) => rowIndex === index ? { ...row, price: event.target.value } : row))} /></label>
+                <label className="text-xs font-medium text-ink/60">Original price (optional)<input aria-label={`Frame original price ${index + 1}`} type="number" min="0" className={`${inputClass} mt-1`} value={option.mrp || ''} onChange={(event) => updateFrameOptions(options.map((row, rowIndex) => rowIndex === index ? { ...row, mrp: event.target.value } : row))} /></label>
+                <div className="flex items-end justify-between gap-2"><label className="min-w-0 flex-1 text-xs font-medium text-ink/60">Badge (optional)<input aria-label={`Frame badge ${index + 1}`} className={`${inputClass} mt-1`} value={option.tag || ''} onChange={(event) => updateFrameOptions(options.map((row, rowIndex) => rowIndex === index ? { ...row, tag: event.target.value } : row))} /></label><button type="button" aria-label={`Remove ${option.label}`} onClick={() => updateFrameOptions(options.filter((_, rowIndex) => rowIndex !== index))} className="grid size-11 shrink-0 place-items-center rounded-xl border border-red-100 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button></div>
+              </div>)}
+              <button type="button" onClick={() => updateFrameOptions([...parseEditableOptions(form.item.options), { label: 'New frame size', price: '1', mrp: '', tag: '' }])} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-brand/25 bg-white px-3 text-sm font-semibold text-brand hover:bg-cream"><Plus size={15} /> Add frame size</button>
+            </div>}
+            {form.item.id === 'polaroids' && <div className="space-y-3 rounded-2xl border border-sand bg-cream/50 p-4"><div><h3 className="font-semibold">Polaroid order settings</h3><p className="mt-1 text-xs text-ink/60">Customers upload one print photo per piece.</p></div><label className="block text-xs font-medium text-ink/60">Price per Polaroid (BDT)<input aria-label="Price per Polaroid" type="number" min="1" className={`${inputClass} mt-1`} value={form.item.unitPrice ?? 8} onChange={(event) => setForm({ ...form, item: { ...form.item, unitPrice: event.target.value } })} /></label><label className="block text-xs font-medium text-ink/60">Minimum quantity<input aria-label="Minimum Polaroid quantity" type="number" min="1" className={`${inputClass} mt-1`} value={form.item.minQuantity ?? 9} onChange={(event) => setForm({ ...form, item: { ...form.item, minQuantity: event.target.value } })} /></label></div>}
             {problem && (
               <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {problem}

@@ -19,7 +19,7 @@ export default function Header() {
   const { user, signOut, configured } = useAuth()
   const { settings } = useSettings()
   const nav = useAsync(getNavLinks)
-  const isManualOrderPage = location.pathname === '/custom-order'
+  const isManualOrderPage = location.pathname === '/order-form' || location.pathname === '/custom-order'
 
   useEffect(() => setMenuOpen(false), [location.pathname])
   useEffect(() => {

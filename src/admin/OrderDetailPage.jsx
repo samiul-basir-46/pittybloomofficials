@@ -79,12 +79,20 @@ export function PhotoGallery({ photos }) {
       {user && <button type="button" onClick={() => setRetry((current) => current + 1)} className="min-h-9 rounded-lg border border-sand bg-white px-3 font-semibold text-brand">Try again</button>}
     </div>}
     <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2.5 xl:grid-cols-6">
-      {visibleFiles.map((file) => <div key={file.id} className="min-w-0">
-        <button type="button" onClick={() => urls[file.id] && setPreview({ ...file, url: urls[file.id] })} className="block aspect-square w-full overflow-hidden rounded-xl border border-sand bg-cream text-left">
+      {visibleFiles.map((file) => {
+        const coverLabel = file.id === photos.frontId || file.name === photos.front
+          ? 'Front cover'
+          : file.id === photos.backId || file.name === photos.back
+            ? 'Back cover'
+            : ''
+        return <div key={file.id} className="min-w-0">
+        <button type="button" onClick={() => urls[file.id] && setPreview({ ...file, url: urls[file.id] })} className="relative block aspect-square w-full overflow-hidden rounded-xl border border-sand bg-cream text-left">
           {urls[file.id] ? <img src={urls[file.id]} alt={file.name} className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center px-2 text-center text-xs text-ink/50">Preview unavailable</span>}
+          {coverLabel && <span className={`absolute left-1.5 top-1.5 rounded-md px-2 py-1 text-[10px] font-bold text-white shadow-sm ${coverLabel === 'Front cover' ? 'bg-brand' : 'bg-ink/80'}`}>{coverLabel}</span>}
         </button>
         <div className="mt-1.5 flex items-center justify-between gap-2"><span className="truncate text-xs text-ink/65" title={file.name}>{file.name}</span><button type="button" aria-label={`Download ${file.name}`} disabled={!urls[file.id]} onClick={() => download(file)} className="grid size-8 shrink-0 place-items-center rounded-lg border border-sand text-brand hover:bg-cream disabled:opacity-40"><ArrowDownToLine size={15} /></button></div>
-      </div>)}
+      </div>
+      })}
     </div>
     {pageCount > 1 && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-sand pt-3">
       <span className="text-xs text-ink/55">Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, files.length)} of {files.length} photos</span>
@@ -110,7 +118,7 @@ function OrderItem({ item, index, image, onDownloadPhotos, zipLoading }) {
     {(item.details?.length > 0 || item.note || item.photos) && <div className="border-t border-sand px-4 pb-4 sm:px-5">
       {item.details?.length > 0 && <><h3 className="mb-2 mt-4 text-xs font-semibold text-ink/65">Personalization</h3><dl className="grid gap-2 sm:grid-cols-2">{item.details.map((row, n) => <LabelValue key={`${row.label}-${n}`} label={row.label}>{row.value}</LabelValue>)}</dl></>}
       {item.note && <div className="mt-4"><p className="mb-1 text-xs text-ink/55">Customer note</p><p className="rounded-lg bg-cream p-3 text-sm text-ink/80">{item.note}</p></div>}
-      {item.photos && <><div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-semibold text-ink/65">Item photos{item.photos.count ? ` · ${item.photos.count}` : ''}</h3>{item.photos.files?.length > 0 && <button type="button" disabled={zipLoading} onClick={onDownloadPhotos} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-sand bg-white px-3 text-xs font-medium hover:bg-cream disabled:opacity-50"><ArrowDownToLine size={14} />{zipLoading ? 'Preparing ZIP…' : 'Download photos (ZIP)'}</button>}</div>{(item.photos.front || item.photos.back) && <p className="mt-2 text-xs leading-5 text-ink/60">Front cover: {item.photos.front || 'not selected'} · Back cover: {item.photos.back || 'not selected'}</p>}<PhotoGallery photos={item.photos} />{item.photos.reference && <div className="mt-4"><h4 className="mb-2 text-xs font-semibold text-ink/65">Design reference</h4><PhotoGallery photos={{ count: 1, files: [item.photos.reference] }} /></div>}</>}
+      {item.photos && <><div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-semibold text-ink/65">Item photos{item.photos.count ? ` · ${item.photos.count}` : ''}</h3>{item.photos.files?.length > 0 && <button type="button" disabled={zipLoading} onClick={onDownloadPhotos} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-sand bg-white px-3 text-xs font-medium hover:bg-cream disabled:opacity-50"><ArrowDownToLine size={14} />{zipLoading ? 'Preparing ZIP…' : 'Download photos (ZIP)'}</button>}</div><PhotoGallery photos={item.photos} />{item.photos.reference && <div className="mt-4"><h4 className="mb-2 text-xs font-semibold text-ink/65">Design reference</h4><PhotoGallery photos={{ count: 1, files: [item.photos.reference] }} /></div>}</>}
     </div>}
   </article>
 }

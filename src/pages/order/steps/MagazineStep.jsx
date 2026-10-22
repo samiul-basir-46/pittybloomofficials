@@ -2,14 +2,16 @@ import { AlertCircle, Check, Lightbulb } from 'lucide-react'
 import SmartImage from '../../../shared/ui/SmartImage'
 import QtyStepper from '../../../shared/ui/QtyStepper'
 import { formatPrice } from '../../../shared/utils/format'
+import { parseOptions } from '../../../shared/utils/options'
 import { Card, Notice } from '../components/FormField'
 import { defaultSizeFor, sizesFor } from '../lib/copies'
 import { Link } from 'react-router-dom'
+import AddonConfigurator, { createAddonDetails } from './AddonConfigurator'
 
 const QUICK = [1, 2, 3, 4]
 
 export default function MagazineStep({ ctx }) {
-  const { magazine, sizes, addons, addonsFailed, formats, draft, update, errors, clear, settings } = ctx
+  const { magazine, sizes, addons, products, addonsFailed, formats, draft, update, errors, clear, settings } = ctx
   const maxCopies = Math.max(1, Number(settings.maxCopies) || 1)
 
   const toggleFormat = (format) => {
@@ -25,8 +27,12 @@ export default function MagazineStep({ ctx }) {
     clear(`pages.${format.id}`)
     update((d) => ({ ...d, picks: { ...d.picks, [format.id]: { ...d.picks[format.id], ...patch } } }))
   }
-  const toggleAddon = (id) =>
-    update((d) => ({ ...d, addons: d.addons.includes(id) ? d.addons.filter((a) => a !== id) : [...d.addons, id] }))
+  const toggleAddon = (addon) => update((d) => {
+    if (d.addons.includes(addon.id)) return { ...d, addons: d.addons.filter((id) => id !== addon.id) }
+    const product = products.find((item) => item.id === addon.id)
+    return { ...d, addons: [...d.addons, addon.id], addonDetails: { ...d.addonDetails, [addon.id]: d.addonDetails?.[addon.id] ?? createAddonDetails(addon, product) } }
+  })
+  const updateAddon = (id, patch) => update((d) => ({ ...d, addonDetails: { ...d.addonDetails, [id]: { ...d.addonDetails[id], ...patch } } }))
 
   return (
     <div className="space-y-6">
@@ -185,13 +191,16 @@ export default function MagazineStep({ ctx }) {
           <ul className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
             {addons.map((a) => {
               const on = draft.addons.includes(a.id)
+              const product = products.find((item) => item.id === a.id)
+              const selectedOption = parseOptions(product?.options).find((option) => option.id === draft.addonDetails?.[a.id]?.optionId)
+              const tilePrice = a.id === 'polaroids' ? Number(product?.unitPrice) || a.price : selectedOption?.price ?? a.price
               return (
                 <li key={a.id}>
                   <button
                     type="button"
                     role="checkbox"
                     aria-checked={on}
-                    onClick={() => toggleAddon(a.id)}
+                    onClick={() => toggleAddon(a)}
                     className={`block w-full overflow-hidden rounded-xl border-2 bg-white text-left transition ${
                       on ? 'border-brand shadow' : 'border-sand hover:border-brand/40'
                     }`}
@@ -208,13 +217,14 @@ export default function MagazineStep({ ctx }) {
                     </div>
                     <div className={`px-1.5 py-2 text-center ${on ? 'bg-cream' : ''}`}>
                       <p className="truncate text-xs font-semibold">{a.name}</p>
-                      {a.price > 0 && <p className="mt-0.5 text-xs font-bold text-warm">{formatPrice(a.price)}</p>}
+                      {tilePrice > 0 && <p className="mt-0.5 text-xs font-bold text-warm">{formatPrice(tilePrice)}</p>}
                     </div>
                   </button>
                 </li>
               )
             })}
           </ul>
+          {addons.filter((addon) => draft.addons.includes(addon.id)).map((addon) => <AddonConfigurator key={addon.id} addon={addon} product={products.find((product) => product.id === addon.id)} details={draft.addonDetails?.[addon.id] ?? createAddonDetails(addon, products.find((product) => product.id === addon.id))} onChange={(patch) => updateAddon(addon.id, patch)} error={errors[`addon.${addon.id}`]} />)}
         </Card>
       )}
       {addonsFailed && <Notice tone="warn">We could not load the add-on products. You can still continue without them.</Notice>}

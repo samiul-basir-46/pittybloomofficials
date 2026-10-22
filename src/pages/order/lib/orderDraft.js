@@ -10,6 +10,7 @@ export const freshDraft = (magazineId, size) => ({
   reached: 1,
   picks: size ? { [size.format]: { sizeId: size.id, qty: 1 } } : {},
   addons: [],
+  addonDetails: {},
   customs: {},
   photos: {},
   delivery: { ...emptyDelivery },

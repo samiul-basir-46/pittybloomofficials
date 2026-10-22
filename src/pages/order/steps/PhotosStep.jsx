@@ -81,9 +81,9 @@ function PhotoPanel({ copy, ctx, refresh }) {
       {photos.length > 0 && (
         <>
           <p className="mb-2 mt-5 text-sm font-semibold">Pick the Front Page and Back Page photos</p>
-          <ul className="grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 sm:grid-cols-4">
+          <ul className="flex gap-2 overflow-x-auto pb-2">
             {photos.map((p) => (
-              <li key={p.id} className="overflow-hidden rounded-xl border border-sand bg-white">
+              <li key={p.id} className="w-28 shrink-0 overflow-hidden rounded-xl border border-sand bg-white sm:w-32">
                 <div className="relative aspect-square bg-sand">
                   {p.url ? (
                     <img src={p.url} alt={p.name} className="h-full w-full object-cover" />

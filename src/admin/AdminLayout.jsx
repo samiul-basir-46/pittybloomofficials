@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation, useMatch } from 'react-router-dom'
-import { Check, CircleCheck, CircleX, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
+import { Check, CircleCheck, CircleX, ClipboardList, ExternalLink, Image as ImageIcon, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
 import { SECTIONS } from './sections'
 import { dismissBookUpload, getBookUploads, subscribeBookUploads } from '../shared/services/bookUploadQueue'
 import { useAdminAuth } from './AdminAuthContext'
@@ -13,7 +13,10 @@ const NAV_GROUPS = [
     { to: '/admin/completed-orders', label: 'Completed orders', icon: CircleCheck },
     { to: '/admin/cancelled-orders', label: 'Cancelled orders', icon: CircleX },
   ] },
-  { title: 'Catalog', links: SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })) },
+  { title: 'Catalog', links: [
+    ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
+    { to: '/admin/frame-settings', label: 'Frame settings', icon: ImageIcon },
+  ] },
   { title: 'Store setup', links: [
     { to: '/admin/order-settings', label: 'Order Settings', icon: SlidersHorizontal },
     ...SECTIONS.filter((s) => ['sizes', 'occasions'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),

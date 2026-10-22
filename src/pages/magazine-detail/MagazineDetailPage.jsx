@@ -10,10 +10,10 @@ import SizeSelector from './components/SizeSelector'
 import ProductAbout from './components/ProductAbout'
 import MagazineMiniCard from './components/MagazineMiniCard'
 import useAsync from '../../shared/hooks/useAsync'
-import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
+import { useCart } from '../../shared/context/CartContext'
 import { getMagazine, getMagazines, getOrderSettings, getSizes } from '../../shared/services/contentService'
-import { DEFAULT_SIZE, magazineLine } from './data'
+import { DEFAULT_SIZE } from './data'
 import { freshDraft, orderDraft } from '../order/lib/orderDraft'
 import { getFormats } from '../order/lib/copies'
 import { photoStore } from '../order/lib/photoStore'
@@ -29,8 +29,25 @@ function Detail({ magazine, sizes, settings }) {
   const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
   // Show the flipbook whenever a stored book has at least one valid page.
   const hasBook = Boolean(magazine.book?.key) && isValidPageCount(magazine.book.pageCount)
-  const orderItem = () => magazineLine(magazine, size)
-  const addToCart = () => add(orderItem())
+  const addToCart = () => {
+    const format = formats.find((item) => item.id === size.format)
+    add({
+      kind: 'magazine',
+      id: magazine.id,
+      name: magazine.title,
+      image: magazine.image,
+      optionId: size.id,
+      optionLabel: `${format?.label ?? size.format} · ${size.pages} Pages`,
+      price: size.price,
+      mrp: size.mrp,
+      qty: 1,
+      meta: { pages: size.pages, photos: size.photos, format: size.format },
+      photos: { count: 0, files: [] },
+      details: [],
+      to: `/magazines/${magazine.id}`,
+    })
+    navigate('/cart')
+  }
   const startOrder = () => {
     photoStore.clear()
     orderDraft.set(freshDraft(magazine.id, size))

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { adminAuth, firebaseConfigured } from '../shared/services/firebaseClient'
 
 const AdminAuthContext = createContext(null)
@@ -25,6 +25,7 @@ export function AdminAuthProvider({ children }) {
     isAdmin,
     signInWithPassword: async (email, password) => {
       if (!firebaseConfigured || !adminAuth) throw new Error('Firebase config is missing. Add the VITE_FIREBASE_* values to .env.')
+      await setPersistence(adminAuth, browserLocalPersistence)
       return signInWithEmailAndPassword(adminAuth, email.trim(), password)
     },
     signOut: async () => { if (adminAuth) await signOut(adminAuth) },

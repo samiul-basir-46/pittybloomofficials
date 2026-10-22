@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './shared/layout/Layout'
 import ScrollToTop from './shared/layout/ScrollToTop'
 import HomePage from './pages/home/HomePage'
@@ -7,7 +7,9 @@ import MagazineDetailPage from './pages/magazine-detail/MagazineDetailPage'
 import FaqPage from './pages/faq/FaqPage'
 import PolicyPage from './pages/policy/PolicyPage'
 import FramePage from './pages/frame/FramePage'
+import FrameOrderPage from './pages/frame/FrameOrderPage'
 import PolaroidsPage from './pages/polaroids/PolaroidsPage'
+import PolaroidsOrderPage from './pages/polaroids/PolaroidsOrderPage'
 import StickerPage from './pages/sticker/StickerPage'
 import PhotoStripPage from './pages/photo-strip/PhotoStripPage'
 import CartPage from './pages/cart/CartPage'
@@ -29,6 +31,7 @@ import DraftDetailPage from './admin/DraftDetailPage'
 import ManualOrderPage from './pages/manual-order/ManualOrderPage'
 import AdminLoginPage from './admin/AdminLoginPage'
 import ManualOrderCatalogPage from './admin/ManualOrderCatalogPage'
+import FrameSettingsPage from './admin/FrameSettingsPage'
 import { AdminAuthProvider } from './admin/AdminAuthContext'
 
 export default function App() {
@@ -39,7 +42,8 @@ export default function App() {
         <Route path="admin/login" element={<AdminAuthProvider><AdminLoginPage /></AdminAuthProvider>} />
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
-          <Route path="custom-order" element={<ManualOrderPage />} />
+          <Route path="order-form" element={<ManualOrderPage />} />
+          <Route path="custom-order" element={<Navigate to="/order-form" replace />} />
 
           <Route path="magazines" element={<MagazinesPage />} />
           <Route path="magazines/:id" element={<MagazineDetailPage />} />
@@ -48,7 +52,9 @@ export default function App() {
 
           {/* One page per product, each in its own folder under src/pages (placeholders for now) */}
           <Route path="frame" element={<FramePage />} />
+          <Route path="frame/order" element={<RequireCustomer><FrameOrderPage /></RequireCustomer>} />
           <Route path="polaroids" element={<PolaroidsPage />} />
+          <Route path="polaroids/order" element={<RequireCustomer><PolaroidsOrderPage /></RequireCustomer>} />
           <Route path="sticker" element={<StickerPage />} />
           <Route path="photo-strip" element={<PhotoStripPage />} />
           <Route path="products/:id" element={<ProductPage />} />
@@ -72,6 +78,7 @@ export default function App() {
           <Route path="drafts/:id" element={<DraftDetailPage />} />
           <Route path="order-settings" element={<OrderSettingsPage />} />
           <Route path="manual-order" element={<ManualOrderCatalogPage />} />
+          <Route path="frame-settings" element={<FrameSettingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

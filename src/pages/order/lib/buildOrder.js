@@ -46,9 +46,19 @@ export function buildMagazineOrder({ id, draft, copies, occasions, addons, magaz
       },
     }
   })
-  addons.forEach((a) =>
-    cartItems.push({ kind: 'addon', id: a.id, name: a.name, image: a.image, optionLabel: 'Add-on', qty: a.qty || 1, price: a.price }),
-  )
+  addons.forEach((a) => {
+    const photos = photoStore.list(a.photoKey)
+    const reference = photoStore.list(a.referenceKey)[0]
+    cartItems.push({
+      kind: 'addon', id: a.id, name: a.name, image: a.image,
+      optionLabel: a.optionLabel || 'Add-on', qty: a.qty || 1, price: a.price,
+      photos: {
+        count: photos.length,
+        files: photos.map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })),
+        ...(reference ? { reference: { id: reference.id, name: reference.name, size: reference.size, type: reference.type, storageKey: reference.storageKey } } : {}),
+      },
+    })
+  })
 
   const info = d.date && d.location ? checkDate(d.date, d.location, settings, now) : null
   return buildOrder({

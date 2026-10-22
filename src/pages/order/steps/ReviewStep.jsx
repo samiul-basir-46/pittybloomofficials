@@ -73,7 +73,7 @@ function PhotoStrip({ photos, meta, copyTitleText }) {
 }
 
 export default function ReviewStep({ ctx }) {
-  const { copies, occasions, chosenAddons: addons, draft, totals, settings, editFromReview, submitError } = ctx
+  const { copies, occasions, chosenAddons: addons, draft, totals, settings, editFromReview, submitError, cartMode } = ctx
   const d = draft.delivery
   const c = draft.contact
   const noPhotos = copies.every((copy) => photoStore.list(copy.key).length === 0)
@@ -139,13 +139,36 @@ export default function ReviewStep({ ctx }) {
           {addons.length > 0 && (
             <div className="rounded-2xl border border-sand bg-white p-4 sm:p-5">
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-ink/55">Add-ons</h3>
-              <DetailRows rows={addons.map((addon) => ({ label: addon.name, value: addon.price > 0 ? formatPrice(addon.price) : 'Included' }))} />
+              <div className="mt-3 space-y-3">{addons.map((addon) => {
+                const photos = photoStore.list(addon.photoKey)
+                const reference = photoStore.list(addon.referenceKey)
+                return <div key={addon.id} className="rounded-xl bg-cream/70 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{addon.name} · {addon.optionLabel} × {addon.qty}</p><p className="font-semibold">{formatPrice(addon.price * addon.qty)}</p></div>
+                  <p className="mt-1 text-xs text-ink/60">{photos.length} print photo{photos.length === 1 ? '' : 's'}{reference.length ? ` · Reference: ${reference[0].name}` : ''}</p>
+                  <PhotoStrip photos={photos} meta={{}} copyTitleText={addon.name} />
+                  <div className="mt-3"><EditButton onClick={() => editFromReview(1)} subtle>Edit add-on</EditButton></div>
+                </div>
+              })}</div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className={`grid gap-5 ${cartMode ? '' : 'lg:grid-cols-2'}`}>
+        {cartMode ? <>
+          <EditSection title="Magazine delivery date" hint="Delivery address is entered in your cart" onEdit={() => editFromReview(4)}>
+            <DetailRows rows={[{ label: 'Delivery area', value: locationLabel(d.location) }, { label: 'Delivery date', value: d.date && longDate(d.date) }]} />
+          </EditSection>
+          <EditSection title="Your information" hint="Contact details for order updates" onEdit={() => editFromReview(5)}>
+            <DetailRows rows={[
+              { label: 'Name', value: c.name },
+              { label: 'WhatsApp', value: c.phone },
+              { label: 'Instagram', value: cleanInstagram(c.instagram) },
+              { label: 'Email', value: c.email },
+              { label: 'Note', value: c.note },
+            ]} />
+          </EditSection>
+        </> : <>
         <EditSection title="Delivery" hint="Where and when your order should arrive" onEdit={() => editFromReview(4)}>
           <DetailRows rows={[
             { label: 'Recipient', value: d.recipient },
@@ -166,6 +189,7 @@ export default function ReviewStep({ ctx }) {
             { label: 'Note', value: c.note },
           ]} />
         </EditSection>
+        </>}
       </div>
 
       <Card>

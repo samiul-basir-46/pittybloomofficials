@@ -60,6 +60,15 @@ export function validateDelivery({ delivery, settings, now }) {
   return errors
 }
 
+export function validateCartDelivery({ delivery, settings, now }) {
+  const errors = {}
+  if (!delivery.location) errors.location = 'Please choose Inside Dhaka or Outside Dhaka.'
+  if (!delivery.date) errors.date = 'Please choose the delivery date.'
+  else if (delivery.location && !checkDate(delivery.date, delivery.location, settings, now).allowed)
+    errors.date = 'This date is no longer available. Please pick another date.'
+  return errors
+}
+
 export function validateContact({ contact }) {
   const errors = {}
   if (blank(contact.name)) errors.name = 'Please enter your name.'

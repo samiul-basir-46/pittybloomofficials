@@ -6,7 +6,7 @@ import CartToast from '../ui/CartToast'
 export default function Layout() {
   const { pathname } = useLocation()
   const isAccountPage = pathname === '/account'
-  const isManualOrderPage = pathname === '/custom-order'
+  const isManualOrderPage = pathname === '/order-form' || pathname === '/custom-order'
 
   return (
     <div className="flex min-h-screen flex-col">

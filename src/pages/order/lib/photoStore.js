@@ -30,13 +30,13 @@ const withStore = async (mode, action) => {
 
 export const photoStore = {
   list: (key) => cache.get(key) ?? [],
-  add(key, files) {
+  add(key, files, { allowDuplicates = false } = {}) {
     const current = cache.get(key) ?? []
     const result = { added: [], skipped: 0, rejected: 0, tooLarge: 0 }
     Array.from(files ?? []).forEach((file) => {
       if (!file.type?.startsWith('image/')) return void result.rejected++
       if (file.size > 20 * 1024 * 1024) return void result.tooLarge++
-      if (current.some((p) => p.name === file.name && p.size === file.size)) return void result.skipped++
+      if (!allowDuplicates && current.some((p) => p.name === file.name && p.size === file.size)) return void result.skipped++
       const id = newId()
       const url = URL.createObjectURL?.(file) ?? ''
       const photo = { id, name: file.name, size: file.size, type: file.type, url, file }

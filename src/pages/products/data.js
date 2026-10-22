@@ -18,6 +18,8 @@ export const products = [
     status: 'Available',
     tagline: 'Little memories you can hold.',
     description: 'Classic polaroid-style prints made from your photos, with a white border for captions.',
+    unitPrice: 8,
+    minQuantity: 9,
     options: 'Pack of 10 | 399\nPack of 20 | 699 | 799 | Most Popular\nPack of 30 | 949 | 1199 | Best Value',
   },
   {

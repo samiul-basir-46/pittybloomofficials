@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
@@ -9,7 +9,7 @@ import QtyStepper from '../../shared/ui/QtyStepper'
 import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
 import useAsync from '../../shared/hooks/useAsync'
-import { getMagazines, ordersApi } from '../../shared/services/contentService'
+import { customerProfileApi, getMagazines, ordersApi } from '../../shared/services/contentService'
 import { savedDrafts } from '../order/lib/savedDrafts'
 import { buildOrder } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
@@ -101,8 +101,8 @@ function SavedDrafts({ drafts, magazines, onRemove }) {
                   </p>
                 )}
                 <div className="mt-3 flex items-center gap-3">
-                  <Button as={Link} size="sm" to={`/magazines/${d.magazineId}/order?draft=${encodeURIComponent(d.id)}&step=${d.step}`}>
-                    Resume order
+                  <Button as={Link} size="sm" to={`/magazines/${d.magazineId}/order?mode=cart&draft=${encodeURIComponent(d.id)}&step=${d.step}`}>
+                    Continue order
                   </Button>
                   <button
                     type="button"
@@ -124,6 +124,7 @@ function SavedDrafts({ drafts, magazines, onRemove }) {
 
 function Line({ item }) {
   const { setQty, remove } = useCart()
+  const resumeOrderUrl = `/magazines/${item.id}/order?mode=cart${item.meta?.draftId ? `&draft=${encodeURIComponent(item.meta.draftId)}&step=${item.meta.draftStep || 1}` : ''}&cartItemKey=${encodeURIComponent(item.key)}${item.meta?.draftId ? '' : `&size=${encodeURIComponent(item.optionId)}`}`
   return (
     <li className="flex gap-4 border-b border-sand p-4 last:border-0 sm:p-5">
       <Link to={item.to || '/'} className="size-20 shrink-0 overflow-hidden rounded-xl bg-sand sm:size-24">
@@ -136,13 +137,20 @@ function Line({ item }) {
           </Link>
           <p className="text-sm text-ink/60">{item.kind === 'addon' ? 'Add-on product' : item.optionLabel}</p>
           {item.note && <p className="mt-1 line-clamp-2 text-xs italic text-ink/50">“{item.note}”</p>}
+          {item.kind === 'magazine' && item.details?.length > 0 && <p className="mt-1 line-clamp-2 text-xs text-ink/60">{item.details.map((detail) => `${detail.label}: ${detail.value}`).join(' · ')}</p>}
+          {item.kind === 'magazine' && item.photos && <p className="mt-1 text-xs text-ink/60">{item.photos.count || item.photos.files?.length || 0} photos{!item.meta?.draftId && ` · Front: ${item.photos.front || 'not selected'} · Back: ${item.photos.back || 'not selected'}`}</p>}
+          {item.kind !== 'magazine' && item.photos && <p className="mt-1 text-xs text-ink/60">{item.photos.count || item.photos.files?.length || 0} print photos{item.photos.reference ? ' · Reference added' : ''}</p>}
+          {item.kind === 'magazine' && item.meta?.draftId && <p className="mt-1 text-xs font-medium text-amber-800">Order in progress · Step {item.meta.draftStep || 1} of {item.meta.draftTotalSteps || 6}: {item.meta.draftStepLabel || 'Magazine'}</p>}
+          {item.kind === 'magazine' && item.meta?.cartDelivery?.deliveryLabel
+            ? <p className="mt-1 text-xs font-medium text-brand">Delivery: {item.meta.cartDelivery.deliveryLabel}</p>
+            : item.kind === 'magazine' && <Link to={resumeOrderUrl} className="mt-1 inline-block text-xs font-semibold text-brand underline">{item.meta?.draftId ? 'Continue your magazine order' : 'Complete magazine details'}</Link>}
           <p className="mt-1 text-sm font-medium text-warm">
             {formatPrice(item.price)}
             {item.mrp > item.price && <span className="ml-2 text-ink/40 line-through">{formatPrice(item.mrp)}</span>}
           </p>
         </div>
         <div className="flex items-center justify-between gap-4 sm:justify-end">
-          <QtyStepper value={item.qty} onChange={(q) => setQty(item.key, q)} />
+          {item.meta?.draftId ? <span className="text-sm text-ink/55">1 order</span> : <QtyStepper value={item.qty} onChange={(q) => setQty(item.key, q)} />}
           <p className="w-20 text-right font-bold">{formatPrice(item.price * item.qty)}</p>
           <button
             aria-label={`Remove ${item.name}`}
@@ -162,10 +170,12 @@ export default function CartPage() {
   const { settings } = useSettings()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [search] = useSearchParams()
   const submitting = useRef(false)
   const submissionKey = useRef(null)
   const drafts = useAsync(savedDrafts.list, [user?.uid])
   const magazines = useAsync(getMagazines)
+  const profile = useAsync(() => customerProfileApi.get(user?.uid), [user?.uid])
   const draftList = drafts.data ?? []
   const removeDraft = async (d) => {
     if (!window.confirm('Delete this saved order? What you filled in will be lost.')) return
@@ -176,14 +186,37 @@ export default function CartPage() {
     }
   }
   const [placed, setPlaced] = useState(null)
+  const [checkoutOpen, setCheckoutOpen] = useState(() => search.get('checkout') === '1')
   const [submitError, setSubmitError] = useState('')
-  const [customer, setCustomer] = useState({ name: '', phone: '', address: '', note: '' })
-  const set = (key) => (e) => setCustomer({ ...customer, [key]: e.target.value })
+  const savedMagazineCheckout = items.find((item) => item.kind === 'magazine' && item.meta?.cartDelivery)?.meta?.cartDelivery
+  const [customer, setCustomer] = useState(() => ({
+    name: savedMagazineCheckout?.customer?.recipient || savedMagazineCheckout?.customer?.name || '',
+    phone: savedMagazineCheckout?.customer?.deliveryPhone || savedMagazineCheckout?.customer?.phone || '',
+    address: savedMagazineCheckout?.customer?.address || '',
+    note: savedMagazineCheckout?.customer?.note || '',
+  }))
+  useEffect(() => {
+    if (profile.loading) return
+    setCustomer((current) => ({
+      ...current,
+      name: current.name || profile.data?.name || user?.displayName || '',
+      phone: current.phone || profile.data?.phone || '',
+      address: current.address || [profile.data?.address, profile.data?.city].filter(Boolean).join(', '),
+    }))
+  }, [profile.loading, profile.data, user?.displayName])
+  useEffect(() => {
+    if (search.get('checkout') === '1') setCheckoutOpen(true)
+  }, [search])
+  const set = (key) => (e) => setCustomer((current) => ({ ...current, [key]: e.target.value }))
+  const incompleteMagazine = items.find((item) => item.kind === 'magazine' && !item.meta?.cartDelivery)
+  const hasIncompleteMagazine = Boolean(incompleteMagazine)
+  const deliveryCharge = Number(savedMagazineCheckout?.deliveryCharge) || 0
+  const rushCharge = Number(savedMagazineCheckout?.rushCharge) || 0
   const placeOrder = async (e) => {
     e.preventDefault()
     if (submitting.current || items.length === 0) return
     if (firebaseConfigured && !user) {
-      navigate(`/account?next=${encodeURIComponent('/cart')}`)
+      navigate(`/account?next=${encodeURIComponent('/cart?checkout=1')}`)
       return
     }
     submitting.current = true
@@ -191,7 +224,20 @@ export default function CartPage() {
     submissionKey.current ??= globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
     try {
-      const order = await ordersApi.place(buildOrder({ id: '', cartItems: items, customer }), submissionKey.current)
+      const orderCustomer = savedMagazineCheckout?.customer
+        ? { ...savedMagazineCheckout.customer, recipient: customer.name, deliveryPhone: customer.phone, address: customer.address, note: customer.note || savedMagazineCheckout.customer.note }
+        : { ...customer, recipient: customer.name, deliveryPhone: customer.phone }
+      const order = await ordersApi.place(buildOrder({
+        id: '',
+        cartItems: items,
+        customer: orderCustomer,
+        extras: savedMagazineCheckout ? {
+          deliveryCharge,
+          rushCharge,
+          deliveryLabel: savedMagazineCheckout.deliveryLabel,
+          deliveryInfo: savedMagazineCheckout.deliveryInfo,
+        } : {},
+      }), submissionKey.current)
       setPlaced(order)
     } catch {
       setSubmitError('We could not save your order. Your cart is still here; please try again.')
@@ -200,6 +246,16 @@ export default function CartPage() {
     }
     clear()
     submitting.current = false
+  }
+  const beginCheckout = () => {
+    if (hasIncompleteMagazine) {
+      const draftParams = incompleteMagazine.meta?.draftId
+        ? `&draft=${encodeURIComponent(incompleteMagazine.meta.draftId)}&step=${incompleteMagazine.meta.draftStep || 1}`
+        : `&size=${encodeURIComponent(incompleteMagazine.optionId)}`
+      navigate(`/magazines/${incompleteMagazine.id}/order?mode=cart${draftParams}&cartItemKey=${encodeURIComponent(incompleteMagazine.key)}`)
+      return
+    }
+    setCheckoutOpen(true)
   }
 
   return (
@@ -210,7 +266,7 @@ export default function CartPage() {
           {placed ? 'Thank you' : 'Your Cart'} {!placed && count > 0 && <span className="text-2xl text-ink/40">({count})</span>}
         </h1>
 
-        {!placed && draftList.length > 0 && <SavedDrafts drafts={draftList} magazines={magazines.data ?? []} onRemove={removeDraft} />}
+        {!placed && draftList.some((draft) => !items.some((item) => item.meta?.draftId === draft.id)) && <SavedDrafts drafts={draftList.filter((draft) => !items.some((item) => item.meta?.draftId === draft.id))} magazines={magazines.data ?? []} onRemove={removeDraft} />}
 
         {placed ? (
           <Placed order={placed} />
@@ -250,30 +306,33 @@ export default function CartPage() {
                     <dd>{formatPrice(savings)}</dd>
                   </div>
                 )}
-                <div className="flex justify-between">
+                {savedMagazineCheckout?.deliveryLabel && <div className="flex justify-between"><dt className="text-ink/60">Selected delivery</dt><dd className="text-right">{savedMagazineCheckout.deliveryLabel}</dd></div>}
+                {deliveryCharge > 0 && <div className="flex justify-between"><dt className="text-ink/60">Delivery charge</dt><dd>{formatPrice(deliveryCharge)}</dd></div>}
+                {rushCharge > 0 && <div className="flex justify-between"><dt className="text-ink/60">Rush delivery</dt><dd>{formatPrice(rushCharge)}</dd></div>}
+                {!savedMagazineCheckout?.deliveryLabel && <div className="flex justify-between">
                   <dt className="text-ink/60">Delivery</dt>
                   <dd className="text-right text-ink/60">Confirmed on order</dd>
-                </div>
+                </div>}
                 <div className="flex justify-between border-t border-sand pt-3 text-lg">
                   <dt className="font-semibold">Total</dt>
-                  <dd className="font-extrabold">{formatPrice(subtotal)}</dd>
+                  <dd className="font-extrabold">{formatPrice(subtotal + deliveryCharge + rushCharge)}</dd>
                 </div>
               </dl>
               {settings.deliveryNote && <p className="text-xs leading-5 text-ink/50">{settings.deliveryNote}</p>}
 
-              <div className="space-y-3 border-t border-sand pt-5">
-                <p className="font-semibold">Your details</p>
-                <input className={inputClass} placeholder="Full name" required value={customer.name} onChange={set('name')} />
-                <input className={inputClass} type="tel" placeholder="Phone number" required value={customer.phone} onChange={set('phone')} />
+              {checkoutOpen ? <div className="space-y-3 border-t border-sand pt-5">
+                <p className="font-semibold">Delivery information</p>
+                <input className={inputClass} placeholder="Recipient name" required value={customer.name} onChange={set('name')} />
+                <input className={inputClass} type="tel" placeholder="Delivery phone number" required value={customer.phone} onChange={set('phone')} />
                 <textarea className={inputClass} rows={3} placeholder="Delivery address" required value={customer.address} onChange={set('address')} />
-                <input className={inputClass} placeholder="Note for us (optional)" value={customer.note} onChange={set('note')} />
-              </div>
+                <input className={inputClass} placeholder="Delivery note (optional)" value={customer.note} onChange={set('note')} />
+              </div> : <div className="border-t border-sand pt-5"><Button type="button" className="w-full gap-2 shadow-lg" onClick={beginCheckout}><ShoppingBag size={18} /> {hasIncompleteMagazine ? 'Continue magazine order' : 'Place order'}</Button></div>}
 
               {submitError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{submitError}</p>}
 
-              <Button type="submit" className="w-full gap-2 shadow-lg">
+              {checkoutOpen && <Button type="submit" className="w-full gap-2 shadow-lg">
                 <ShoppingBag size={18} /> {firebaseConfigured && !user ? 'Sign in to place order' : 'Place order'}
-              </Button>
+              </Button>}
               <p className="text-center text-xs text-ink/50">
                 Your order will be saved here. We will contact you to confirm delivery and payment details.
               </p>

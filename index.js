@@ -293,11 +293,11 @@ function buildItem(input, config, photos, referenceFile) {
     return { kind: "polaroids", id: "polaroids", name: card.title, optionLabel: `${quantity} pieces`, qty: quantity, price: unitPrice, note: notes, photos: { count: photos.length, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } };
   }
   if (input.type === "frame") {
+    if (!photos.length) throw new Error("Add at least one print photo for this frame.");
     if (quantity > Number(card.maxQuantity || 20)) throw new Error(`Frame quantity cannot be more than ${Number(card.maxQuantity || 20)} for one size.`);
     const option = config.frameOptions.find((row) => row.id === input.optionId);
     if (!option) throw new Error("A selected frame size is no longer available. Please choose another size.");
-    if (photos.length !== 1) throw new Error("Add one print photo for each frame configuration.");
-    return { kind: "frame", id: "frame", name: card.title, optionLabel: option.label, qty: quantity, price: option.price, note: notes, photos: { count: 1, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } };
+    return { kind: "frame", id: "frame", name: card.title, optionLabel: option.label, qty: quantity, price: option.price, note: notes, photos: { count: photos.length, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } };
   }
   if (input.type === "mini-magazine") {
     const unitPrice = Number(card.unitPrice);

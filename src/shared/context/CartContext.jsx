@@ -15,7 +15,11 @@ const load = () => {
   }
 }
 
-const keyOf = (item) => [item.kind, item.id, item.optionId, (item.note ?? '').trim()].join('|')
+const keyOf = (item) => item.meta?.draftId
+  ? [item.kind, item.id, 'draft', item.meta.draftId].join('|')
+  : item.meta?.cartConfigId
+    ? [item.kind, item.id, 'configured', item.meta.cartConfigId].join('|')
+  : [item.kind, item.id, item.optionId, (item.note ?? '').trim()].join('|')
 const clampQty = (n) => Math.min(MAX_QTY, Math.max(1, Math.round(Number(n) || 1)))
 
 export function CartProvider({ children }) {
@@ -67,6 +71,14 @@ export function CartProvider({ children }) {
     )
   }, [])
 
+  const replace = useCallback((key, item) => {
+    const note = (item.note ?? '').trim()
+    const nextKey = keyOf(item)
+    setItems((prev) => prev.map((current) => current.key === key
+      ? { ...item, note, key: nextKey, qty: clampQty(current.qty) }
+      : current))
+  }, [])
+
   const setQty = useCallback(
     (key, qty) => setItems((prev) => prev.map((i) => (i.key === key ? { ...i, qty: clampQty(qty) } : i))),
     [],
@@ -84,12 +96,13 @@ export function CartProvider({ children }) {
       notice,
       add,
       put,
+      replace,
       setQty,
       remove,
       clear,
       dismissNotice,
     }),
-    [items, notice, add, put, setQty, remove, clear, dismissNotice],
+    [items, notice, add, put, replace, setQty, remove, clear, dismissNotice],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

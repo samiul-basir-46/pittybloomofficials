@@ -12,7 +12,7 @@ export const LOCATIONS = [
 export { longDate }
 
 export default function DeliveryStep({ ctx }) {
-  const { draft, update, errors, clear, settings, now, totals } = ctx
+  const { draft, update, errors, clear, settings, now, totals, cartMode } = ctx
   const d = draft.delivery
   const set = (key) => (value) => {
     clear(key)
@@ -31,9 +31,11 @@ export default function DeliveryStep({ ctx }) {
   return (
     <div className="space-y-6">
       <Card>
-        <h2 className="text-lg font-bold">Who should we deliver to?</h2>
-        <p className="mt-1 text-sm text-ink/60">The person who will receive the magazine.</p>
+        {!cartMode && <><h2 className="text-lg font-bold">Who should we deliver to?</h2>
+        <p className="mt-1 text-sm text-ink/60">The person who will receive the magazine.</p></>}
+        {cartMode && <h2 className="text-lg font-bold">Delivery area</h2>}
         <div className="mt-5 space-y-4">
+          {!cartMode && <>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               name="phone"
@@ -77,6 +79,7 @@ export default function DeliveryStep({ ctx }) {
             error={errors.city}
             onChange={set('city')}
           />
+          </>}
           <Field name="location" label="Delivery location" required error={errors.location} hint="This sets your delivery charge.">
             <div role="radiogroup" aria-label="Delivery location" className="grid grid-cols-2 gap-3">
               {LOCATIONS.map((l) => (
@@ -104,7 +107,7 @@ export default function DeliveryStep({ ctx }) {
 
       <Card>
         <h2 className="flex items-center gap-2 text-lg font-bold">
-          <CalendarDays size={20} className="text-brand" /> When do you need the magazine?
+          <CalendarDays size={20} className="text-brand" /> {cartMode ? 'Choose a delivery date for your magazine' : 'When do you need the magazine?'}
         </h2>
         {(rule || settings.standardNote) && (
           <p className="mt-3 flex gap-2 rounded-xl border border-sand bg-cream px-4 py-3 text-sm leading-6 text-ink/75">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Frame, ImagePlus, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Frame, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
@@ -35,7 +35,7 @@ const field = (label, value, onChange, { type = 'text', required = false, placeh
   </label>
 )
 
-function UploadPicker({ title, files = [], onChange, multiple = true, max = 50, help = '', error = '', frontId, backId, onCoverChange }) {
+function UploadPicker({ title, files = [], onChange, multiple = true, max = Infinity, help = '', error = '', frontId, backId, onCoverChange }) {
   const [uploadError, setUploadError] = useState('')
   const [previews, setPreviews] = useState([])
   useEffect(() => {
@@ -50,13 +50,13 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = 50, 
     setUploadError(invalid ? 'Use a JPG, PNG, or WebP image up to 10 MB.' : '')
     if (!fresh.length) return
     const next = multiple ? [...files, ...fresh].slice(0, max) : fresh.slice(0, 1)
-    if (multiple && files.length + fresh.length > max) setUploadError(`You can add up to ${max} images here.`)
+    if (multiple && Number.isFinite(max) && files.length + fresh.length > max) setUploadError(`You can add up to ${max} images here.`)
     onChange(next)
   }
   return <div>
     <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
       <div><p className="text-sm font-semibold">{title}</p>{help && <p className="mt-0.5 text-xs leading-5 text-ink/55">{help}</p>}</div>
-      {multiple && <span className="text-xs text-ink/55">{files.length}{max < 50 ? ` of ${max}` : ''} selected</span>}
+      {multiple && <span className="text-xs text-ink/55">{files.length}{Number.isFinite(max) ? ` of ${max}` : ''} selected</span>}
     </div>
     <div className="flex flex-wrap gap-2.5">
       {previews.map((preview) => <div key={preview.id} className={`relative ${onCoverChange ? 'w-28 shrink-0' : 'size-[76px]'} overflow-hidden rounded-xl border border-sand bg-white`}>
@@ -215,9 +215,17 @@ export default function ManualOrderPage() {
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [progress, setProgress] = useState('')
+  const [uploadStatus, setUploadStatus] = useState({ completed: 0, total: 0 })
   const [success, setSuccess] = useState(null)
   const requestKey = useRef(newId())
   const uploaded = useRef(new Map())
+
+  useEffect(() => {
+    if (!submitting) return undefined
+    const warnBeforeLeave = (event) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warnBeforeLeave)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave)
+  }, [submitting])
 
   const productCatalog = productsData.data ?? []
   const frameProduct = productCatalog.find((product) => product.id === 'frame')
@@ -291,12 +299,12 @@ export default function ManualOrderPage() {
     if (selected.songBooks && !songBooks.length) next.songBooksEmpty = 'Add at least one Song Book or unselect it.'
     if (selected.polaroids) {
       if (Number(polaroid.quantity) < Number(manualCatalog.polaroids.minQuantity || 9)) next.polaroidQuantity = `The minimum Polaroid order is ${Number(manualCatalog.polaroids.minQuantity || 9)} pieces.`
-      if (!polaroid.photos.length) next.polaroidPhotos = 'Add at least one photo for your Polaroids.'
+      if (polaroid.photos.length !== Number(polaroid.quantity)) next.polaroidPhotos = `Upload exactly ${Number(polaroid.quantity) || 0} photos, one for each Polaroid.`
     }
     selected.frames && frames.forEach((item, index) => {
       if (!frameOptions.some((option) => option.id === item.optionId)) next[`frame-${item.key}-option`] = `Choose an available size for Frame #${index + 1}.`
       if (!Number.isInteger(Number(item.quantity)) || Number(item.quantity) < 1 || Number(item.quantity) > Number(manualCatalog.frames.maxQuantity || 20)) next[`frame-${item.key}-quantity`] = `Choose a quantity from 1 to ${Number(manualCatalog.frames.maxQuantity || 20)}.`
-      if (!item.photos.length) next[`frame-${item.key}-photos`] = 'Add the photo to print in this frame.'
+      if (!item.photos.length) next[`frame-${item.key}-photos`] = `Add at least one print photo for Frame #${index + 1}.`
     })
     selected.miniMagazines && miniBooks.forEach((item, index) => {
       if (item.photos.length < 2 || item.photos.length > 8) next[`mini-${item.key}-photos`] = `Mini Magazine #${index + 1} needs 2–8 photos so you can choose both covers.`
@@ -352,7 +360,11 @@ export default function ManualOrderPage() {
   const goBack = () => { setErrors({}); setStep((current) => Math.max(0, current - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
   const filePayload = async (fileItems) => Promise.all((fileItems ?? []).map(async ({ id, file }) => {
-    if (uploaded.current.has(id)) return uploaded.current.get(id)
+    if (uploaded.current.has(id)) {
+      setUploadStatus((current) => ({ ...current, completed: current.completed + 1 }))
+      return uploaded.current.get(id)
+    }
+    setProgress(`Uploading ${file.name}…`)
     const response = await fetch(`${MEDIA_API}/guest-media/${requestKey.current}/${id}`, {
       method: 'PUT', headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name) }, body: file,
     })
@@ -360,6 +372,7 @@ export default function ManualOrderPage() {
     if (!response.ok) throw new Error(result?.error || `Could not upload ${file.name}.`)
     const saved = { id, name: file.name, size: file.size, type: file.type, storageKey: result.key }
     uploaded.current.set(id, saved)
+    setUploadStatus((current) => ({ ...current, completed: current.completed + 1 }))
     return saved
   }))
 
@@ -373,7 +386,7 @@ export default function ManualOrderPage() {
     let completed = 0
     const prepared = []
     for (const { type, item } of rows) {
-      setProgress(`Uploading photos ${++completed} of ${rows.length} items…`)
+      setProgress(`Preparing photos ${++completed} of ${rows.length} items…`)
       const files = await filePayload(item.photos)
       const references = await filePayload(item.reference ? [item.reference] : [])
       prepared.push({ ...item, type, files, referenceFile: references[0] ?? null })
@@ -391,7 +404,8 @@ export default function ManualOrderPage() {
       return
     }
     if (!MEDIA_API) { setSubmitError('Photo and order storage is not configured yet. Please contact us on WhatsApp.'); return }
-    setSubmitting(true); setSubmitError(''); setProgress('Preparing your order…')
+    const photoTotal = items.reduce((count, item) => count + (item.photos?.length ?? 0) + (item.reference ? 1 : 0), 0)
+    setSubmitting(true); setSubmitError(''); setProgress('Preparing your order…'); setUploadStatus({ completed: 0, total: photoTotal })
     try {
       const preparedItems = await prepareItems()
       setProgress('Checking prices and saving your order…')
@@ -438,12 +452,13 @@ export default function ManualOrderPage() {
   const updateList = (setter, key, fieldName, value) => setItemList(setter, key, fieldName, value)
   const galleryErrors = (prefix, item) => ({ photos: errors[`${prefix}-${item.key}-photos`], front: errors[`${prefix}-${item.key}-front`], back: errors[`${prefix}-${item.key}-back`] })
 
-  return <Container className="pb-36 pt-4 sm:pb-16 sm:pt-10">
+  return <>
+  <Container className="pb-36 pt-4 sm:pb-16 sm:pt-10">
     <div className="mx-auto max-w-6xl">
       <div className="mb-5 text-center sm:mb-8">
         <Link to="/" className="mb-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-brand transition hover:bg-cream sm:mb-3 sm:py-2 sm:text-sm"><ArrowLeft size={15} /> Visit homepage</Link>
         <p className="text-xs font-semibold uppercase tracking-[.2em] text-brand">Personalised gifts, made for you</p>
-        <h1 className="mt-1.5 font-serif text-3xl sm:mt-2 sm:text-5xl">Build your order</h1>
+        <h1 className="mt-1.5 font-serif text-3xl sm:mt-2 sm:text-5xl">Order Form</h1>
         <p className="mx-auto mt-2 max-w-2xl text-xs leading-5 text-ink/60 sm:mt-3 sm:text-sm sm:leading-6">Choose a few favourites, personalise each one, and send your order without creating an account.</p>
       </div>
         <div className="mb-5 grid grid-cols-5 gap-1 rounded-xl border border-sand bg-white p-1 sm:mb-8 sm:gap-2 sm:rounded-2xl sm:p-2">
@@ -476,11 +491,11 @@ export default function ManualOrderPage() {
       {step === 1 && <div className="space-y-7">
         {selected.polaroids && <ProductSectionCard id="polaroids" title={manualCatalog.polaroids.title} subtitle={`Classic photo prints · ${formatPrice(manualCatalog.polaroids.unitPrice)} each · minimum ${manualCatalog.polaroids.minQuantity || 9}`} expanded={expandedProduct === 'polaroids'} onToggle={() => setExpandedProduct((current) => current === 'polaroids' ? null : 'polaroids')}>
           <div className="grid gap-5 sm:grid-cols-[1fr_2fr] sm:items-end">
-            {field('How many Polaroids?', polaroid.quantity, (value) => setPolaroid({ ...polaroid, quantity: value }), { type: 'number', required: true, error: errors.polaroidQuantity })}
+            {field('How many Polaroids?', polaroid.quantity, (value) => setPolaroid((current) => ({ ...current, quantity: value, photos: Number(value) > 0 ? current.photos.slice(0, Number(value)) : current.photos })), { type: 'number', required: true, error: errors.polaroidQuantity })}
             <div className="rounded-xl bg-cream px-4 py-3 text-sm">{formatPrice((Number(polaroid.quantity) || 0) * Number(manualCatalog.polaroids.unitPrice))} <span className="text-ink/55">· {Number(polaroid.quantity) || 0} prints × {formatPrice(manualCatalog.polaroids.unitPrice)}</span></div>
           </div>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <UploadPicker title="Photos for your Polaroids" files={polaroid.photos} onChange={(photos) => setPolaroid({ ...polaroid, photos })} max={50} help="Add the photos you want us to print. You can share duplicates or final instructions in the notes." error={errors.polaroidPhotos} />
+            <UploadPicker title="Photos for your Polaroids" files={polaroid.photos} onChange={(photos) => setPolaroid({ ...polaroid, photos })} max={Math.max(1, Number(polaroid.quantity) || 1)} help={`Add exactly one photo for each Polaroid (${Number(polaroid.quantity) || 0} pieces).`} error={errors.polaroidPhotos} />
             <UploadPicker title="Polaroid design reference (optional)" files={polaroid.reference ? [polaroid.reference] : []} onChange={(reference) => setPolaroid({ ...polaroid, reference: reference[0] ?? null })} multiple={false} help="A screenshot or sample style you would like us to follow." />
           </div>
           <label className="mt-5 block"><span className="mb-1.5 block text-sm font-medium">Print notes (optional)</span><textarea rows="2" value={polaroid.notes || ''} onChange={(event) => setPolaroid({ ...polaroid, notes: event.target.value })} className={inputClass} placeholder="Captions, order of photos, or any special request" /></label>
@@ -496,7 +511,7 @@ export default function ManualOrderPage() {
                 {field('Quantity', item.quantity, (value) => updateList(setFrames, item.key, 'quantity', value), { type: 'number', error: errors[`frame-${item.key}-quantity`] })}
                 <div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Frame subtotal</span><p className="mt-1 font-semibold text-brand">{formatPrice((option?.price || 0) * (Number(item.quantity) || 0))}</p></div>
               </div>
-              <div className="mt-5 grid gap-5 lg:grid-cols-2"><UploadPicker title="Photo for this frame" files={item.photos} onChange={(photos) => updateList(setFrames, item.key, 'photos', photos)} multiple={false} help="This image will be printed inside this frame." error={errors[`frame-${item.key}-photos`]} /><UploadPicker title="Frame design reference (optional)" files={item.reference ? [item.reference] : []} onChange={(files) => updateList(setFrames, item.key, 'reference', files[0] ?? null)} multiple={false} help="A sample showing the frame style you prefer." /></div>
+              <div className="mt-5 grid gap-5 lg:grid-cols-2"><UploadPicker title="Print photos" files={item.photos} onChange={(photos) => updateList(setFrames, item.key, 'photos', photos)} help="Upload the photos you want printed and placed in your frame." error={errors[`frame-${item.key}-photos`]} /><UploadPicker title="Frame design reference (optional)" files={item.reference ? [item.reference] : []} onChange={(files) => updateList(setFrames, item.key, 'reference', files[0] ?? null)} multiple={false} help="A sample showing the frame style you prefer." /></div>
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setFrames, item.key, 'notes', event.target.value)} className={inputClass} /></label>
             </div>
           })}</div>
@@ -532,7 +547,7 @@ export default function ManualOrderPage() {
                 {categoryFields.map(([id, label, required, type]) => <div key={`${item.key}-${id}`}>{field(label, item.custom[id], (value) => setMagazines((list) => list.map((row) => row.key === item.key ? { ...row, custom: { ...row.custom, [id]: value } } : row)), { type: type || 'text', required, placeholder: id === 'year' ? 'e.g. 1st anniversary' : '', error: errors[`mag-${item.key}-${id}`] })}</div>)}
               </div>
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Additional notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setMagazines, item.key, 'notes', event.target.value)} className={inputClass} placeholder="Messages, captions, colour ideas…" /></label>
-              <div className="mt-5"><UploadPicker title="Photos for this magazine" files={item.photos} onChange={(photos) => setMagazines((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} max={50} help="Choose front and back directly under each photo." error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setMagazines, item.key, key, value)} /></div>
+              <div className="mt-5"><UploadPicker title="Photos for this magazine" files={item.photos} onChange={(photos) => setMagazines((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} help="Choose front and back directly under each photo." error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setMagazines, item.key, key, value)} /></div>
             </div>
           })}</div>
           <button type="button" disabled={!canAddItems('magazines', magazines.length)} onClick={() => addItem(setMagazines, 'magazine', { sizeId: a4Sizes.find((size) => size.pages === 8)?.id || a4Sizes[0]?.id || '' })} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('magazines', magazines.length) ? 'Add another Magazine' : 'Magazine item limit reached'}</button>
@@ -547,7 +562,7 @@ export default function ManualOrderPage() {
               {field('Song name', item.songName, (value) => updateList(setSongBooks, item.key, 'songName', value), { required: true, error: errors[`song-${item.key}-name`] })}
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Song lyrics <span className="text-brand">*</span></span><textarea rows="6" value={item.lyrics} onChange={(event) => updateList(setSongBooks, item.key, 'lyrics', event.target.value)} className={inputClass} placeholder="Paste the lyrics for this song" /><span className="mt-1 block text-xs text-ink/50">Around 60–80 words works well in the layout. Longer lyrics are welcome too.</span>{errors[`song-${item.key}-lyrics`] && <span className="mt-1 block text-xs text-red-700">{errors[`song-${item.key}-lyrics`]}</span>}</label>
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Additional notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setSongBooks, item.key, 'notes', event.target.value)} className={inputClass} /></label>
-              <div className="mt-5"><UploadPicker title="Photos for this Song Book" files={item.photos} onChange={(photos) => setSongBooks((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} max={50} help="Choose front and back directly under each photo." error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setSongBooks, item.key, key, value)} /></div>
+              <div className="mt-5"><UploadPicker title="Photos for this Song Book" files={item.photos} onChange={(photos) => setSongBooks((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} help="Choose front and back directly under each photo." error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setSongBooks, item.key, key, value)} /></div>
             </div>
           })}</div>
           <button type="button" disabled={!canAddItems('songBooks', songBooks.length)} onClick={() => addItem(setSongBooks, 'song-book')} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('songBooks', songBooks.length) ? 'Add another Song Book' : 'Song Book item limit reached'}</button>
@@ -611,7 +626,6 @@ export default function ManualOrderPage() {
           <div className="space-y-3 text-sm"><div className="flex justify-between"><span className="text-ink/60">Product subtotal</span><span>{formatPrice(productSubtotal)}</span></div><div className="flex justify-between"><span className="text-ink/60">Standard delivery ({delivery.area === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka'})</span><span>{formatPrice(shipping)}</span></div>{hasRushProducts && <div className="flex justify-between"><span className="text-ink/60">Magazine/Song Book express surcharge</span><span>{formatPrice(surcharge || 0)}</span></div>}<div className="flex justify-between border-t border-sand pt-4 text-lg font-bold"><span>Grand total</span><span className="text-brand">{formatPrice(total)}</span></div></div>
         </SectionCard>
         {submitError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{submitError}</div>}
-        {submitting && <p role="status" className="text-center text-sm text-ink/60">{progress}</p>}
         <div className="hidden flex-col-reverse justify-between gap-3 sm:flex sm:flex-row"><Button variant="outline" onClick={goBack} disabled={submitting} className="min-h-12 gap-2"><ArrowLeft size={17} /> Back and edit</Button><Button onClick={submitOrder} disabled={submitting} className="min-h-12 gap-2 px-6">{submitting ? 'Sending order…' : 'Place order'} <Sparkles size={17} /></Button></div>
       </div>}
     </div>
@@ -625,4 +639,17 @@ export default function ManualOrderPage() {
       </div>
     </div>
   </Container>
+  {submitting && <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/55 p-4 backdrop-blur-sm" role="presentation">
+    <section role="dialog" aria-modal="true" aria-labelledby="order-upload-title" aria-describedby="order-upload-description" className="w-full max-w-md rounded-2xl border border-sand bg-white p-6 shadow-2xl sm:p-8">
+      <div className="mx-auto grid size-14 place-items-center rounded-full bg-cream text-brand"><Loader2 size={27} className="animate-spin" /></div>
+      <h2 id="order-upload-title" className="mt-4 text-center font-serif text-2xl">{uploadStatus.total > uploadStatus.completed ? 'Uploading your photos' : 'Saving your order'}</h2>
+      <p id="order-upload-description" className="mt-2 text-center text-sm leading-6 text-ink/65">Please keep this page open. Don’t close or refresh it until your photos finish uploading and your order is confirmed.</p>
+      {uploadStatus.total > 0 && <div className="mt-6">
+        <div className="mb-2 flex justify-between text-xs font-medium text-ink/60"><span>{uploadStatus.completed < uploadStatus.total ? 'Photos uploaded' : 'Photos uploaded'}</span><span>{uploadStatus.completed} / {uploadStatus.total}</span></div>
+        <div className="h-2 overflow-hidden rounded-full bg-sand"><div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${Math.min(100, Math.round(uploadStatus.completed / uploadStatus.total * 100))}%` }} /></div>
+      </div>}
+      <p role="status" aria-live="polite" className="mt-4 text-center text-xs text-ink/55">{progress}</p>
+    </section>
+  </div>}
+  </>
 }
