@@ -162,6 +162,8 @@ export const ordersApi = !firebaseConfigured ? {
     return onSnapshot(doc(db, 'orders', id), (snapshot) => onChange(snapshot.exists() ? snapshot.data() : null), onError)
   },
   updateStatus: async (id, status, fields = {}) => {
+    const localOrder = (await localOrdersApi.list()).find((order) => order.id === id)
+    if (localOrder) await localOrdersApi.save({ ...localOrder, ...fields, status })
     await updateDoc(doc(adminDb, 'orders', id), { ...fields, status })
   },
   save: async (order) => {
@@ -222,7 +224,10 @@ export const ordersApi = !firebaseConfigured ? {
 
     return placedOrder
   },
-  remove: async (id) => deleteDoc(doc(adminDb, 'orders', id)),
+  remove: async (id) => {
+    await localOrdersApi.remove(id)
+    await deleteDoc(doc(adminDb, 'orders', id))
+  },
 }
 
 export const customerProfileApi = {
