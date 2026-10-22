@@ -15,41 +15,43 @@ export const bookStore = {
     let uploaded = 0
     let sourceUploadId = ''
     try {
-      // R2 multipart uploads send bounded chunks through Workers, so one large
-      // PDF never has to fit inside a single Cloudflare request body.
-      const sourcePath = `${MEDIA_API}/books/${key}/source`
-      const started = await fetch(`${sourcePath}/multipart`, {
-        method: 'POST',
-        headers: {},
-      })
-      const startedResult = await started.json().catch(() => null)
-      if (!started.ok || !startedResult?.uploadId) {
-        if (started.status === 404) {
-          throw new Error('PDF upload endpoint is missing on the live Worker. Deploy the latest media Worker, then rebuild and deploy the website.')
-        }
-        throw new Error(startedResult?.error || 'Could not start uploading the original PDF.')
-      }
-      sourceUploadId = startedResult.uploadId
-      const chunkSize = 32 * 1024 * 1024
-      const parts = []
-      for (let offset = 0, partNumber = 1; offset < sourceFile.size; offset += chunkSize, partNumber += 1) {
-        const response = await fetch(`${sourcePath}/part?uploadId=${encodeURIComponent(sourceUploadId)}&partNumber=${partNumber}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/octet-stream' },
-          body: sourceFile.slice(offset, Math.min(offset + chunkSize, sourceFile.size)),
+      if (sourceFile) {
+        // R2 multipart uploads send bounded chunks through Workers, so one large
+        // PDF never has to fit inside a single Cloudflare request body.
+        const sourcePath = `${MEDIA_API}/books/${key}/source`
+        const started = await fetch(`${sourcePath}/multipart`, {
+          method: 'POST',
+          headers: {},
         })
-        const result = await response.json().catch(() => null)
-        if (!response.ok || !result?.part) throw new Error(result?.error || `Could not upload PDF part ${partNumber}.`)
-        parts.push(result.part)
+        const startedResult = await started.json().catch(() => null)
+        if (!started.ok || !startedResult?.uploadId) {
+          if (started.status === 404) {
+            throw new Error('PDF upload endpoint is missing on the live Worker. Deploy the latest media Worker, then rebuild and deploy the website.')
+          }
+          throw new Error(startedResult?.error || 'Could not start uploading the original PDF.')
+        }
+        sourceUploadId = startedResult.uploadId
+        const chunkSize = 32 * 1024 * 1024
+        const parts = []
+        for (let offset = 0, partNumber = 1; offset < sourceFile.size; offset += chunkSize, partNumber += 1) {
+          const response = await fetch(`${sourcePath}/part?uploadId=${encodeURIComponent(sourceUploadId)}&partNumber=${partNumber}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: sourceFile.slice(offset, Math.min(offset + chunkSize, sourceFile.size)),
+          })
+          const result = await response.json().catch(() => null)
+          if (!response.ok || !result?.part) throw new Error(result?.error || `Could not upload PDF part ${partNumber}.`)
+          parts.push(result.part)
+        }
+        const completed = await fetch(`${sourcePath}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uploadId: sourceUploadId, parts }),
+        })
+        const completedResult = await completed.json().catch(() => null)
+        if (!completed.ok) throw new Error(completedResult?.error || 'Could not finish uploading the original PDF.')
+        sourceUploadId = ''
       }
-      const completed = await fetch(`${sourcePath}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uploadId: sourceUploadId, parts }),
-      })
-      const completedResult = await completed.json().catch(() => null)
-      if (!completed.ok) throw new Error(completedResult?.error || 'Could not finish uploading the original PDF.')
-      sourceUploadId = ''
       // A few pages at a time avoids holding a large PDF's full upload queue in memory.
       for (let start = 0; start < pages.length; start += 3) {
         await Promise.all(pages.slice(start, start + 3).map(async (page, offset) => {
@@ -68,7 +70,7 @@ export const bookStore = {
       const manifest = await fetch(`${MEDIA_API}/books/${key}/manifest`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...metadata, pageCount: pages.length }),
+        body: JSON.stringify({ ...metadata, pageCount: pages.length, sourceAvailable: Boolean(sourceFile) }),
       })
       if (!manifest.ok) {
         const result = await manifest.json().catch(() => null)

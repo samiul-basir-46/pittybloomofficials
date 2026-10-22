@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { FileText, Trash2, Upload } from 'lucide-react'
+import { FileText, Images, Trash2, Upload } from 'lucide-react'
 import { bookStore, originalBookUrl } from '../shared/services/bookStore'
 import { getBookUploads, startBookUpload, subscribeBookUploads } from '../shared/services/bookUploadQueue'
 
@@ -22,12 +22,12 @@ export default function PdfField({ value, onChange }) {
   }, [uploadJobs])
 
   const pick = (event) => {
-    const file = event.target.files[0]
+    const files = [...event.target.files]
     event.target.value = ''
-    if (!file) return
+    if (!files.length) return
     setError('')
     setProgress(true)
-    const job = startBookUpload(file)
+    const job = startBookUpload(event.target.dataset.kind === 'images' ? files : files[0])
     job.promise.then((book) => {
       if (!mounted.current) return
       setUploadedBooks((current) => [book, ...current.filter((entry) => entry.key !== book.key)])
@@ -46,7 +46,7 @@ export default function PdfField({ value, onChange }) {
           <FileText size={20} className="shrink-0 text-brand" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{value.name || 'Book PDF'}</p>
-            <p className="text-xs text-ink/60">{value.pageCount} pages · ready for preview</p>
+            <p className="text-xs text-ink/60">{value.pageCount} pages · ready for preview{value.sourceAvailable === false ? ' · from images' : ''}</p>
             {value.sourceAvailable && <a href={originalBookUrl(value.key)} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold text-brand hover:underline">Open original PDF</a>}
           </div>
           <button
@@ -63,10 +63,15 @@ export default function PdfField({ value, onChange }) {
       <label className={`inline-flex items-center gap-1.5 rounded-lg border border-sand bg-white px-3 py-1.5 text-xs font-medium ${progress ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-sand/60'}`}>
         <Upload size={14} />
         {progress ? 'Uploading in background…' : value?.key ? 'Replace PDF' : 'Upload PDF'}
-        <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={pick} disabled={progress} />
+        <input type="file" accept="application/pdf,.pdf" data-kind="pdf" className="hidden" onChange={pick} disabled={progress} />
+      </label>
+      <label className={`ml-2 inline-flex items-center gap-1.5 rounded-lg border border-sand bg-white px-3 py-1.5 text-xs font-medium ${progress ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-sand/60'}`}>
+        <Images size={14} />
+        Upload HD images (JPG/PNG)
+        <input type="file" accept="image/jpeg,image/png" multiple data-kind="images" className="hidden" onChange={pick} disabled={progress} />
       </label>
 
-      <p className="text-xs text-ink/50">The original PDF is stored unchanged at full quality. High-resolution 200 DPI previews are generated for the flipbook.</p>
+      <p className="text-xs text-ink/50">Every page is prepared at 1200px wide: sharp on any phone and light enough to open instantly. PDF: the original is also stored unchanged. HD images: select every page at once (cover first, back cover last, named so they sort, e.g. 01.jpg, 02.jpg…).</p>
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
 
       {uploadedBooks.length > 0 && (

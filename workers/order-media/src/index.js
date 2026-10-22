@@ -173,7 +173,8 @@ export default {
       if (!object) return json({ error: 'Book page not found.' }, 404, cors)
       const headers = new Headers(cors)
       object.writeHttpMetadata(headers)
-      headers.set('Cache-Control', 'public, max-age=3600')
+      // A book key is never reused for different pages, so browsers and the CDN can keep these for good.
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable')
       return new Response(object.body, { headers })
     }
     const publicSource = url.pathname.match(/^\/books\/(book-[a-z0-9-]{8,80})\/source$/)
@@ -278,7 +279,7 @@ export default {
         pageCount: manifest.pageCount,
         ratio: manifest.ratio,
         name: String(manifest.name || 'Book PDF').slice(0, 180),
-        sourceAvailable: true,
+        sourceAvailable: manifest.sourceAvailable !== false,
         uploadedAt: new Date().toISOString(),
       }
       await env.MEDIA_BUCKET.put(`books/${record.key}/manifest.json`, JSON.stringify(record), {

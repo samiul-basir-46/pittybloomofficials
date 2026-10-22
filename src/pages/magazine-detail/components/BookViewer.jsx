@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PageFlip } from 'page-flip'
-import { bookStore } from '../../../shared/services/bookStore'
+import { bookPageUrl } from '../../../shared/services/bookStore'
 
 const MAX_PAGE_WIDTH = 520
 const MAX_DPR = 3
@@ -10,52 +10,28 @@ const MAX_DPR = 3
 // A 2x canvas fed with 2x images maps pixel-for-pixel and the browser then shrinks it smoothly.
 const renderScale = () => Math.min(Math.max(window.devicePixelRatio || 1, 2), MAX_DPR)
 
-// Shrinks a page image to the exact pixel size it will be drawn at. Scaling a 1650px scan straight
-// down to ~500px makes text jagged, so halve it step by step with high-quality smoothing instead.
-async function fitPage(blob, targetWidth) {
-  try {
-    const bitmap = await createImageBitmap(blob)
-    if (bitmap.width <= targetWidth * 1.25) {
-      bitmap.close()
-      return blob
-    }
-    const targetHeight = Math.round((bitmap.height * targetWidth) / bitmap.width)
-    let current = bitmap
-    let width = bitmap.width
-    let height = bitmap.height
-    while (width / 2 > targetWidth) {
-      const step = document.createElement('canvas')
-      step.width = Math.round(width / 2)
-      step.height = Math.round(height / 2)
-      const stepContext = step.getContext('2d')
-      stepContext.imageSmoothingQuality = 'high'
-      stepContext.drawImage(current, 0, 0, step.width, step.height)
-      current.close?.()
-      current = step
-      width = step.width
-      height = step.height
-    }
-    const out = document.createElement('canvas')
-    out.width = targetWidth
-    out.height = targetHeight
-    const context = out.getContext('2d')
-    context.imageSmoothingQuality = 'high'
-    context.drawImage(current, 0, 0, targetWidth, targetHeight)
-    current.close?.()
-    const result = await new Promise((resolve) => out.toBlob(resolve, 'image/jpeg', 0.97))
-    return result ?? blob
-  } catch {
-    return blob
-  }
+// Pages are loaded straight from Cloudflare as ordinary images, so the book can open as soon as the
+// cover is there; the rest download in the background while the visitor looks at it.
+const preload = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(url)
+    image.onerror = () => reject(new Error(`Could not load ${url}`))
+    image.src = url
+  })
+
+const blankPage = () => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 2
+  canvas.height = 2
+  const context = canvas.getContext('2d')
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, 2, 2)
+  return canvas.toDataURL('image/png')
 }
 
-async function fitAll(pages, targetWidth) {
-  const out = []
-  for (let i = 0; i < pages.length; i += 4) {
-    out.push(...(await Promise.all(pages.slice(i, i + 4).map((page) => fitPage(page, targetWidth)))))
-  }
-  return out
-}
+// Cover plus the first spread are fetched first; the remaining pages are requested once those are in.
+const FIRST_WAVE = 4
 
 export default function BookViewer({ book, title, fallback }) {
   const host = useRef(null)
@@ -63,13 +39,11 @@ export default function BookViewer({ book, title, fallback }) {
   const currentPage = useRef(0)
   const [status, setStatus] = useState('loading')
   const [pageIndex, setPageIndex] = useState(0)
-  const [loaded, setLoaded] = useState(0)
   const lastPage = book.pageCount - 1
 
   useEffect(() => {
     let cancelled = false
     let instance
-    let pageUrls = []
     const mount = host.current
     if (!mount) return undefined
 
@@ -83,14 +57,15 @@ export default function BookViewer({ book, title, fallback }) {
     holder.appendChild(element)
     mount.appendChild(holder)
 
-    bookStore.get(book.key, book.pageCount, (done) => !cancelled && setLoaded(done))
-      .then((pages) => {
-        if (cancelled) return
-        if (!Array.isArray(pages) || pages.length !== book.pageCount) throw new Error('Book pages not found')
+    const urls = Array.from({ length: book.pageCount }, (_, index) => bookPageUrl(book.key, index + 1))
+    const blank = blankPage()
 
-        // Show the book straight away with the pages as downloaded; the sharper, pre-scaled
-        // versions are swapped in afterwards so a slow phone is never left waiting on them.
-        pageUrls = pages.map((page) => URL.createObjectURL(page))
+    // Wait only for the cover, then open the book.
+    preload(urls[0])
+      .then(() => {
+        if (cancelled) return
+        // Pages after the first spread start as blanks; they are filled in once the first ones are in.
+        const firstWave = urls.map((url, index) => (index < FIRST_WAVE ? url : blank))
         const ratio = book.ratio || 1 / 1.4142
         const pageWidth = MAX_PAGE_WIDTH
         instance = new PageFlip(element, {
@@ -112,7 +87,7 @@ export default function BookViewer({ book, title, fallback }) {
           drawShadow: true,
           startPage: 0,
         })
-        instance.loadFromImages(pageUrls)
+        instance.loadFromImages(firstWave)
         // PageFlip sizes its canvas at CSS pixels, which looks soft on Retina/mobile screens.
         // Keep the same visual size but render the canvas at a higher DPR. The UI only exists
         // after the pages are loaded, and a failure here must never take the whole book down.
@@ -144,19 +119,10 @@ export default function BookViewer({ book, title, fallback }) {
         flip.current = instance
         setStatus('ready')
 
-        const dpr = renderScale()
-        const box = mount.clientWidth || MAX_PAGE_WIDTH * 2
-        const cssPageWidth = Math.min(MAX_PAGE_WIDTH, box / 2)
-        fitAll(pages, Math.ceil(cssPageWidth * dpr))
-          .then((sharp) => {
-            if (cancelled || flip.current !== instance) return
-            const sharpUrls = sharp.map((page) => URL.createObjectURL(page))
-            const previous = pageUrls
-            pageUrls = sharpUrls
-            instance.updateFromImages(sharpUrls)
-            previous.forEach((url) => URL.revokeObjectURL(url))
-          })
-          .catch((error) => console.warn('[Flipbook] Keeping the original page images:', error))
+        Promise.allSettled(urls.slice(0, FIRST_WAVE).map(preload)).then(() => {
+          if (cancelled || flip.current !== instance) return
+          instance.updateFromImages(urls)
+        })
       })
       .catch((error) => {
         // The page quietly falls back to the plain cover, so say why in the console.
@@ -173,7 +139,6 @@ export default function BookViewer({ book, title, fallback }) {
         // PageFlip can already be torn down when the route changes.
       }
       holder.remove()
-      pageUrls.forEach((url) => URL.revokeObjectURL(url))
     }
   }, [book.key, book.pageCount, book.ratio])
 
@@ -186,7 +151,7 @@ export default function BookViewer({ book, title, fallback }) {
     <div className="flex min-w-0 flex-col items-center">
       <div className="relative w-full overflow-hidden rounded-xl bg-[#FBF7F7] px-0 py-2 sm:rounded-none sm:bg-transparent sm:py-0">
         <div ref={host} role="img" aria-label={`${title} book preview`} className="mx-auto min-h-[260px] w-full max-w-[1040px] sm:min-h-[320px]" />
-        {!ready && <p className="absolute inset-0 grid place-items-center text-sm text-ink/50">Loading preview… {loaded > 0 ? `${loaded}/${book.pageCount}` : ''}</p>}
+        {!ready && <p className="absolute inset-0 grid place-items-center text-sm text-ink/50">Loading preview…</p>}
       </div>
       <div className="mt-3 flex items-center gap-3 text-xs text-ink/60 sm:mt-5 sm:gap-5 sm:uppercase sm:tracking-widest">
         <button type="button" onClick={() => flip.current?.flipPrev()} disabled={!ready || pageIndex <= 0} aria-label="Previous pages" className={arrow}>
