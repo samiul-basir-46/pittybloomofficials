@@ -70,7 +70,7 @@ export async function readPdfBook(file, onProgress) {
   }
 }
 
-const naturalOrder = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+export const naturalOrder = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
 const IMAGE_TYPES = ['image/jpeg', 'image/png']
 
 // Shrinks big images to PREVIEW_WIDTH in steps (halving keeps text and edges crisp). Small JPEGs are kept as they are.
@@ -113,12 +113,12 @@ async function toPreview(file) {
 }
 
 /**
- * Builds a book from page images (JPG or PNG), in file-name order (1, 2, ... 10 sorts correctly).
+ * Builds a book from page images (JPG or PNG), in exactly the order given (page 1 first).
  * Big HD images are scaled to 1200px wide (see PREVIEW_WIDTH) so the book opens fast on phones.
  * Returns { pages: Blob[], ratio } like readPdfBook.
  */
 export async function readImageBook(files, onProgress) {
-  const list = [...files].sort(naturalOrder)
+  const list = [...files] // keep the order the admin arranged
   if (!list.length) throw new PdfBookError('Choose at least one image.')
   const wrong = list.find((file) => !IMAGE_TYPES.includes(file.type))
   if (wrong) throw new PdfBookError(`"${wrong.name}" is not a JPG or PNG image.`)
