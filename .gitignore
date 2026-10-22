@@ -9,3 +9,6 @@ workers/**/.dev.vars
 workers/**/.wrangler
 .firebaserc
 *.patch
+workers/**/.worker-deploy-build
+workers/**/.wrangler-dry-run-check
+workers/order-media/workers
