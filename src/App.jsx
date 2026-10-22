@@ -29,13 +29,14 @@ import DraftDetailPage from './admin/DraftDetailPage'
 import ManualOrderPage from './pages/manual-order/ManualOrderPage'
 import AdminLoginPage from './admin/AdminLoginPage'
 import ManualOrderCatalogPage from './admin/ManualOrderCatalogPage'
+import { AdminAuthProvider } from './admin/AdminAuthContext'
 
 export default function App() {
   return (
     <>
       <ScrollToTop />
       <Routes>
-        <Route path="admin/login" element={<AdminLoginPage />} />
+        <Route path="admin/login" element={<AdminAuthProvider><AdminLoginPage /></AdminAuthProvider>} />
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="custom-order" element={<ManualOrderPage />} />
@@ -59,7 +60,7 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 
-        <Route path="admin" element={<AdminLayout />}>
+        <Route path="admin" element={<AdminAuthProvider><AdminLayout /></AdminAuthProvider>}>
           <Route index element={<Dashboard />} />
           {SECTIONS.map((s) => (
             <Route key={s.path} path={s.path} element={<ItemManager key={s.path} {...s} />} />

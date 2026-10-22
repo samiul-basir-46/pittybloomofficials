@@ -136,7 +136,7 @@ export default function DeliveryStep({ ctx }) {
             <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" aria-live="polite">
               <strong>{longDate(d.date)}</strong>
               {totals.rushCharge > 0
-                ? ` · Rush delivery charge +${formatPrice(totals.rushCharge)} (${totals.rushDays} day${totals.rushDays > 1 ? 's' : ''} from the order date)`
+                ? ` · Rush delivery charge +${formatPrice(totals.rushCharge)}`
                 : ' · No rush charge'}
             </p>
           )}

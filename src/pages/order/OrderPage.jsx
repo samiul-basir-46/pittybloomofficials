@@ -76,7 +76,8 @@ function Wizard({ magazine, sizes, addons, addonsFailed, occasions, settings, re
         name: existing.contact.name || customerProfile.name || '',
         phone: existing.contact.phone || customerProfile.phone || '',
         instagram: existing.contact.instagram || customerProfile.instagram || '',
-        email: existing.contact.email || customerEmail || '',
+        // Do not prefill the optional order email from the signed-in account.
+        email: existing.contact.email && existing.contact.email !== customerEmail ? existing.contact.email : '',
       },
       delivery: {
         ...existing.delivery,

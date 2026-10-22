@@ -241,8 +241,12 @@ export default {
       if (!courierResponse.ok || result.status !== 200 || !result.consignment) {
         return json({ error: String(result.message || 'Steadfast could not create this consignment.').slice(0, 240) }, 502, cors)
       }
+      const trackingUrl = result.tracking_url || result.tracking_link || result.public_tracking_url || result.customer_tracking_url
+        || result.consignment.tracking_url || result.consignment.tracking_link || result.consignment.public_tracking_url || result.consignment.customer_tracking_url || ''
       return json({
         tracking_code: String(result.consignment.tracking_code || ''),
+        tracking_url: String(trackingUrl),
+        tracking_link: String(trackingUrl),
         consignment_id: String(result.consignment.consignment_id || ''),
         consignment: result.consignment,
       }, 201, cors)

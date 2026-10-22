@@ -67,6 +67,10 @@ function OrderTracking({ order, helpUrl }) {
   const status = order.status || 'New'
   const cancelled = status === 'Cancelled'
   const trackingNumber = order.trackingNumber || order.tracking_code || order.steadfastTrackingCode
+  const directTrackingUrl = order.trackingUrl || order.tracking_link || order.steadfastConsignment?.tracking_link || order.steadfastConsignment?.tracking_url || ''
+  const trackingUrl = /^https:\/\/(www\.)?steadfast\.com\.bd\//i.test(directTrackingUrl)
+    ? directTrackingUrl
+    : ''
   const recipient = order.customer?.recipient || order.customer?.name || '—'
   const address = order.customer?.address || '—'
   const phone = order.customer?.deliveryPhone || order.customer?.phone || '—'
@@ -95,7 +99,7 @@ function OrderTracking({ order, helpUrl }) {
             </li>
           })}
         </ol>
-        {trackingNumber && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E6E2D8] bg-[#F4F1EA] p-4"><div><p className="text-xs text-[#6B665C]">{order.courierName || 'Steadfast'} tracking number</p><p className="mt-1 font-mono text-sm font-semibold">{trackingNumber}</p></div><a href={`https://steadfast.com.bd/t/${encodeURIComponent(trackingNumber)}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#D9D4C7] bg-[#FDFCF9] px-3 text-sm font-medium hover:bg-white">Track parcel <ExternalLink size={14} /></a></div>}
+        {trackingNumber && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E6E2D8] bg-[#F4F1EA] p-4"><div><p className="text-xs text-[#6B665C]">{order.courierName || 'Steadfast'} tracking</p>{trackingUrl ? <p className="mt-1 text-sm font-medium">Open the direct tracking link to follow your parcel.</p> : <p className="mt-1 text-sm text-[#6B665C]">The direct tracking link will appear here when Steadfast provides it.</p>}</div>{trackingUrl && <a href={trackingUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#D9D4C7] bg-[#FDFCF9] px-3 text-sm font-medium hover:bg-white">Track parcel <ExternalLink size={14} /></a>}</div>}
       </>}
     </Card>
 

@@ -11,7 +11,7 @@ import { policies } from '../../pages/policy/data'
 import { navLinks } from '../layout/navLinks'
 import { SITE } from '../config/site'
 import { MANUAL_ORDER_CATALOG_DEFAULTS } from '../../pages/manual-order/catalog'
-import { auth, db, firebaseConfigured } from './firebaseClient'
+import { adminAuth, adminDb, auth, db, firebaseConfigured } from './firebaseClient'
 import { collection as fsCollection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, setDoc, updateDoc, where } from 'firebase/firestore'
 
 const collection = (key, seed, sort = (items) => items) => ({
@@ -126,7 +126,7 @@ export const ordersApi = !firebaseConfigured ? {
   },
 } : {
   list: async () => {
-    const ref = fsCollection(db, 'orders')
+    const ref = fsCollection(adminDb, 'orders')
     const snapshot = await getDocs(query(ref, orderBy('createdAt', 'desc')))
     const remote = snapshot.docs.map((d) => d.data())
     const known = new Set(remote.map((order) => order.id))
@@ -134,7 +134,7 @@ export const ordersApi = !firebaseConfigured ? {
     for (const legacy of await localOrdersApi.list()) {
       if (known.has(legacy.id)) continue
       const imported = { ...legacy, ownerUid: legacy.ownerUid || 'legacy-local-order' }
-      await setDoc(doc(db, 'orders', imported.id), imported)
+      await setDoc(doc(adminDb, 'orders', imported.id), imported)
       remote.push(imported)
     }
     return remote.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
@@ -162,12 +162,12 @@ export const ordersApi = !firebaseConfigured ? {
     return onSnapshot(doc(db, 'orders', id), (snapshot) => onChange(snapshot.exists() ? snapshot.data() : null), onError)
   },
   updateStatus: async (id, status, fields = {}) => {
-    await updateDoc(doc(db, 'orders', id), { ...fields, status })
+    await updateDoc(doc(adminDb, 'orders', id), { ...fields, status })
   },
   save: async (order) => {
-    const ref = doc(db, 'orders', order.id)
+    const ref = doc(adminDb, 'orders', order.id)
     const existing = await getDoc(ref)
-    const user = auth?.currentUser
+    const user = adminAuth?.currentUser
     const next = existing.exists()
       ? {
           ...order,
@@ -222,7 +222,7 @@ export const ordersApi = !firebaseConfigured ? {
 
     return placedOrder
   },
-  remove: async (id) => deleteDoc(doc(db, 'orders', id)),
+  remove: async (id) => deleteDoc(doc(adminDb, 'orders', id)),
 }
 
 export const customerProfileApi = {

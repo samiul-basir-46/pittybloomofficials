@@ -17,7 +17,6 @@ import { DEFAULT_SIZE, magazineLine } from './data'
 import { freshDraft, orderDraft } from '../order/lib/orderDraft'
 import { getFormats } from '../order/lib/copies'
 import { photoStore } from '../order/lib/photoStore'
-import { formatPrice } from '../../shared/utils/format'
 
 function Detail({ magazine, sizes, settings }) {
   const navigate = useNavigate()
@@ -28,7 +27,6 @@ function Detail({ magazine, sizes, settings }) {
   const formats = getFormats(settings)
   const [sizeId, setSizeId] = useState((sizes.find((s) => s.id === DEFAULT_SIZE) ?? sizes[0]).id)
   const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
-  const save = Math.max(0, (size.mrp || 0) - size.price)
   // Show the flipbook whenever a stored book has at least one valid page.
   const hasBook = Boolean(magazine.book?.key) && isValidPageCount(magazine.book.pageCount)
   const orderItem = () => magazineLine(magazine, size)
@@ -72,15 +70,6 @@ function Detail({ magazine, sizes, settings }) {
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand sm:text-sm">Magazine</p>
           <h1 className="mt-3 font-serif text-[1.35rem] sm:mt-4 sm:text-5xl">{magazine.title}</h1>
-          <p className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:mt-6">
-            {save > 0 && <span className="text-xl text-ink/50 line-through sm:text-2xl">{formatPrice(size.mrp)}</span>}
-            <span className="text-2xl font-extrabold sm:text-4xl">Price: {formatPrice(size.price)}</span>
-            {save > 0 && (
-              <span className="rounded-full border border-sand bg-cream px-3 py-1 text-xs font-semibold text-warm">
-                Save {formatPrice(save)}
-              </span>
-            )}
-          </p>
           <div className="mt-5 space-y-2 text-sm text-ink/75 sm:mt-8 sm:space-y-3 sm:text-base">
             {productInfo.notes.filter(Boolean).map((n) => (
               <p key={n}>{n}</p>

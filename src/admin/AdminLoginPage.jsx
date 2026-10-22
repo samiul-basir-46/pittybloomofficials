@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, LockKeyhole } from 'lucide-react'
-import { useAuth } from '../shared/context/AuthContext'
+import { useAdminAuth } from './AdminAuthContext'
 
 const safeDestination = (value) => value?.startsWith('/admin') && value !== '/admin/login' ? value : '/admin'
 
@@ -14,7 +14,7 @@ function readableError(error) {
 }
 
 export default function AdminLoginPage() {
-  const { user, isAdmin, loading, configured, signInWithPassword, signOut } = useAuth()
+  const { user, isAdmin, loading, configured, signInWithPassword, signOut } = useAdminAuth()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')

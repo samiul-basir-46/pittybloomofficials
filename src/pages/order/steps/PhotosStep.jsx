@@ -1,6 +1,6 @@
 import { useReducer, useRef, useState } from 'react'
 import { ImagePlus, Trash2 } from 'lucide-react'
-import { Card, Notice } from '../components/FormField'
+import { Card } from '../components/FormField'
 import { copyTitle } from '../lib/copies'
 import { parseRange } from '../lib/pricing'
 import { photoStore } from '../lib/photoStore'
@@ -133,7 +133,6 @@ export default function PhotosStep({ ctx }) {
   const [, refresh] = useReducer((n) => n + 1, 0)
   return (
     <div className="space-y-6">
-      <Notice tone="warn">{ctx.settings.photosNote}</Notice>
       {ctx.copies.map((copy) => (
         <PhotoPanel key={copy.key} copy={copy} ctx={ctx} refresh={refresh} />
       ))}

@@ -3,14 +3,15 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowDownToLine, ArrowLeft, Check, Copy, ExternalLink, Instagram, Mail, MapPin, MessageCircle, Package, Pencil, Send, Trash2, UserRound } from 'lucide-react'
 import SmartImage from '../shared/ui/SmartImage'
 import useAsync from '../shared/hooks/useAsync'
-import { addonsApi, getOrderSettings, ordersApi } from '../shared/services/contentService'
+import { addonsApi, getMagazines, getOrderSettings, ordersApi } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
 import { getUrgency } from '../shared/utils/urgency'
 import { inputClass } from './classes'
 import { LEVEL_STYLE, StatusBadge, UrgencyPill, when } from './orderUi'
 import { cityText, formatOrderSummary } from './orderSummary'
 import { photoStore } from '../pages/order/lib/photoStore'
-import { useAuth } from '../shared/context/AuthContext'
+import { adminAuth } from '../shared/services/firebaseClient'
+import { useAdminAuth } from './AdminAuthContext'
 import { longDate } from '../pages/order/lib/pricing'
 import { createSteadfastConsignment } from './steadfastApi'
 import { downloadPhotoZip } from './photoZip'
@@ -25,16 +26,21 @@ const Card = ({ title, aside, children, className = '' }) => (
 const LabelValue = ({ label, children, className = '' }) => children ? <div className={className}><p className="text-xs text-ink/55">{label}</p><div className="mt-0.5 break-words text-sm font-medium">{children}</div></div> : null
 const EMPTY_PHOTO_FILES = []
 const safeFilenamePart = (value) => String(value || '').normalize('NFKC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim().replace(/\s+/g, '-').slice(0, 60)
+const isSteadfastUrl = (value) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && ['steadfast.com.bd', 'www.steadfast.com.bd'].includes(url.hostname)
+  } catch { return false }
+}
 
 export function PhotoGallery({ photos }) {
-  const { user, configured, signInWithGoogle } = useAuth()
+  const { user } = useAdminAuth()
   const pageSize = 12
   const [urls, setUrls] = useState({})
   const [preview, setPreview] = useState(null)
   const [page, setPage] = useState(0)
   const [loadingPhotos, setLoadingPhotos] = useState(false)
   const [photoError, setPhotoError] = useState('')
-  const [signingIn, setSigningIn] = useState(false)
   const [retry, setRetry] = useState(0)
   const files = photos?.files ?? EMPTY_PHOTO_FILES
   const pageCount = Math.ceil(files.length / pageSize)
@@ -49,7 +55,7 @@ export function PhotoGallery({ photos }) {
     let active = true
     setLoadingPhotos(true)
     setPhotoError('')
-    Promise.all(visibleFiles.map(async (file) => [file.id, await photoStore.getUrl(file.id, file.storageKey)]))
+    Promise.all(visibleFiles.map(async (file) => [file.id, await photoStore.getUrl(file.id, file.storageKey, adminAuth)]))
       .then((entries) => {
         if (!active) return
         setUrls((current) => ({ ...current, ...Object.fromEntries(entries) }))
@@ -67,18 +73,10 @@ export function PhotoGallery({ photos }) {
     anchor.download = file.name || 'order-photo'
     anchor.click()
   }
-  const signInToViewPhotos = async () => {
-    if (!configured) { setPhotoError('Firebase sign-in is not configured on this site.'); return }
-    setSigningIn(true)
-    setPhotoError('')
-    try { await signInWithGoogle() }
-    catch (error) { setPhotoError(error instanceof Error ? error.message : 'Could not sign in. Please try again.') }
-    finally { setSigningIn(false) }
-  }
   return <>
     {photoError && <div role={user ? 'alert' : 'status'} className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sand bg-[#FFFAF8] p-3 text-xs text-ink/70">
       <span>{photoError}{loadingPhotos && ' Loading…'}</span>
-      {!user ? <button type="button" disabled={signingIn} onClick={signInToViewPhotos} className="min-h-9 rounded-lg bg-brand px-3 font-semibold text-white disabled:opacity-60">{signingIn ? 'Signing in…' : 'Sign in to view photos'}</button> : <div className="flex gap-2"><button type="button" onClick={() => setRetry((current) => current + 1)} className="min-h-9 rounded-lg border border-sand bg-white px-3 font-semibold text-brand">Try again</button><button type="button" disabled={signingIn} onClick={signInToViewPhotos} className="min-h-9 rounded-lg bg-brand px-3 font-semibold text-white disabled:opacity-60">{signingIn ? 'Signing in…' : 'Use admin account'}</button></div>}
+      {user && <button type="button" onClick={() => setRetry((current) => current + 1)} className="min-h-9 rounded-lg border border-sand bg-white px-3 font-semibold text-brand">Try again</button>}
     </div>}
     <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2.5 xl:grid-cols-6">
       {visibleFiles.map((file) => <div key={file.id} className="min-w-0">
@@ -101,10 +99,11 @@ export function PhotoGallery({ photos }) {
 
 function OrderItem({ item, index, image, onDownloadPhotos, zipLoading }) {
   const label = item.kind === 'magazine' ? 'Magazine' : item.kind === 'addon' ? 'Add-on' : item.kind || 'Product'
+  const magazine = item.kind === 'magazine'
   return <article className="overflow-hidden rounded-xl border border-sand bg-[#fffefa]">
     <div className="flex items-center gap-3 p-4 sm:px-5">
       <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-xs font-semibold text-white">{index + 1}</span>
-      <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-cream"><SmartImage src={item.image || image} alt={item.name} /></div>
+      <div className={`${magazine ? 'h-20 w-16' : 'size-12'} shrink-0 overflow-hidden rounded-lg bg-cream`}><SmartImage src={item.image || image} alt={item.name} /></div>
       <div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.name}</p><div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink/60"><span className="rounded-full bg-sand/70 px-2 py-0.5">{label}</span>{item.optionLabel && <span>{item.optionLabel}</span>}</div></div>
       <div className="shrink-0 text-right"><p className="text-xs text-ink/55">Qty {item.qty}</p><p className="font-semibold">{formatPrice(item.price * item.qty)}</p></div>
     </div>
@@ -121,6 +120,7 @@ export default function OrderDetailPage() {
   const navigate = useNavigate()
   const orders = useAsync(ordersApi.list)
   const addons = useAsync(addonsApi.list)
+  const magazines = useAsync(getMagazines)
   const settingsData = useAsync(getOrderSettings)
   const now = useMemo(() => new Date(), [])
   const [notice, setNotice] = useState({ type: '', text: '' })
@@ -188,8 +188,14 @@ export default function OrderDetailPage() {
       }
       const delivery = [editForm.locationLabel, editForm.deliveryDate ? longDate(editForm.deliveryDate) : '']
         .filter(Boolean).join(' · ') || order.delivery
+      const trackingUrl = String(editForm.trackingUrl || '').trim()
+      if (trackingUrl && !isSteadfastUrl(trackingUrl)) {
+        setNotice({ type: 'error', text: 'Use the HTTPS tracking link from Steadfast.' })
+        return
+      }
       await ordersApi.save({
         ...order,
+        trackingUrl,
         customer: {
           ...c,
           name: editForm.name,
@@ -223,6 +229,7 @@ export default function OrderDetailPage() {
       recipient: c.recipient ?? '', deliveryPhone: c.deliveryPhone ?? c.phone ?? '', address, city,
       locationLabel: order.deliveryInfo?.locationLabel ?? order.delivery?.split(' · ')[0] ?? '',
       deliveryDate: order.deliveryInfo?.date ?? '',
+      trackingUrl: order.trackingUrl ?? '',
       itemPrices: allItems.map((item) => String(item.price ?? 0)),
       deliveryCharge: String(order.deliveryCharge ?? 0), rushCharge: String(order.rushCharge ?? 0),
     })
@@ -250,12 +257,15 @@ export default function OrderDetailPage() {
       const result = await createSteadfastConsignment({ invoice: order.id, ...dispatchForm, recipient_email: c.email || '' })
       if (!result.tracking_code) throw new Error('Steadfast created no tracking code. Check the courier panel before retrying.')
       const trackingNumber = String(result.tracking_code)
+      const trackingUrl = String(result.consignment?.tracking_link || result.consignment?.tracking_url || result.tracking_link || result.tracking_url || result.public_tracking_url || result.customer_tracking_url || '')
       await ordersApi.save({
         ...order,
         status: 'Shipped',
         statusUpdatedAt: new Date().toISOString(),
         courierName: 'Steadfast Courier',
         trackingNumber,
+        trackingUrl,
+        tracking_link: trackingUrl,
         tracking_code: trackingNumber,
         steadfastTrackingCode: trackingNumber,
         consignmentId: String(result.consignment_id || ''),
@@ -286,7 +296,7 @@ export default function OrderDetailPage() {
     try {
       await downloadPhotoZip(groups.flatMap(({ photos, folder }) => photos.map((photo) => ({
         ...photo, folder,
-        getBlob: () => photoStore.getBlob(photo.id, photo.storageKey),
+        getBlob: () => photoStore.getBlob(photo.id, photo.storageKey, adminAuth),
       }))), filename)
       setNotice({ type: 'ok', text: 'Photo ZIP downloaded.' })
     } catch (error) {
@@ -321,7 +331,12 @@ export default function OrderDetailPage() {
         <Card title={`Ordered items · ${allItems.length}`} aside={<span className="text-xs text-ink/55">{itemCount} units total</span>}>
           <div className="space-y-3">{allItems.map((item, index) => {
             const zipFilename = safeFilenamePart(c.name || c.recipient || 'Order')
-            return <OrderItem key={`${item.id}-${index}`} item={item} index={index} image={item.kind === 'addon' ? addonImage(item) : ''} zipLoading={zipLoading === `item-${index + 1}`} onDownloadPhotos={() => downloadPhotos([{ photos: item.photos?.files ?? [], folder: '' }], `item-${index + 1}`, zipFilename)} />
+            const image = item.kind === 'addon'
+              ? addonImage(item)
+              : item.kind === 'magazine'
+                ? magazines.data?.find((magazine) => magazine.id === item.id)?.image ?? ''
+                : ''
+            return <OrderItem key={`${item.id}-${index}`} item={item} index={index} image={image} zipLoading={zipLoading === `item-${index + 1}`} onDownloadPhotos={() => downloadPhotos([{ photos: item.photos?.files ?? [], folder: '' }], `item-${index + 1}`, zipFilename)} />
           })}</div>
         </Card>
 
@@ -360,7 +375,7 @@ export default function OrderDetailPage() {
             <LabelValue label="Delivery date">{order.deliveryInfo?.date ? <span className="inline-flex items-center gap-1.5"><Package size={15} />{order.delivery.split(' · ').slice(1).join(' · ') || order.deliveryInfo.date}</span> : order.delivery}</LabelValue>
             {order.deliveryInfo?.locationLabel && <LabelValue label="Delivery area"><span className="inline-flex items-center gap-1.5"><MapPin size={15} />{order.deliveryInfo.locationLabel}{cityText(order) ? ` · ${cityText(order)}` : ''}</span></LabelValue>}
             {order.deliveryInfo?.date && <div className={`rounded-xl border px-3 py-2 text-sm font-semibold ${LEVEL_STYLE[urgency.level].pill}`}>{urgency.level === 'none' ? 'No longer open' : `${LEVEL_STYLE[urgency.level].title}: ${urgency.label}`}</div>}
-            {order.trackingNumber && <div className="rounded-xl border border-sand bg-cream p-3"><p className="text-xs text-ink/55">{order.courierName || 'Courier'} tracking code</p><a href={`https://steadfast.com.bd/t/${encodeURIComponent(order.trackingNumber)}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 font-mono text-sm font-semibold text-brand hover:underline">{order.trackingNumber} <ExternalLink size={13} /></a>{order.consignmentId && <p className="mt-1 text-xs text-ink/55">Consignment ID: {order.consignmentId}</p>}</div>}
+            {order.trackingNumber && <div className="rounded-xl border border-sand bg-cream p-3"><p className="text-xs text-ink/55">{order.courierName || 'Courier'} tracking code</p><p className="mt-1 font-mono text-sm font-semibold">{order.trackingNumber}</p><a href={isSteadfastUrl(order.trackingUrl) ? order.trackingUrl : 'https://steadfast.com.bd/tracking'} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">{order.trackingUrl ? 'Open tracking link' : 'Open Steadfast tracking page'} <ExternalLink size={13} /></a>{!order.trackingUrl && <p className="mt-1 text-xs text-ink/55">Add the tracking link from the Steadfast SMS in Edit order details for direct tracking.</p>}{order.consignmentId && <p className="mt-1 text-xs text-ink/55">Consignment ID: {order.consignmentId}</p>}</div>}
           </div>
         </Card>
 
@@ -384,6 +399,7 @@ export default function OrderDetailPage() {
       <fieldset className="grid gap-3 sm:grid-cols-2"><legend className="mb-2 text-xs font-semibold uppercase tracking-widest text-ink/60">Delivery</legend>
         <label className="block text-xs text-ink/60">Delivery area<input className={`${inputClass} mt-1`} value={editForm.locationLabel} onChange={(e) => setEditForm({ ...editForm, locationLabel: e.target.value })} /></label>
         <label className="block text-xs text-ink/60">Delivery date<input type="date" className={`${inputClass} mt-1`} value={editForm.deliveryDate} onChange={(e) => setEditForm({ ...editForm, deliveryDate: e.target.value })} /></label>
+        <label className="block text-xs text-ink/60 sm:col-span-2">Steadfast tracking link<input type="url" placeholder="Paste the tracking link from Steadfast SMS" className={`${inputClass} mt-1`} value={editForm.trackingUrl} onChange={(e) => setEditForm({ ...editForm, trackingUrl: e.target.value })} /><span className="mt-1 block text-[11px] text-ink/50">Customers can open this link directly from My Orders.</span></label>
       </fieldset>
       <fieldset className="space-y-3"><legend className="mb-2 text-xs font-semibold uppercase tracking-widest text-ink/60">Prices (৳)</legend>
         {allItems.map((item, index) => <label key={`${item.id}-${index}`} className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-3 text-sm"><span className="min-w-0 truncate">{item.name} <span className="text-xs text-ink/55">× {item.qty}</span></span><input aria-label={`${item.name} unit price`} type="number" min="0" step="1" className={inputClass} value={editForm.itemPrices[index]} onChange={(e) => setEditForm({ ...editForm, itemPrices: editForm.itemPrices.map((price, i) => i === index ? e.target.value : price) })} /></label>)}

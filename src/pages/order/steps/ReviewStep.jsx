@@ -174,7 +174,7 @@ export default function ReviewStep({ ctx }) {
         </div>
         <div className="mt-4 space-y-2 text-sm leading-6 text-ink/65">
           <p><strong className="text-ink">Delivery charge:</strong> {formatPrice(totals.deliveryCharge)} for {locationLabel(d.location)}.</p>
-          {totals.rushCharge > 0 && <p><strong className="text-ink">Rush delivery:</strong> +{formatPrice(totals.rushCharge)} because you need it {totals.rushDays} day{totals.rushDays > 1 ? 's' : ''} after the order date.</p>}
+          {totals.rushCharge > 0 && <p><strong className="text-ink">Rush delivery:</strong> +{formatPrice(totals.rushCharge)} for your selected delivery date.</p>}
           {settings.deliveryNote && <p>{settings.deliveryNote}</p>}
         </div>
       </Card>

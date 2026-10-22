@@ -19,7 +19,7 @@ function Group({ title, hint, children }) {
   )
 }
 
-const NUMBERS = ['a4MaxPages', 'a5MaxPages', 'maxCopies', 'insideDhakaCharge', 'outsideDhakaCharge', 'cutoffHour', 'outsideMinDays']
+const NUMBERS = ['a4MaxPages', 'a5MaxPages', 'maxCopies', 'insideDhakaCharge', 'outsideDhakaCharge', 'cutoffHour']
 
 // Checks the form and returns the first problem in plain words, or '' when it is fine.
 const check = (f) => {
@@ -28,7 +28,6 @@ const check = (f) => {
   if (f.a4MaxPages % 4 || f.a5MaxPages % 4 || f.a4MaxPages < 4 || f.a5MaxPages < 4) return 'Page limits must be multiples of 4.'
   if (f.maxCopies < 1) return 'Copies per size must be at least 1.'
   if (f.cutoffHour > 24) return 'The cut-off hour must be between 0 and 24.'
-  if (f.outsideMinDays < 1) return 'Outside Dhaka needs at least 1 day.'
   const lines = f.rushRules.split('\n').filter((l) => l.trim())
   if (parseRushRules(f.rushRules).length !== lines.length) return 'Rush rules: use one rule per line, like  1 | 100  (days | extra charge).'
   return ''
@@ -103,14 +102,13 @@ export default function OrderSettingsPage() {
 
       <Group title="Delivery dates" hint="Customers pick their date on a calendar. Dates that are too soon are greyed out.">
         <Field
-          label="Rush charges for Inside Dhaka, one per line: days from the order date | extra charge"
+          label="Rush charges for Inside Dhaka (Outside Dhaka uses these fees one day later): days from the order date | extra charge"
           type="textarea"
           rows={3}
           value={form.rushRules}
           onChange={set('rushRules')}
         />
         {num('cutoffHour', 'Orders placed from this hour count from the next day (0–24 clock, 18 is 6:00 PM)')}
-        {num('outsideMinDays', 'Earliest delivery for Outside Dhaka, in days from the order date')}
         <Field label="Extra sentence shown under the calendar" value={form.standardNote} onChange={set('standardNote')} />
       </Group>
 
@@ -119,7 +117,6 @@ export default function OrderSettingsPage() {
       </Group>
 
       <Group title="Texts customers see">
-        <Field label="Photos step: what to do with the photos" type="textarea" rows={3} value={form.photosNote} onChange={set('photosNote')} />
         <Field label="Notes field title" value={form.notesLabel} onChange={set('notesLabel')} />
         <Field label="Notes field help text" value={form.notesHint} onChange={set('notesHint')} />
       </Group>

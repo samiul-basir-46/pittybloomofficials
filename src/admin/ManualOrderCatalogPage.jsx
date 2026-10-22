@@ -3,7 +3,7 @@ import { Check, ImagePlus, Plus, Save, Trash2 } from 'lucide-react'
 import Button from '../shared/ui/Button'
 import useAsync from '../shared/hooks/useAsync'
 import { inputClass } from './classes'
-import { auth } from '../shared/services/firebaseClient'
+import { adminAuth } from '../shared/services/firebaseClient'
 import { getManualOrderCatalog, manualOrderCatalogApi, productsApi, sizesApi } from '../shared/services/contentService'
 import { mergeManualOrderCatalog } from '../pages/manual-order/catalog'
 import { parseOptions } from '../shared/utils/options'
@@ -32,7 +32,7 @@ function CardImage({ card, onChange }) {
       setError('Choose a JPG, PNG, or WebP image up to 10 MB.')
       return
     }
-    if (!MEDIA_API || !auth?.currentUser) {
+    if (!MEDIA_API || !adminAuth?.currentUser) {
       setError('Sign in to the admin account and try again.')
       return
     }
@@ -41,7 +41,7 @@ function CardImage({ card, onChange }) {
     const localPreview = URL.createObjectURL(file)
     setPreview(localPreview)
     try {
-      const token = await auth.currentUser.getIdToken()
+      const token = await adminAuth.currentUser.getIdToken()
       const response = await fetch(`${MEDIA_API}/manual-order-cards/${encodeURIComponent(card.id)}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type },
@@ -62,11 +62,11 @@ function CardImage({ card, onChange }) {
   }
 
   const remove = async () => {
-    if (!MEDIA_API || !auth?.currentUser) { onChange({ ...card, imageUpdatedAt: 0 }); return }
+    if (!MEDIA_API || !adminAuth?.currentUser) { onChange({ ...card, imageUpdatedAt: 0 }); return }
     setBusy(true)
     setError('')
     try {
-      const token = await auth.currentUser.getIdToken()
+      const token = await adminAuth.currentUser.getIdToken()
       const response = await fetch(`${MEDIA_API}/manual-order-cards/${encodeURIComponent(card.id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
       if (!response.ok) throw new Error('Could not remove the Cloudflare image.')
       onChange({ ...card, imageUpdatedAt: 0 })

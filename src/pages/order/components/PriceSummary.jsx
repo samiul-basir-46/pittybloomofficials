@@ -34,7 +34,7 @@ export default function PriceSummary({ copies, addons, totals, location, title =
           <Row muted label="Delivery" value="Added at the delivery step" />
         )}
         {totals.rushCharge > 0 && (
-          <Row label={`Rush delivery (${totals.rushDays} day${totals.rushDays > 1 ? 's' : ''})`} value={`+${formatPrice(totals.rushCharge)}`} />
+          <Row label="Rush delivery" value={`+${formatPrice(totals.rushCharge)}`} />
         )}
         <div className="flex items-baseline justify-between border-t border-sand pt-3 text-lg">
           <dt className="font-semibold">Total</dt>

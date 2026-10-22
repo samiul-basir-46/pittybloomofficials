@@ -31,13 +31,13 @@ export const parseRushRules = (text = '') =>
     .sort((a, b) => a.days - b.days)
 
 // 'inside' (Inside Dhaka) may order for tomorrow; 'outside' needs a longer lead time.
-export const earliestDays = (location, settings) =>
-  location === 'outside' ? Math.max(1, num(settings.outsideMinDays) || 1) : 1
+export const earliestDays = (location) =>
+  location === 'outside' ? 2 : 1
 
 export const checkDate = (iso, location, settings, now = new Date()) => {
   const ahead = daysBetween(orderingDay(now, settings.cutoffHour), iso)
-  if (ahead < earliestDays(location, settings)) return { allowed: false, ahead, rush: 0 }
-  const rule = location === 'inside' ? parseRushRules(settings.rushRules).find((r) => r.days === ahead) : null
+  if (ahead < earliestDays(location)) return { allowed: false, ahead, rush: 0 }
+  const rule = parseRushRules(settings.rushRules).find((r) => r.days === (location === 'outside' ? ahead - 1 : ahead))
   return { allowed: true, ahead, rush: rule ? rule.charge : 0 }
 }
 
@@ -75,13 +75,14 @@ export const parseRange = (text = '') => {
 export const rushSentence = (settings, formatPrice) => {
   const rules = parseRushRules(settings.rushRules)
   if (!rules.length) return ''
-  const parts = rules.map((r) => `${r.days} day${r.days > 1 ? 's' : ''} is +${formatPrice(r.charge)}`)
+  const insideParts = rules.map((r) => `${r.days} day${r.days > 1 ? 's' : ''} is +${formatPrice(r.charge)}`)
+  const outsideParts = rules.map((r) => `${r.days + 1} day${r.days + 1 > 1 ? 's' : ''} is +${formatPrice(r.charge)}`)
   const hour = num(settings.cutoffHour)
   const cutoff =
     hour > 0 && hour < 24
       ? ` (Orders placed after ${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'} count from the next day).`
       : '.'
-  return `Inside Dhaka: ${parts.join(', ')}${cutoff}`
+  return `Inside Dhaka: ${insideParts.join(', ')}. Outside Dhaka: ${outsideParts.join(', ')}${cutoff}`
 }
 
 // Written out by hand so the text is identical in every browser and language setting.

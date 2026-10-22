@@ -42,11 +42,11 @@ export default function Header() {
         <Link
           to="/"
           aria-label={settings.name}
-          className="size-14 justify-self-center overflow-hidden rounded-2xl bg-[#FFF0F0] sm:size-[104px]"
+          className="absolute left-1/2 top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-[#FFF0F0] sm:static sm:size-12 sm:translate-x-0 sm:translate-y-0 sm:justify-self-center"
         >
-          <SmartImage src={settings.logo} alt={settings.name} className="rounded-2xl object-contain" />
+          <SmartImage src={settings.logo} alt={settings.name} className="scale-125 rounded-full object-contain" />
         </Link>
-        {!isManualOrderPage && <div className="flex items-center justify-end gap-4 sm:gap-5">
+        {!isManualOrderPage && <div className="col-start-3 flex items-center justify-end gap-4 sm:gap-5">
           <Link to="/cart" className="relative" aria-label="Cart">
             <ShoppingCart size={20} />
             {count > 0 && (

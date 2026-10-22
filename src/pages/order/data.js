@@ -20,8 +20,6 @@ export const ORDER_DEFAULTS = {
   rushRules: '1 | 100\n2 | 50',
   // Orders placed at or after this hour (24h clock) count from the next day.
   cutoffHour: 18,
-  // Earliest delivery for Outside Dhaka, in days from the order date.
-  outsideMinDays: 3,
   standardNote: 'Standard delivery is 5 days.',
 
   // Admin: an order is URGENT when it is needed within this many days (today counts as 0). Overdue is always urgent.
@@ -29,8 +27,7 @@ export const ORDER_DEFAULTS = {
   urgentDaysOutside: 3,
 
   // Texts shown to the customer
-  photosNote:
-    'After you place your order, please send these photos to us on WhatsApp together with your Order ID. We cannot receive photos through this form yet.',
+  photosNote: 'Your selected photos are uploaded with your order and can be reviewed before you place it.',
   notesLabel: 'Cute notes and texts',
   notesHint: 'Sweet messages, quotes, inside jokes, or captions for the magazine pages',
 }

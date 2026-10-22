@@ -3,7 +3,7 @@ import { Link, NavLink, Navigate, Outlet, useLocation, useMatch } from 'react-ro
 import { Check, CircleCheck, CircleX, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
 import { SECTIONS } from './sections'
 import { dismissBookUpload, getBookUploads, subscribeBookUploads } from '../shared/services/bookUploadQueue'
-import { useAuth } from '../shared/context/AuthContext'
+import { useAdminAuth } from './AdminAuthContext'
 
 const NAV_GROUPS = [
   { links: [
@@ -71,7 +71,7 @@ export default function AdminLayout() {
   const wideList = ordersList || completedOrdersList || cancelledOrdersList
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
-  const { user, loading, configured, isAdmin, signOut } = useAuth()
+  const { user, loading, configured, isAdmin, signOut } = useAdminAuth()
 
   useEffect(() => setMenuOpen(false), [location.pathname])
   useEffect(() => {

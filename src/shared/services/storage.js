@@ -1,4 +1,4 @@
-import { db, firebaseConfigured } from './firebaseClient'
+import { adminDb, db, firebaseConfigured } from './firebaseClient'
 import { collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore'
 
 const PREFIX = 'pb:'
@@ -40,27 +40,28 @@ async function cloudGet(key, seed) {
 }
 
 async function cloudSet(key, value) {
+  const writeDb = adminDb ?? db
   if (!Array.isArray(value)) {
-    const batch = writeBatch(db)
-    batch.set(doc(db, CONTENT, `${key}--singleton`), { group: key, value })
+    const batch = writeBatch(writeDb)
+    batch.set(doc(writeDb, CONTENT, `${key}--singleton`), { group: key, value })
     await batch.commit()
     return value
   }
 
-  const groupRef = collection(db, CONTENT)
+  const groupRef = collection(writeDb, CONTENT)
   const existing = await getDocs(query(groupRef, where('group', '==', key)))
   const wanted = new Set(value.map((item) => `${key}--${encodeURIComponent(String(item.id ?? 'item'))}`))
   const writes = []
   value.forEach((item) => {
     const id = `${key}--${encodeURIComponent(String(item.id ?? 'item'))}`
-    writes.push((batch) => batch.set(doc(db, CONTENT, id), { group: key, recordType: 'item', value: item }))
+    writes.push((batch) => batch.set(doc(writeDb, CONTENT, id), { group: key, recordType: 'item', value: item }))
   })
   existing.docs.forEach((item) => {
     if (item.data().recordType === 'item' && !wanted.has(item.id)) writes.push((batch) => batch.delete(item.ref))
   })
-  writes.push((batch) => batch.set(doc(db, CONTENT, `${key}--meta`), { group: key, recordType: 'meta', count: value.length }))
+  writes.push((batch) => batch.set(doc(writeDb, CONTENT, `${key}--meta`), { group: key, recordType: 'meta', count: value.length }))
   for (const group of chunk(writes, 450)) {
-    const batch = writeBatch(db)
+    const batch = writeBatch(writeDb)
     group.forEach((write) => write(batch))
     await batch.commit()
   }
@@ -81,9 +82,10 @@ export const store = {
       Object.keys(localStorage).filter((key) => key.startsWith(PREFIX)).forEach((key) => localStorage.removeItem(key))
       return
     }
-    const snapshot = await getDocs(collection(db, CONTENT))
+    const writeDb = adminDb ?? db
+    const snapshot = await getDocs(collection(writeDb, CONTENT))
     for (const group of chunk(snapshot.docs, 450)) {
-      const batch = writeBatch(db)
+      const batch = writeBatch(writeDb)
       group.forEach((item) => batch.delete(item.ref))
       await batch.commit()
     }
