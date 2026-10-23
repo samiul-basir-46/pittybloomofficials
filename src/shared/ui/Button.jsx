@@ -12,7 +12,7 @@ const sizes = {
 export default function Button({ as: Tag = 'button', variant = 'solid', size = 'md', className = '', ...props }) {
   return (
     <Tag
-      className={`inline-flex items-center justify-center rounded-full font-semibold transition-colors ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-full font-semibold transition-[color,background-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 motion-reduce:transform-none ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     />
   )

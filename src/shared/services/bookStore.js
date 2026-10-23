@@ -1,4 +1,5 @@
 // Admin magazine previews are stored in Cloudflare R2 through the media Worker.
+import { adminAuth } from './firebaseClient'
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
 const newKey = () => `book-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 export const originalBookUrl = (key) => MEDIA_API && key ? `${MEDIA_API}/books/${key}/source` : ''
@@ -8,10 +9,16 @@ async function ensureMediaApi() {
   if (!MEDIA_API) throw new Error('Cloudflare media storage is not configured. Set VITE_MEDIA_API_URL.')
 }
 
+async function adminAuthorization() {
+  if (!adminAuth?.currentUser) throw new Error('Sign in to the admin dashboard before managing book previews.')
+  return `Bearer ${await adminAuth.currentUser.getIdToken()}`
+}
+
 export const bookStore = {
   async save(pages, metadata, sourceFile, onProgress) {
     const key = newKey()
     await ensureMediaApi()
+    const authorization = await adminAuthorization()
     let uploaded = 0
     let sourceUploadId = ''
     try {
@@ -21,7 +28,7 @@ export const bookStore = {
         const sourcePath = `${MEDIA_API}/books/${key}/source`
         const started = await fetch(`${sourcePath}/multipart`, {
           method: 'POST',
-          headers: {},
+          headers: { Authorization: authorization },
         })
         const startedResult = await started.json().catch(() => null)
         if (!started.ok || !startedResult?.uploadId) {
@@ -36,7 +43,7 @@ export const bookStore = {
         for (let offset = 0, partNumber = 1; offset < sourceFile.size; offset += chunkSize, partNumber += 1) {
           const response = await fetch(`${sourcePath}/part?uploadId=${encodeURIComponent(sourceUploadId)}&partNumber=${partNumber}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/octet-stream' },
+            headers: { Authorization: authorization, 'Content-Type': 'application/octet-stream' },
             body: sourceFile.slice(offset, Math.min(offset + chunkSize, sourceFile.size)),
           })
           const result = await response.json().catch(() => null)
@@ -45,7 +52,7 @@ export const bookStore = {
         }
         const completed = await fetch(`${sourcePath}/complete`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { Authorization: authorization, 'Content-Type': 'application/json' },
           body: JSON.stringify({ uploadId: sourceUploadId, parts }),
         })
         const completedResult = await completed.json().catch(() => null)
@@ -57,7 +64,7 @@ export const bookStore = {
         await Promise.all(pages.slice(start, start + 3).map(async (page, offset) => {
           const response = await fetch(`${MEDIA_API}/books/${key}/pages/${start + offset + 1}`, {
             method: 'PUT',
-            headers: { 'Content-Type': page.type || 'image/png' },
+          headers: { Authorization: authorization, 'Content-Type': page.type || 'image/png' },
             body: page,
           })
           if (!response.ok) {
@@ -69,7 +76,7 @@ export const bookStore = {
       }
       const manifest = await fetch(`${MEDIA_API}/books/${key}/manifest`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Authorization: authorization, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...metadata, pageCount: pages.length, sourceAvailable: Boolean(sourceFile) }),
       })
       if (!manifest.ok) {
@@ -81,6 +88,7 @@ export const bookStore = {
       if (sourceUploadId) {
         await fetch(`${MEDIA_API}/books/${key}/source/multipart?uploadId=${encodeURIComponent(sourceUploadId)}`, {
           method: 'DELETE',
+          headers: { Authorization: authorization },
         }).catch(() => {})
       }
       await this.remove(key).catch(() => {})
@@ -101,7 +109,7 @@ export const bookStore = {
   },
   async list() {
     await ensureMediaApi()
-    const response = await fetch(`${MEDIA_API}/books`)
+    const response = await fetch(`${MEDIA_API}/books`, { headers: { Authorization: await adminAuthorization() } })
     if (!response.ok) throw new Error('Could not load uploaded PDFs from Cloudflare R2.')
     const result = await response.json()
     return result.books ?? []
@@ -109,7 +117,7 @@ export const bookStore = {
   async remove(key) {
     if (!key || !MEDIA_API) return
     await ensureMediaApi()
-    const response = await fetch(`${MEDIA_API}/books/${key}`, { method: 'DELETE' })
+    const response = await fetch(`${MEDIA_API}/books/${key}`, { method: 'DELETE', headers: { Authorization: await adminAuthorization() } })
     if (!response.ok) throw new Error('Could not remove the old PDF preview from Cloudflare R2.')
   },
 }

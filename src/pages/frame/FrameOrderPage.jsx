@@ -5,7 +5,7 @@ import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
-import { getProduct, ordersApi } from '../../shared/services/contentService'
+import { getFrameProduct, getProduct, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
@@ -16,12 +16,15 @@ import { photoStore } from '../order/lib/photoStore'
 
 export default function FrameOrderPage() {
   const [params] = useSearchParams()
+  const frameId = params.get('frame')
   const navigate = useNavigate()
   const { add: addToCart } = useCart()
   const { user } = useAuth()
-  const { data: product, loading } = useAsync(() => getProduct('frame'))
-  const options = parseOptions(product?.options)
-  const option = options.find((entry) => entry.id === params.get('size')) ?? options[0]
+  const { data: legacyProduct, loading: legacyLoading } = useAsync(() => frameId ? Promise.resolve(null) : getProduct('frame'), [frameId])
+  const { data: frame, loading: frameLoading } = useAsync(() => frameId ? getFrameProduct(frameId) : Promise.resolve(null), [frameId])
+  const product = frame ? { id: frame.id, name: frame.title, image: frame.image } : legacyProduct
+  const options = frame ? [{ id: frame.id, label: frame.title, price: Number(frame.price), mrp: Number(frame.mrp) || 0 }] : parseOptions(product?.options)
+  const option = frame ? options[0] : options.find((entry) => entry.id === params.get('size')) ?? options[0]
   const qtyValue = Number(params.get('qty'))
   const qty = Number.isInteger(qtyValue) ? Math.min(20, Math.max(1, qtyValue)) : 1
   const cartMode = params.get('mode') === 'cart'
@@ -41,7 +44,7 @@ export default function FrameOrderPage() {
     if (placedOrder) window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [placedOrder])
 
-  if (loading) return <p className="py-32 text-center text-ink/60">Loading frame order…</p>
+  if (legacyLoading || frameLoading) return <p className="py-32 text-center text-ink/60">Loading frame order…</p>
   if (!product || !option) return <div className="py-24 text-center">Frame size is unavailable. <Link className="text-brand underline" to="/frame">Choose a frame size</Link></div>
 
   const handleFile = (event) => {
@@ -83,7 +86,8 @@ export default function FrameOrderPage() {
       const savedFramePhotos = photoStore.list(framePhotoKey.current)
       const savedReference = photoStore.list(referenceKey.current)[0]
       const item = {
-        kind: 'product', id: product.id, name: product.name, image: product.image,
+        kind: frame ? 'frame' : 'product', id: frame?.id ?? product.id, name: product.name, image: product.image,
+        ...(frame ? { type: 'frame', optionId: frame.id } : {}),
         optionLabel: option.label, price: option.price, mrp: option.mrp, qty,
         meta: { cartConfigId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}` },
         photos: {

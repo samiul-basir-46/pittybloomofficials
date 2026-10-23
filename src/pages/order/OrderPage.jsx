@@ -69,7 +69,7 @@ function reconcile(draft, { sizes, formats, addons, products, settings }) {
 
 function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, settings, resumeDraft, customerProfile, customerEmail, cartMode }) {
   const navigate = useNavigate()
-  const { items: cartItems, add: addToCart, put: putCartItem, replace: replaceCartItem } = useCart()
+  const { items: cartItems, add: addToCart, put: putCartItem, replace: replaceCartItem, remove: removeCartItem } = useCart()
   const [params, setParams] = useSearchParams()
   const setStepParam = (nextStep) => setParams((current) => {
     const next = new URLSearchParams(current)
@@ -349,8 +349,10 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
       // no success screen, no message opened, and the draft is kept so the customer can try again.
       const savedOrder = await ordersApi.place(order, submissionKey.current)
 
-      // The order is placed, so its saved cart draft is no longer needed
+      // The order is placed, so local photos and any saved copy of this draft are no longer needed.
+      await photoStore.removeFiles(order.items.flatMap((item) => item.photos?.files ?? []))
       if (draft.savedId) await savedDrafts.remove(draft.savedId).catch(() => {})
+      if (draft.savedId) cartItems.filter((item) => item.meta?.draftId === draft.savedId).forEach((item) => removeCartItem(item.key))
       orderDraft.clear()
       setResult({ order: savedOrder })
       setStatus('done')

@@ -139,6 +139,13 @@ export const photoStore = {
     cache.set(key, current.filter((p) => p.id !== id))
     withStore('readwrite', (store) => store.delete(id)).catch(() => {})
   },
+  async removeFiles(files = []) {
+    const ids = [...new Set(files.map((file) => file?.id).filter(Boolean))]
+    for (const [key, photos] of cache.entries()) {
+      photos.filter((photo) => ids.includes(photo.id)).forEach((photo) => this.remove(key, photo.id))
+    }
+    await Promise.all(ids.map((id) => withStore('readwrite', (store) => store.delete(id)).catch(() => {})))
+  },
   clear() {
     objectUrls.forEach((url) => URL.revokeObjectURL?.(url))
     objectUrls.clear()

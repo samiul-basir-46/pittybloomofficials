@@ -8,6 +8,7 @@ import FaqPage from './pages/faq/FaqPage'
 import PolicyPage from './pages/policy/PolicyPage'
 import FramePage from './pages/frame/FramePage'
 import FrameOrderPage from './pages/frame/FrameOrderPage'
+import FrameDetailPage from './pages/frame/FrameDetailPage'
 import PolaroidsPage from './pages/polaroids/PolaroidsPage'
 import PolaroidsOrderPage from './pages/polaroids/PolaroidsOrderPage'
 import StickerPage from './pages/sticker/StickerPage'
@@ -31,6 +32,9 @@ import DraftDetailPage from './admin/DraftDetailPage'
 import ManualOrderPage from './pages/manual-order/ManualOrderPage'
 import AdminLoginPage from './admin/AdminLoginPage'
 import ManualOrderCatalogPage from './admin/ManualOrderCatalogPage'
+import SongBookPage from './pages/song-book/SongBookPage'
+import SongBookDetailPage from './pages/song-book/SongBookDetailPage'
+import SongBookOrderPage from './pages/song-book/SongBookOrderPage'
 import FrameSettingsPage from './admin/FrameSettingsPage'
 import { AdminAuthProvider } from './admin/AdminAuthContext'
 
@@ -49,9 +53,14 @@ export default function App() {
           <Route path="magazines/:id" element={<MagazineDetailPage />} />
           <Route path="magazines/:id/order" element={<RequireCustomer><OrderPage /></RequireCustomer>} />
           <Route path="magazines/:id/details" element={<OrderDetailsPage />} />
+          <Route path="song-book" element={<Navigate to="/song-books" replace />} />
+          <Route path="song-books" element={<SongBookPage />} />
+          <Route path="song-books/:id" element={<SongBookDetailPage />} />
+          <Route path="song-books/:id/order" element={<RequireCustomer><SongBookOrderPage /></RequireCustomer>} />
 
           {/* One page per product, each in its own folder under src/pages (placeholders for now) */}
           <Route path="frame" element={<FramePage />} />
+          <Route path="frame/:id" element={<FrameDetailPage />} />
           <Route path="frame/order" element={<RequireCustomer><FrameOrderPage /></RequireCustomer>} />
           <Route path="polaroids" element={<PolaroidsPage />} />
           <Route path="polaroids/order" element={<RequireCustomer><PolaroidsOrderPage /></RequireCustomer>} />

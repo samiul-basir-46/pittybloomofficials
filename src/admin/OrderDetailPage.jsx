@@ -106,7 +106,7 @@ export function PhotoGallery({ photos }) {
 }
 
 function OrderItem({ item, index, image, onDownloadPhotos, zipLoading }) {
-  const label = item.kind === 'magazine' ? 'Magazine' : item.kind === 'addon' ? 'Add-on' : item.kind || 'Product'
+  const label = item.kind === 'magazine' ? 'Magazine' : item.kind === 'song-book' ? 'Song Book' : item.kind === 'addon' ? 'Add-on' : item.kind || 'Product'
   const magazine = item.kind === 'magazine'
   return <article className="overflow-hidden rounded-xl border border-sand bg-[#fffefa]">
     <div className="flex items-center gap-3 p-4 sm:px-5">

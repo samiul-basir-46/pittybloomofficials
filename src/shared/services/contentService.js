@@ -1,9 +1,12 @@
 import { store } from './storage'
 import { bookStore } from './bookStore'
+import { deleteCatalogImage } from './catalogImageStore'
 import { bestSelling, moreProducts } from '../../pages/home/data'
 import { magazines } from '../../pages/magazines/data'
+import { songBooks } from '../../pages/song-book/data'
 import { SIZES } from '../../pages/magazine-detail/data'
 import { products } from '../../pages/products/data'
+import { frameProducts } from '../../pages/frame/data'
 import { addons } from '../../pages/addons/data'
 import { ORDER_DEFAULTS, OCCASIONS } from '../../pages/order/data'
 import { faqs } from '../../pages/faq/data'
@@ -27,6 +30,40 @@ const collection = (key, seed, sort = (items) => items) => ({
 export const bestSellingApi = collection('bestSelling', bestSelling)
 export const moreProductsApi = collection('moreProducts', moreProducts)
 const magazinesCollection = collection('magazines', magazines)
+const songBooksCollection = collection('songBooks', songBooks, (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
+export const songBooksApi = {
+  ...songBooksCollection,
+  list: async () => (await songBooksCollection.list()).map((book) => {
+    const { preview12, preview16, ...current } = book
+    return { ...current, previewBook: current.previewBook ?? preview12 ?? preview16 ?? null }
+  }),
+  save: async (item) => {
+    const previous = (await songBooksCollection.list()).find((book) => book.id === item.id)
+    const { preview12, preview16, ...current } = item
+    current.previewBook ??= preview12 ?? preview16 ?? null
+    const result = await songBooksCollection.save(current)
+    for (const field of ['image', 'backImage']) {
+      if (previous?.[field] && previous[field] !== current[field]) await deleteCatalogImage(previous[field]).catch(() => {})
+    }
+    const oldPreviewKeys = new Set([previous?.previewBook?.key, previous?.preview12?.key, previous?.preview16?.key].filter(Boolean))
+    for (const key of oldPreviewKeys) {
+      if (key !== current.previewBook?.key) await bookStore.remove(key).catch(() => {})
+    }
+    return result
+  },
+  remove: async (id) => {
+    const previous = (await songBooksCollection.list()).find((book) => book.id === id)
+    const result = await songBooksCollection.remove(id)
+    for (const field of ['image', 'backImage']) {
+      if (previous?.[field]) await deleteCatalogImage(previous[field]).catch(() => {})
+    }
+    const previewKeys = new Set([previous?.previewBook?.key, previous?.preview12?.key, previous?.preview16?.key].filter(Boolean))
+    for (const key of previewKeys) await bookStore.remove(key).catch(() => {})
+    return result
+  },
+}
+export const getSongBooks = async () => (await songBooksApi.list()).filter((item) => item.status !== 'Inactive')
+export const getSongBook = async (id) => (await songBooksApi.list()).find((item) => item.id === id && item.status !== 'Inactive') ?? null
 export const magazinesApi = {
   ...magazinesCollection,
   save: async (item) => {
@@ -51,6 +88,7 @@ const sizesCollection = collection('printSizes', SIZES, (items) =>
 export const sizesApi = { ...sizesCollection, saveAll: (items) => store.set('printSizes', items) }
 export const occasionsApi = collection('occasions', OCCASIONS, (items) => [...items].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)))
 export const productsApi = collection('products', products)
+export const frameProductsApi = collection('frameProducts', frameProducts, (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
 export const addonsApi = collection('addons', addons)
 const localOrdersApi = collection('orders', [], (items) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
 const changeLocalOrderStatus = async (id, status, fields = {}) => {
@@ -303,6 +341,8 @@ export const getSizes = async () => (await sizesApi.list()).filter((s) => s.pric
 export const getOccasions = async () => (await occasionsApi.list()).filter((o) => o.status !== 'Inactive')
 export const getProducts = productsApi.list
 export const getProduct = async (id) => (await productsApi.list()).find((p) => p.id === id) ?? null
+export const getFrameProducts = async () => (await frameProductsApi.list()).filter((item) => item.status !== 'Inactive')
+export const getFrameProduct = async (id) => (await getFrameProducts()).find((item) => item.id === id) ?? null
 export const getActiveAddons = async () => (await addonsApi.list()).filter((a) => a.status !== 'Inactive')
 export const getFaqs = faqsApi.list
 export const getPolicies = policiesApi.list

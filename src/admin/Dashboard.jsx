@@ -11,7 +11,7 @@ const CATEGORIES = [
   { id: 'magazine', label: 'Magazine', test: (item) => item.kind === 'magazine' && !/mini/i.test(`${item.name} ${item.optionLabel}`) },
   { id: 'frame', label: 'Frame', test: (item) => /frame/i.test(`${item.name} ${item.optionLabel}`) },
   { id: 'polaroid', label: 'Polaroids', test: (item) => /polaroid/i.test(`${item.name} ${item.optionLabel}`) },
-  { id: 'song-book', label: 'Song Book', test: (item) => /song\s*book/i.test(`${item.name} ${item.optionLabel}`) },
+  { id: 'song-book', label: 'Song Book', test: (item) => item.kind === 'song-book' || /song\s*book/i.test(`${item.name} ${item.optionLabel}`) },
   { id: 'sticker', label: 'Sticker', test: (item) => /sticker/i.test(`${item.name} ${item.optionLabel}`) },
   { id: 'mini-magazine', label: 'Mini Magazine', test: (item) => /mini.*magazine|magazine.*mini/i.test(`${item.name} ${item.optionLabel}`) },
 ]

@@ -23,3 +23,18 @@ export async function uploadCatalogImage(dataUrl) {
   if (!response.ok) throw new Error(result?.error || 'Could not upload the image to Cloudflare.')
   return `${MEDIA_API}/catalog-images/${id}`
 }
+
+export async function deleteCatalogImage(imageUrl) {
+  if (!MEDIA_API || !imageUrl) return
+  let pathname
+  try { pathname = new URL(imageUrl).pathname } catch { return }
+  const match = pathname.match(/\/catalog-images\/([a-zA-Z0-9_-]{8,80})$/)
+  if (!match) return
+  if (!adminAuth?.currentUser) throw new Error('Sign in to the admin account before removing an image.')
+  const token = await adminAuth.currentUser.getIdToken()
+  const response = await fetch(`${MEDIA_API}/catalog-images/${match[1]}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok && response.status !== 404) {
+    const result = await response.json().catch(() => null)
+    throw new Error(result?.error || 'Could not remove the image from Cloudflare.')
+  }
+}

@@ -55,3 +55,267 @@ body {
   @apply bg-white font-sans text-ink antialiased;
 }
 
+main > div > section,
+main [data-motion-item] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 650ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+main > div > section.motion-visible,
+main [data-motion-item].motion-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+main [data-motion-item]:nth-child(2) { transition-delay: 70ms; }
+main [data-motion-item]:nth-child(3) { transition-delay: 140ms; }
+main [data-motion-item]:nth-child(4) { transition-delay: 210ms; }
+main [data-motion-item]:nth-child(5) { transition-delay: 280ms; }
+
+.opening-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #512e30;
+  color: #fff;
+  pointer-events: none;
+  animation: opening-exit 2.2s cubic-bezier(0.76, 0, 0.18, 1) forwards;
+}
+
+.opening-intro::before {
+  position: absolute;
+  z-index: 0;
+  inset: -25%;
+  background: radial-gradient(ellipse at center, rgb(225 97 145 / 24%), transparent 58%);
+  content: '';
+  animation: opening-glow 2s ease-out both;
+}
+
+.opening-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  animation: opening-content-in 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.opening-flower {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  animation: opening-flower-turn 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.opening-flower span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 19px;
+  height: 25px;
+  border-radius: 70% 70% 48% 48%;
+  background: #e16191;
+  transform: translate(-50%, -50%) rotate(var(--petal-angle)) translateY(-14px) scale(0.2);
+  animation: opening-petal 650ms cubic-bezier(0.18, 0.8, 0.2, 1) var(--petal-delay) forwards;
+}
+
+.opening-flower span:nth-child(1) { --petal-angle: 0deg; --petal-delay: 100ms; }
+.opening-flower span:nth-child(2) { --petal-angle: 90deg; --petal-delay: 180ms; }
+.opening-flower span:nth-child(3) { --petal-angle: 180deg; --petal-delay: 260ms; }
+.opening-flower span:nth-child(4) { --petal-angle: 270deg; --petal-delay: 340ms; }
+
+.opening-flower i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fcefee;
+  transform: translate(-50%, -50%) scale(0);
+  animation: opening-center 350ms cubic-bezier(0.2, 1.5, 0.4, 1) 500ms forwards;
+}
+
+.opening-name {
+  font-family: var(--font-serif);
+  font-size: clamp(42px, 11vw, 66px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.opening-name span {
+  color: #e9b5c6;
+}
+
+.opening-tagline {
+  color: rgb(255 255 255 / 72%);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
+  animation: opening-tagline-in 600ms ease 550ms both;
+}
+
+.opening-progress {
+  position: fixed;
+  z-index: 1;
+  inset: auto 0 0;
+  height: 4px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.opening-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #e16191, #d3a6ea);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: opening-progress 1.75s cubic-bezier(0.65, 0, 0.35, 1) 100ms forwards;
+}
+
+@keyframes opening-exit {
+  0%, 72% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes opening-glow {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes opening-content-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes opening-flower-turn {
+  from { transform: rotate(-30deg) scale(0.75); }
+  to { transform: rotate(0) scale(1); }
+}
+
+@keyframes opening-petal {
+  to { transform: translate(-50%, -50%) rotate(var(--petal-angle)) translateY(-14px) scale(1); }
+}
+
+@keyframes opening-center {
+  to { transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes opening-tagline-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes opening-progress {
+  to { transform: scaleX(1); }
+}
+
+.size-preview-sheet {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  aspect-ratio: 210 / 297;
+  padding: 8% 8% 10%;
+  background: linear-gradient(145deg, #fffdfa, #f5e7e4);
+  box-shadow: 0 12px 24px rgb(42 26 28 / 18%);
+}
+
+.size-preview-sheet--a4 { width: min(42vw, 210px); }
+.size-preview-sheet--a5 { width: min(29.6vw, 148px); }
+
+.size-preview-brand {
+  color: #532f30;
+  font-family: var(--font-serif);
+  font-size: clamp(8px, 2vw, 12px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.size-preview-art {
+  position: relative;
+  display: grid;
+  flex: 1;
+  width: 100%;
+  place-items: center;
+  overflow: hidden;
+  margin-block: 8%;
+  border-radius: 48% 48% 10px 10px;
+  background: linear-gradient(160deg, #f2c9d3 0%, #e8b6c6 48%, #b97888 100%);
+}
+
+.size-preview-sun {
+  position: absolute;
+  top: 13%;
+  right: 15%;
+  width: 22%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fce7c4;
+  box-shadow: 0 0 20px rgb(252 231 196 / 50%);
+}
+
+.size-preview-heart {
+  z-index: 1;
+  display: grid;
+  width: 42%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(255 253 250 / 82%);
+  color: #b3202a;
+}
+
+.size-preview-heart svg { width: 45%; height: 45%; }
+
+.size-preview-hill {
+  position: absolute;
+  right: -15%;
+  bottom: -13%;
+  width: 82%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.size-preview-hill--back {
+  right: auto;
+  left: -28%;
+  bottom: -22%;
+  background: #d79aa9;
+}
+
+.size-preview-hill--front { background: #87515c; }
+
+.size-preview-caption {
+  max-width: 100%;
+  color: #532f30;
+  font-family: var(--font-serif);
+  font-size: clamp(8px, 2vw, 12px);
+  font-style: italic;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main > div > section,
+  main [data-motion-item],
+  main > div > section.motion-visible,
+  main [data-motion-item].motion-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .opening-intro { display: none; }
+}
+

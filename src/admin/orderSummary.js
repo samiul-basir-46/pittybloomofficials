@@ -12,6 +12,11 @@ const magazineOf = (item) => {
   return { format, pages }
 }
 
+const songBookText = (item) => {
+  const pages = Number(item.meta?.pages ?? item.details?.find((detail) => /^pages$/i.test(detail.label))?.value?.match?.(/\d+/)?.[0])
+  return `${item.name}${pages ? ` (${pages}p)` : ''}${item.qty > 1 ? ` x${item.qty}` : ''}`
+}
+
 export function productsText(order) {
   const groups = []
   order.items
@@ -24,15 +29,18 @@ export function productsText(order) {
       else groups.push({ key, format, pages, count: item.qty })
     })
   const parts = groups.map((g) => `${g.format}(${g.count}pcs${g.pages ? `, ${g.pages}p` : ''})`)
-  order.items.filter((i) => i.kind !== 'magazine').forEach((i) => parts.push(i.qty > 1 ? `${i.name} x${i.qty}` : i.name))
+  order.items.filter((i) => i.kind !== 'magazine').forEach((i) => parts.push(i.kind === 'song-book' ? songBookText(i) : i.qty > 1 ? `${i.name} x${i.qty}` : i.name))
   return parts.join(' ,, ') || 'Custom Order'
 }
 
 // "🎂 Birthday" → "birthday". Several copies with different occasions: "birthday | couple".
 export function categoryText(order) {
   const found = order.items
-    .filter((i) => i.kind === 'magazine')
-    .map((i) => i.details?.find((d) => d.label === 'Occasion')?.value ?? '')
+    .flatMap((i) => i.kind === 'song-book'
+      ? [i.details?.find((d) => /^category$/i.test(d.label))?.value ?? '']
+      : i.kind === 'magazine'
+        ? [i.details?.find((d) => d.label === 'Occasion')?.value ?? '']
+        : [])
     .map((v) => v.replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase())
     .filter(Boolean)
   return [...new Set(found)].join(' | ') || 'personal'
@@ -72,6 +80,7 @@ const productSection = (item) => {
   const name = `${item.name ?? ''} ${item.optionLabel ?? ''}`.toLowerCase()
   if (/mini.*mag|mag.*mini/.test(name)) return 'Mini Magazine'
   if (item.kind === 'magazine') return 'Magazine'
+  if (item.kind === 'song-book') return 'Song Book'
   if (/polaroid/.test(name)) return 'Polaroid'
   if (/frame/.test(name)) return 'Frame'
   if (/song\s*book/.test(name)) return 'Song Book'
@@ -103,7 +112,7 @@ function orderLine(order, section, items, sectionCount, settings, now) {
   const magazine = section === 'Magazine'
   const products = magazine
     ? magazineText(items)
-    : items.map((item) => `${item.name}${Number(item.qty) > 1 ? ` (${item.qty}pcs)` : ''}`).join(' + ')
+    : items.map((item) => item.kind === 'song-book' ? songBookText(item) : `${item.name}${Number(item.qty) > 1 ? ` (${item.qty}pcs)` : ''}`).join(' + ')
   const occasions = magazine ? [...new Set(items.map((item) => detailValue(item, /^occasion$/i)).filter(Boolean).map((value) => titleCase(value.replace(/^[^\p{L}\p{N}]+/u, '').trim())))].join(' | ') : ''
   const personal = magazine ? [...new Set(items.flatMap((item) => (item.details ?? []).filter((row) => !/^occasion$/i.test(row.label) && !/note/i.test(row.label)).map((row) => row.value?.trim()).filter(Boolean)))].join(' , ') : ''
   const emoji = magazine ? items.map((item) => detailValue(item, /^occasion$/i).match(/^\p{Extended_Pictographic}/u)?.[0] ?? '').find(Boolean) ?? '' : ''

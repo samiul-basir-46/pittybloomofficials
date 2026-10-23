@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ImagePlus, Plus, Save, Trash2 } from 'lucide-react'
 import Button from '../shared/ui/Button'
 import useAsync from '../shared/hooks/useAsync'
@@ -100,6 +100,7 @@ export default function ManualOrderCatalogPage() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [frameDraft, setFrameDraft] = useState({ label: '', price: '' })
+  const formRef = useRef(null)
 
   useEffect(() => {
     if (!data) return
@@ -110,11 +111,23 @@ export default function ManualOrderCatalogPage() {
   }, [data])
 
   const cards = useMemo(() => catalog ? Object.values(catalog).sort((a, b) => Number(a.order) - Number(b.order)) : [], [catalog])
+  const current = catalog && frameProduct ? JSON.stringify({ catalog, frame: frameProduct.options, sizes }) : ''
+  const dirty = Boolean(initial && current !== initial)
+
+  useEffect(() => {
+    if (!dirty || busy || !catalog || !frameProduct) return undefined
+    const timeout = window.setTimeout(() => formRef.current?.requestSubmit(), 1000)
+    return () => window.clearTimeout(timeout)
+  }, [dirty, busy, catalog, frameProduct, sizes])
+
+  useEffect(() => {
+    if (!dirty && !busy) return undefined
+    const warnBeforeLeave = (event) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warnBeforeLeave)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave)
+  }, [dirty, busy])
   if (loading || !catalog || !frameProduct) return <div className="py-10 text-center text-sm text-ink/60">{loadError ? 'Could not load manual order settings.' : 'Loading manual order settings…'}{loadError && <button type="button" onClick={reload} className="ml-2 underline">Retry</button>}</div>
 
-  const initialValue = initial
-  const current = JSON.stringify({ catalog, frame: frameProduct.options, sizes })
-  const dirty = current !== initialValue
   const updateCard = (id, values) => { setMessage(''); setCatalog((rows) => ({ ...rows, [id]: { ...rows[id], ...values } })) }
   const updateSize = (id, values) => { setMessage(''); setSizes((rows) => rows.map((size) => size.id === id ? { ...size, ...values } : size)) }
   const frameOptions = parseOptions(frameProduct.options)
@@ -160,11 +173,12 @@ export default function ManualOrderCatalogPage() {
     setFrameDraft({ label: '', price: '' })
   }
 
-  return <form onSubmit={save} className="space-y-6 pb-24">
+  return <form ref={formRef} onSubmit={save} className="space-y-6 pb-24">
     <div>
       <p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Order setup</p>
       <h1 className="mt-1 font-serif text-3xl">Manual order products</h1>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-ink/60">Change the product cards customers see, upload card photos to Cloudflare, control which products are available, and manage prices and item limits.</p>
+      <p className="mt-2 text-xs text-ink/55">Changes save automatically after you stop editing. You can also save them now.</p>
     </div>
 
     {cards.map((card) => <section key={card.id} className="rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6">
@@ -211,7 +225,7 @@ export default function ManualOrderCatalogPage() {
     {message && <p role="status" className={`rounded-xl p-3 text-sm ${message.startsWith('Saved.') ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'}`}>{message}</p>}
     {loadError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Could not load all current settings.</p>}
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-4 py-3 backdrop-blur md:left-64">
-      <div className="mx-auto flex max-w-5xl items-center gap-3"><Button type="submit" disabled={busy || !dirty} className="gap-2"><Save size={16} /> {busy ? 'Saving…' : 'Save manual order settings'}</Button>{dirty && !message && <span className="text-xs text-amber-700">Unsaved changes</span>}{message.startsWith('Saved.') && <span className="inline-flex items-center gap-1 text-xs text-green-700"><Check size={15} /> Saved</span>}</div>
+      <div className="mx-auto flex max-w-5xl items-center gap-3"><Button type="submit" disabled={busy || !dirty} className="gap-2"><Save size={16} /> {busy ? 'Saving…' : 'Save changes now'}</Button>{dirty && !busy && <span className="text-xs text-amber-700">Unsaved changes · saving automatically</span>}{message.startsWith('Saved.') && <span className="inline-flex items-center gap-1 text-xs text-green-700"><Check size={15} /> Saved</span>}{message && !message.startsWith('Saved.') && <span role="alert" className="text-xs text-red-700">{message}</span>}</div>
     </div>
   </form>
 }

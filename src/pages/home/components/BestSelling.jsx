@@ -8,10 +8,11 @@ function Card({ item }) {
   return (
     <Link
       to={item.to || `/products/${item.id}`}
-      className="flex w-[calc((100%_-_1.5rem)/3)] flex-col rounded-lg bg-linear-to-b from-white to-sand p-2 shadow-lg sm:w-[320px] sm:rounded-xl sm:p-5 sm:shadow-xl"
+      data-motion-item
+      className="group flex w-[calc((100%_-_1.5rem)/3)] flex-col rounded-lg bg-linear-to-b from-white to-sand p-2 shadow-lg transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-2xl sm:w-[320px] sm:rounded-xl sm:p-5 sm:shadow-xl"
     >
       <div className="aspect-[4/5] overflow-hidden rounded-md shadow-md sm:rounded-lg">
-        <SmartImage src={item.image} alt={item.name} />
+        <SmartImage src={item.image} alt={item.name} className="transition-transform duration-500 group-hover:scale-105" />
       </div>
       <p className="px-1 py-2.5 text-center text-xs font-bold leading-tight text-warm sm:py-5 sm:text-xl">{item.name}</p>
     </Link>

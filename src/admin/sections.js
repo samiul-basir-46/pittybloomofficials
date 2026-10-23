@@ -1,4 +1,4 @@
-import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, PackagePlus, PartyPopper, ShoppingBag, Star, Tag } from 'lucide-react'
+import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, Music2, PackagePlus, PartyPopper, ShoppingBag, Star, Tag } from 'lucide-react'
 import {
   bestSellingApi,
   faqsApi,
@@ -11,6 +11,7 @@ import {
   productsApi,
   addonsApi,
   sizesApi,
+  songBooksApi,
 } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
 import { slugify } from '../shared/utils/text'
@@ -72,6 +73,34 @@ export const SECTIONS = [
     blank: { name: '', image: '', status: 'Available', tagline: '', description: '', options: 'Option name | 499' },
     label: (i) => i.name,
     columns: [{ key: 'status', label: 'Status' }],
+  },
+  {
+    path: 'song-books',
+    title: 'Song Books',
+    icon: Music2,
+    api: songBooksApi,
+    note: 'Add a Song Book here to publish it on the website. Upload one flipbook preview; customers choose 12 or 16 pages and that selection is saved with the order. List position controls order: 1 appears first, then 2, 3, and so on.',
+    fields: [
+      { name: 'title', label: 'Title', required: true },
+      { name: 'description', label: 'Description', type: 'textarea', rows: 3 },
+      { name: 'status', label: 'Availability', type: 'select', options: ['Available', 'Inactive'] },
+      { name: 'order', label: 'List position', type: 'number' },
+      { name: 'price12', label: '12 page price (BDT)', type: 'number', required: true },
+      { name: 'price16', label: '16 page price (BDT)', type: 'number', required: true },
+      { name: 'image', label: 'Cover image', type: 'image' },
+      { name: 'backImage', label: 'Back cover image (optional)', type: 'image' },
+      { name: 'previewBook', label: 'Flipbook preview (PDF or page images)', type: 'pdf' },
+    ],
+    blank: { title: '', description: '', status: 'Available', order: 10, price12: 849, price16: 1049, image: '', backImage: '', previewBook: null },
+    label: (item) => item.title,
+    columns: [
+      { key: 'status', label: 'Availability' },
+      { key: 'price12', label: '12 pages', format: formatPrice },
+      { key: 'price16', label: '16 pages', format: formatPrice },
+    ],
+    validate: async (item) => !Number.isFinite(Number(item.price12)) || Number(item.price12) < 1 || !Number.isFinite(Number(item.price16)) || Number(item.price16) < 1
+      ? 'Set a price of at least ৳1 for both page counts.'
+      : '',
   },
   {
     path: 'addons',

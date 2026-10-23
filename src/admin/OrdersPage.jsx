@@ -11,7 +11,7 @@ import { groupedOrderSummaries } from './orderSummary'
 
 const CATEGORY_TABS = [
   { id: 'magazine', label: 'Magazine', matches: (item) => item.kind === 'magazine' && !/mini/i.test(`${item.name} ${item.optionLabel}`) },
-  { id: 'song-book', label: 'Song Book', matches: (item) => /song\s*book/i.test(`${item.name} ${item.optionLabel}`) },
+  { id: 'song-book', label: 'Song Book', matches: (item) => item.kind === 'song-book' || /song\s*book/i.test(`${item.name} ${item.optionLabel}`) },
   { id: 'frame', label: 'Frame', matches: (item) => /frame/i.test(`${item.name} ${item.optionLabel}`) },
   { id: 'polaroids', label: 'Polaroids', matches: (item) => /polaroid/i.test(`${item.name} ${item.optionLabel}`) },
   { id: 'sticker', label: 'Sticker', matches: (item) => /sticker/i.test(`${item.name} ${item.optionLabel}`) },

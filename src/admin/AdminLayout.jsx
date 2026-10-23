@@ -14,7 +14,7 @@ const NAV_GROUPS = [
     { to: '/admin/cancelled-orders', label: 'Cancelled orders', icon: CircleX },
   ] },
   { title: 'Catalog', links: [
-    ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
+    ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'song-books', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
     { to: '/admin/frame-settings', label: 'Frame settings', icon: ImageIcon },
   ] },
   { title: 'Store setup', links: [
@@ -47,7 +47,7 @@ function UploadActivity() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{job.name}</p>
                 <p className={`text-xs ${job.status === 'error' ? 'text-red-600' : 'text-ink/60'}`}>
-                  {job.status === 'uploading' ? `${job.phase}${job.total ? ` · ${percent}%` : '…'}` : job.status === 'complete' ? 'Uploaded to Cloudflare. Edit a magazine to attach it.' : job.error}
+                  {job.status === 'uploading' ? `${job.phase}${job.total ? ` · ${percent}%` : '…'}` : job.status === 'complete' ? 'Uploaded to Cloudflare. Save the item to attach it.' : job.error}
                 </p>
               </div>
               {job.status !== 'uploading' && (

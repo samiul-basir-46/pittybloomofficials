@@ -10,7 +10,7 @@ import { useSettings } from '../context/SettingsContext'
 import { getNavLinks } from '../services/contentService'
 
 const linkClass = ({ isActive }) =>
-  `text-sm font-medium uppercase tracking-wide transition-colors hover:text-brand ${isActive ? 'text-brand' : ''}`
+  `inline-flex text-sm font-medium uppercase tracking-wide transition-[color,transform] duration-300 hover:-translate-y-0.5 hover:text-brand ${isActive ? 'text-brand' : ''}`
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -42,12 +42,12 @@ export default function Header() {
         <Link
           to="/"
           aria-label={settings.name}
-          className="absolute left-1/2 top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-[#FFF0F0] sm:static sm:size-12 sm:translate-x-0 sm:translate-y-0 sm:justify-self-center"
+          className="absolute left-1/2 top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-[#FFF0F0] transition-transform duration-300 hover:scale-110 sm:static sm:size-12 sm:translate-x-0 sm:translate-y-0 sm:justify-self-center motion-reduce:transform-none"
         >
           <SmartImage src={settings.logo} alt={settings.name} className="scale-125 rounded-full object-contain" />
         </Link>
         {!isManualOrderPage && <div className="col-start-3 flex items-center justify-end gap-4 sm:gap-5">
-          <Link to="/cart" className="relative" aria-label="Cart">
+          <Link to="/cart" className="relative transition-transform duration-200 hover:scale-110" aria-label="Cart">
             <ShoppingCart size={20} />
             {count > 0 && (
               <span className="absolute -right-2 -top-2 grid size-4 place-items-center rounded-full bg-heart text-[10px] font-bold text-white">

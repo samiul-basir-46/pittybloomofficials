@@ -12,7 +12,7 @@ export const LOCATIONS = [
 export { longDate }
 
 export default function DeliveryStep({ ctx }) {
-  const { draft, update, errors, clear, settings, now, totals, cartMode } = ctx
+  const { draft, update, errors, clear, settings, now, totals, cartMode, productName = 'magazine' } = ctx
   const d = draft.delivery
   const set = (key) => (value) => {
     clear(key)
@@ -32,7 +32,7 @@ export default function DeliveryStep({ ctx }) {
     <div className="space-y-6">
       <Card>
         {!cartMode && <><h2 className="text-lg font-bold">Who should we deliver to?</h2>
-        <p className="mt-1 text-sm text-ink/60">The person who will receive the magazine.</p></>}
+        <p className="mt-1 text-sm text-ink/60">The person who will receive the {productName}.</p></>}
         {cartMode && <h2 className="text-lg font-bold">Delivery area</h2>}
         <div className="mt-5 space-y-4">
           {!cartMode && <>
@@ -107,7 +107,7 @@ export default function DeliveryStep({ ctx }) {
 
       <Card>
         <h2 className="flex items-center gap-2 text-lg font-bold">
-          <CalendarDays size={20} className="text-brand" /> {cartMode ? 'Choose a delivery date for your magazine' : 'When do you need the magazine?'}
+          <CalendarDays size={20} className="text-brand" /> {cartMode ? `Choose a delivery date for your ${productName}` : `When do you need the ${productName}?`}
         </h2>
         {(rule || settings.standardNote) && (
           <p className="mt-3 flex gap-2 rounded-xl border border-sand bg-cream px-4 py-3 text-sm leading-6 text-ink/75">

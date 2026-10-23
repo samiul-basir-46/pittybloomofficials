@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Frame, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eye, Frame, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
-import { getOrderSettings, getProducts, getSizes } from '../../shared/services/contentService'
+import { getManualOrderCatalog, getOrderSettings, getProducts, getSizes } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { deliveryFee, dhakaToday, expeditedSurcharge, minimumDeliveryDate, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog } from './catalog'
+import MagazineSizePreview from './MagazineSizePreview'
 
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
 const CATEGORIES = ['Birthday', 'Couple', 'Anniversary', 'Personal', 'Parents', 'Marriage', 'Special Day', 'Farewell', 'Best Friends', 'Other']
@@ -68,7 +69,7 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
           {['frontId', 'backId'].map((coverKey) => {
             const selectedCover = (coverKey === 'frontId' ? frontId : backId) === preview.id
             const label = coverKey === 'frontId' ? 'Front' : 'Back'
-            return <button key={coverKey} type="button" aria-label={`Use ${preview.file.name} for ${label.toLowerCase()} cover`} aria-pressed={selectedCover} onClick={() => onCoverChange(coverKey, selectedCover ? '' : preview.id)} className={`min-h-8 min-w-0 flex-1 rounded-md border px-1 text-[11px] font-semibold transition ${selectedCover ? 'border-brand bg-brand text-white' : 'border-sand text-ink hover:border-brand hover:text-brand'}`}>{selectedCover ? '✓ ' : ''}{label}</button>
+            return <button key={coverKey} type="button" aria-label={`Use ${preview.file.name} for ${label.toLowerCase()} cover`} aria-pressed={selectedCover} onClick={() => onCoverChange(coverKey, selectedCover ? '' : preview.id)} className={`min-h-8 min-w-0 flex-1 rounded-md border px-1 text-[11px] font-semibold transition ${selectedCover ? 'border-brand bg-brand text-white' : 'border-sand text-ink hover:border-brand hover:text-brand'}`}>{selectedCover ? 'âœ“ ' : ''}{label}</button>
           })}
         </div>}
       </div>)}
@@ -201,6 +202,7 @@ export default function ManualOrderPage() {
   const productsData = useAsync(getProducts)
   const sizesData = useAsync(getSizes)
   const settingsData = useAsync(getOrderSettings)
+  const manualCatalogData = useAsync(getManualOrderCatalog)
   const [selected, setSelected] = useState({})
   const [polaroid, setPolaroid] = useState({ quantity: 9, photos: [], reference: null })
   const [frames, setFrames] = useState([])
@@ -211,6 +213,7 @@ export default function ManualOrderPage() {
   const [customer, setCustomer] = useState({ name: '', instagram: '', whatsapp: '' })
   const [step, setStep] = useState(0)
   const [expandedProduct, setExpandedProduct] = useState(null)
+  const [magazineSizePreviewOpen, setMagazineSizePreviewOpen] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -231,13 +234,13 @@ export default function ManualOrderPage() {
   const frameProduct = productCatalog.find((product) => product.id === 'frame')
   const frameOptions = useMemo(() => parseOptions(frameProduct?.options), [frameProduct?.options])
   const sizes = sizesData.data ?? []
-  const manualCatalog = mergeManualOrderCatalog(settingsData.data?.manualOrderCatalog ?? MANUAL_ORDER_CATALOG_DEFAULTS)
+  const manualCatalog = mergeManualOrderCatalog(manualCatalogData.data ?? MANUAL_ORDER_CATALOG_DEFAULTS)
   const manualCards = PRODUCT_META.map((meta) => ({ ...manualCatalog[meta.id], ...meta })).filter((card) => card.enabled).sort((a, b) => Number(a.order) - Number(b.order))
   const a4Sizes = sizes.filter((size) => size.format === 'A4' && size.price > 0 && size.pages >= 4 && size.pages <= 40 && size.pages % 4 === 0).sort((a, b) => a.pages - b.pages)
   const a5Sizes = sizes.filter((size) => size.format === 'A5' && [4, 8].includes(size.pages) && size.price > 0).sort((a, b) => a.pages - b.pages)
   const magazineOptions = [...a4Sizes, ...a5Sizes]
-  const loading = productsData.loading || sizesData.loading || settingsData.loading
-  const loadError = productsData.error || sizesData.error || settingsData.error
+  const loading = productsData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading
+  const loadError = productsData.error || sizesData.error || settingsData.error || manualCatalogData.error
   const items = [
     ...(selected.polaroids ? [{ key: 'polaroids', type: 'polaroids', qty: Number(polaroid.quantity) || 0, price: Number(manualCatalog.polaroids.unitPrice), photos: polaroid.photos, reference: polaroid.reference }] : []),
     ...(selected.frames ? frames.map((item) => ({ ...item, type: 'frame', price: frameOptions.find((option) => option.id === item.optionId)?.price || 0 })) : []),
@@ -265,6 +268,11 @@ export default function ManualOrderPage() {
   }
   const toggleProduct = (id) => {
     const enabling = !selected[id]
+    setErrors((current) => {
+      if (!current.products) return current
+      const { products: _products, ...remaining } = current
+      return remaining
+    })
     if (enabling) {
       setExpandedProduct(id)
       if (id === 'frames' && !frames.length) setFrames([makeItem('frame')])
@@ -279,6 +287,19 @@ export default function ManualOrderPage() {
     const panel = document.getElementById(`config-${expandedProduct}`)
     if (panel && typeof panel.scrollIntoView === 'function') panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [expandedProduct, step])
+  useEffect(() => {
+    if (!Object.keys(errors).length) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      const errorMessage = [...document.querySelectorAll('.text-red-700')]
+        .find((element) => element.getClientRects().length > 0)
+      if (!errorMessage) return
+      const fieldControl = errorMessage.closest('label')?.querySelector('input:not([type="hidden"]), select, textarea')
+      const target = fieldControl || errorMessage
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (fieldControl && !fieldControl.disabled) fieldControl.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [errors, step])
   const cardStartingPrice = (id) => {
     if (id === 'polaroids') return Number(manualCatalog.polaroids.unitPrice) * Number(manualCatalog.polaroids.minQuantity || 9)
     if (id === 'frames') return Math.min(...frameOptions.map((option) => option.price).filter((price) => price > 0), Infinity)
@@ -353,7 +374,18 @@ export default function ManualOrderPage() {
   const advance = () => {
     const next = step === 0 ? productSelectionErrors() : step === 1 ? productErrors() : step === 2 ? deliveryErrors() : customerErrors()
     setErrors(next)
-    if (Object.keys(next).length) return
+    if (Object.keys(next).length) {
+      if (step === 1) {
+        const firstError = Object.keys(next).find((key) => /^(polaroid|frame-|mini-|mag-|song-)/.test(key))
+        const productId = firstError?.startsWith('frame-') ? 'frames'
+          : firstError?.startsWith('mini-') ? 'miniMagazines'
+            : firstError?.startsWith('mag-') ? 'magazines'
+              : firstError?.startsWith('song-') ? 'songBooks'
+                : firstError?.startsWith('polaroid') ? 'polaroids' : null
+        if (productId) setExpandedProduct(productId)
+      }
+      return
+    }
     setStep((current) => Math.min(4, current + 1))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -477,6 +509,7 @@ export default function ManualOrderPage() {
                   <span className={`absolute right-2.5 top-2.5 grid size-6 place-items-center rounded-full shadow-sm sm:right-3 sm:top-3 sm:size-7 ${active ? 'bg-brand text-white' : 'border border-sand/80 bg-white/95 text-transparent'}`}><Check size={13} /></span>
                 </span>
                 <span className="block p-3 sm:p-4"><span className="block text-sm font-semibold leading-5 sm:text-base">{title}</span>
+                  {card.description && <span className="mt-1 block line-clamp-2 text-[10px] leading-4 text-ink/55 sm:text-xs">{card.description}</span>}
                   <span className="mt-1 block text-[10px] leading-4 text-ink/55 sm:text-xs">Starting from <strong className="text-xs text-brand sm:text-sm">{Number.isFinite(start) ? priceLabel(start) : 'Price not set'}</strong></span>
                 </span>
               </button>
@@ -492,7 +525,7 @@ export default function ManualOrderPage() {
         {selected.polaroids && <ProductSectionCard id="polaroids" title={manualCatalog.polaroids.title} subtitle={`Classic photo prints · ${formatPrice(manualCatalog.polaroids.unitPrice)} each · minimum ${manualCatalog.polaroids.minQuantity || 9}`} expanded={expandedProduct === 'polaroids'} onToggle={() => setExpandedProduct((current) => current === 'polaroids' ? null : 'polaroids')}>
           <div className="grid gap-5 sm:grid-cols-[1fr_2fr] sm:items-end">
             {field('How many Polaroids?', polaroid.quantity, (value) => setPolaroid((current) => ({ ...current, quantity: value, photos: Number(value) > 0 ? current.photos.slice(0, Number(value)) : current.photos })), { type: 'number', required: true, error: errors.polaroidQuantity })}
-            <div className="rounded-xl bg-cream px-4 py-3 text-sm">{formatPrice((Number(polaroid.quantity) || 0) * Number(manualCatalog.polaroids.unitPrice))} <span className="text-ink/55">· {Number(polaroid.quantity) || 0} prints × {formatPrice(manualCatalog.polaroids.unitPrice)}</span></div>
+            <div className="rounded-xl bg-cream px-4 py-3 text-sm">{formatPrice((Number(polaroid.quantity) || 0) * Number(manualCatalog.polaroids.unitPrice))} <span className="text-ink/55">· {Number(polaroid.quantity) || 0} prints Ã— {formatPrice(manualCatalog.polaroids.unitPrice)}</span></div>
           </div>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <UploadPicker title="Photos for your Polaroids" files={polaroid.photos} onChange={(photos) => setPolaroid({ ...polaroid, photos })} max={Math.max(1, Number(polaroid.quantity) || 1)} help={`Add exactly one photo for each Polaroid (${Number(polaroid.quantity) || 0} pieces).`} error={errors.polaroidPhotos} />
@@ -531,7 +564,7 @@ export default function ManualOrderPage() {
         </ProductSectionCard>}
 
         {selected.magazines && <ProductSectionCard id="magazines" title={`${manualCatalog.magazines.title}s`} subtitle="A4/A5 · page count, category, and photos per item" expanded={expandedProduct === 'magazines'} onToggle={() => setExpandedProduct((current) => current === 'magazines' ? null : 'magazines')}>
-          <div className="mb-4 flex flex-wrap gap-2 text-xs text-ink/55"><span className="rounded-full bg-cream px-3 py-1.5">A4 · 21 × 29.7 cm</span><span className="rounded-full bg-cream px-3 py-1.5">A5 · 14.8 × 21 cm</span></div>
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-ink/55"><span className="rounded-full bg-cream px-3 py-1.5">A4 - 21 x 29.7 cm</span><span className="rounded-full bg-cream px-3 py-1.5">A5 - 14.8 x 21 cm</span><button type="button" onClick={() => setMagazineSizePreviewOpen(true)} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-brand/20 bg-white px-3 py-1.5 font-semibold text-brand transition-colors hover:bg-cream"><Eye size={14} /> Preview size difference</button></div>
           <div className="space-y-4">{magazines.map((item, index) => {
             const size = magazineOptions.find((option) => option.id === item.sizeId)
             const photoErrors = galleryErrors('mag', item)
@@ -539,7 +572,7 @@ export default function ManualOrderPage() {
             return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-4 sm:p-5">
               <ItemHeader title={`Magazine #${index + 1}`} onRemove={() => removeProductItem(setMagazines, magazines, 'magazines', item.key)} />
               <div className="grid gap-4 sm:grid-cols-3">
-                <label className="block sm:col-span-2"><span className="mb-1.5 block text-sm font-medium">Size and page count</span><select value={item.sizeId} onChange={(event) => updateList(setMagazines, item.key, 'sizeId', event.target.value)} className={inputClass}><option value="">Choose size and pages</option>{a4Sizes.length > 0 && <optgroup label="A4 · 21 × 29.7 cm">{a4Sizes.map((option) => <option key={option.id} value={option.id}>{option.pages} pages · {formatPrice(option.price)}</option>)}</optgroup>}{a5Sizes.length > 0 && <optgroup label="A5 · 14.8 × 21 cm">{a5Sizes.map((option) => <option key={option.id} value={option.id}>{option.pages} pages · {formatPrice(option.price)}</option>)}</optgroup>}</select>{errors[`mag-${item.key}-size`] && <span className="mt-1 block text-xs text-red-700">{errors[`mag-${item.key}-size`]}</span>}</label>
+                <label className="block sm:col-span-2"><span className="mb-1.5 block text-sm font-medium">Size and page count</span><select value={item.sizeId} onChange={(event) => updateList(setMagazines, item.key, 'sizeId', event.target.value)} className={inputClass}><option value="">Choose size and pages</option>{a4Sizes.length > 0 && <optgroup label="A4 · 21 Ã— 29.7 cm">{a4Sizes.map((option) => <option key={option.id} value={option.id}>{option.pages} pages · {formatPrice(option.price)}</option>)}</optgroup>}{a5Sizes.length > 0 && <optgroup label="A5 · 14.8 Ã— 21 cm">{a5Sizes.map((option) => <option key={option.id} value={option.id}>{option.pages} pages · {formatPrice(option.price)}</option>)}</optgroup>}</select>{errors[`mag-${item.key}-size`] && <span className="mt-1 block text-xs text-red-700">{errors[`mag-${item.key}-size`]}</span>}</label>
                 <div className="rounded-xl bg-cream px-4 py-3"><span className="text-xs text-ink/55">Magazine price</span><p className="mt-1 font-semibold text-brand">{formatPrice(size?.price || 0)}</p></div>
               </div>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -639,6 +672,7 @@ export default function ManualOrderPage() {
       </div>
     </div>
   </Container>
+  {magazineSizePreviewOpen && <MagazineSizePreview onClose={() => setMagazineSizePreviewOpen(false)} />}
   {submitting && <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/55 p-4 backdrop-blur-sm" role="presentation">
     <section role="dialog" aria-modal="true" aria-labelledby="order-upload-title" aria-describedby="order-upload-description" className="w-full max-w-md rounded-2xl border border-sand bg-white p-6 shadow-2xl sm:p-8">
       <div className="mx-auto grid size-14 place-items-center rounded-full bg-cream text-brand"><Loader2 size={27} className="animate-spin" /></div>

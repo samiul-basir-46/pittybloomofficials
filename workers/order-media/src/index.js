@@ -189,11 +189,11 @@ export default {
     }
 
     const claims = await verifyFirebaseToken(request, env).catch(() => null)
-    const authlessAdminRoute = url.pathname === '/books'
-      || url.pathname.startsWith('/books/')
-      || url.pathname === '/steadfast/dispatch'
+    const isBookManagementRoute = url.pathname === '/books' || url.pathname.startsWith('/books/')
+    const authlessAdminRoute = url.pathname === '/steadfast/dispatch'
       || url.pathname === '/media'
     if (!claims && !authlessAdminRoute) return json({ error: 'A valid Firebase sign-in is required.' }, 401, cors)
+    if (isBookManagementRoute && !await hasAdminRole(request, env, claims)) return json({ error: 'Admin access is required to manage book previews.' }, 403, cors)
 
     if (request.method === 'POST' && url.pathname === '/steadfast/dispatch') {
       if (claims && !await hasAdminRole(request, env, claims)) return json({ error: 'Admin access is required to dispatch orders.' }, 403, cors)
