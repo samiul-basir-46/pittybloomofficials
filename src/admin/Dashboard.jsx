@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ClipboardList, Clock3, Flame, Truck, Wallet } from 'lucide-react'
 import useAsync from '../shared/hooks/useAsync'
-import { getOrderSettings, ordersApi } from '../shared/services/contentService'
+import useOrders from '../shared/hooks/useOrders'
+import { getOrderSettings } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
 import { ACTIVE_STATUSES, compareByDelivery, getUrgency } from '../shared/utils/urgency'
 
@@ -106,7 +107,7 @@ function StatusPill({ status }) {
 }
 
 export default function Dashboard() {
-  const ordersQuery = useAsync(ordersApi.list)
+  const ordersQuery = useOrders()
   const settingsQuery = useAsync(getOrderSettings)
   const now = useMemo(() => new Date(), [])
   const [chartRange, setChartRange] = useState('7d')

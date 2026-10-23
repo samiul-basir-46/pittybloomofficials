@@ -3,15 +3,16 @@ import Container from '../../shared/ui/Container'
 import SmartImage from '../../shared/ui/SmartImage'
 import useAsync from '../../shared/hooks/useAsync'
 import { getSongBooks } from '../../shared/services/contentService'
+import ProductGrid from '../../shared/ui/ProductGrid'
 
 function SongBookCard({ book }) {
   return (
-    <Link to={`/song-books/${book.id}`} data-motion-item className="group block text-center transition-transform duration-300 hover:-translate-y-1">
+    <Link to={`/song-books/${book.id}`} data-motion-item className="group mx-auto block w-full max-w-[280px] text-center transition-transform duration-300 hover:-translate-y-1">
       <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-sand">
         <SmartImage src={book.image} alt={book.title} className="transition-transform duration-500 group-hover:scale-105" />
         {book.badge && <span className="absolute left-1/2 top-5 -translate-x-1/2 whitespace-nowrap rounded-full bg-heart px-4 py-1.5 text-sm font-bold uppercase text-white">{book.badge}</span>}
       </div>
-      <h2 className="mt-5 text-lg font-bold leading-snug">{book.title}</h2>
+      <h2 className="mt-3 text-base font-semibold leading-snug">{book.title}</h2>
     </Link>
   )
 }
@@ -33,9 +34,7 @@ export default function SongBookPage() {
         ) : data.length === 0 ? (
           <p className="py-20 text-center text-ink/60">There are no Song Books available right now.</p>
         ) : (
-          <div className="mx-auto grid max-w-[1384px] grid-cols-2 gap-x-5 gap-y-12 lg:grid-cols-4 lg:gap-x-14 lg:gap-y-16">
-            {data.map((book) => <SongBookCard key={book.id} book={book} />)}
-          </div>
+          <ProductGrid items={data} renderItem={(book) => <SongBookCard book={book} />} />
         )}
       </Container>
     </div>

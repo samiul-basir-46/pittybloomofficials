@@ -41,22 +41,21 @@ export const SITE = {
   facebookUrl: 'https://www.facebook.com/pittybloom.bd',
 }
 
-// Mobile positions come first (images sit in the narrow right column next to the text);
-// the lg: values are the original desktop layout.
+// Mobile positions use a full-width collage below the copy; lg: values retain the desktop layout.
 export const ABOUT_LAYOUT = [
   {
     alt: 'Magazine',
     className:
-      'left-[2%] top-[1%] w-[56%] aspect-[3/4] lg:left-[4%] lg:top-0 lg:w-[24%] motion-safe:animate-float',
+      'left-[2%] top-[1%] w-[46%] aspect-[3/4] lg:left-[4%] lg:top-0 lg:w-[24%] motion-safe:animate-float',
   },
   {
     alt: 'Frame',
     className:
-      'left-[40%] top-[34%] w-[58%] aspect-[4/5] lg:left-[34%] lg:top-[46%] lg:w-[26%] motion-safe:animate-float-reverse',
+      'left-[52%] top-[20%] w-[46%] aspect-[4/5] lg:left-[34%] lg:top-[46%] lg:w-[26%] motion-safe:animate-float-reverse',
   },
   {
     alt: 'Gift box',
     className:
-      'left-[6%] top-[66%] w-[54%] aspect-square -rotate-6 lg:left-auto lg:right-0 lg:top-[6%] lg:w-[32%] motion-safe:animate-float [animation-duration:9s] [animation-delay:-3s]',
+      'left-[28%] top-[56%] w-[40%] aspect-square -rotate-6 lg:left-auto lg:right-0 lg:top-[6%] lg:w-[32%] motion-safe:animate-float [animation-duration:9s] [animation-delay:-3s]',
   },
 ]

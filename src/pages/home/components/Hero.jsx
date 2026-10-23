@@ -9,10 +9,10 @@ export default function Hero() {
   const { settings } = useSettings()
 
   return (
-    <section className="bg-white pb-10 sm:pb-16">
-      <div className="relative h-[560px] overflow-hidden bg-brand sm:h-[680px]">
+    <section className="bg-white pb-8 sm:pb-10">
+      <div className="relative h-[560px] w-full overflow-hidden bg-brand sm:h-[600px]">
         <HeroSlider images={settings.heroImages.filter(Boolean)} />
-        <h1 className="absolute inset-x-0 top-[16%] select-none whitespace-nowrap text-center text-[13vw] font-extrabold leading-none tracking-tight text-white/50">
+        <h1 className="absolute inset-x-0 top-[16%] select-none whitespace-nowrap text-center text-[13vw] font-extrabold leading-none tracking-tight text-white/50 sm:hidden">
           {settings.heroWord}
         </h1>
         <Container className="absolute inset-x-0 bottom-16 flex flex-col items-end gap-4 text-right sm:bottom-20">

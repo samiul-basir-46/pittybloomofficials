@@ -15,6 +15,30 @@ async function adminAuthorization() {
 }
 
 export const bookStore = {
+  async updatePage(key, pageNumber, page) {
+    await ensureMediaApi()
+    const response = await fetch(`${MEDIA_API}/books/${key}/pages/${pageNumber}`, {
+      method: 'PUT',
+      headers: { Authorization: await adminAuthorization(), 'Content-Type': page.type || 'image/jpeg' },
+      body: page,
+    })
+    if (!response.ok) {
+      const result = await response.json().catch(() => null)
+      throw new Error(result?.error || `Could not save page ${pageNumber}.`)
+    }
+  },
+  async updateManifest(key, manifest) {
+    await ensureMediaApi()
+    const response = await fetch(`${MEDIA_API}/books/${key}/manifest`, {
+      method: 'PUT',
+      headers: { Authorization: await adminAuthorization(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(manifest),
+    })
+    if (!response.ok) {
+      const result = await response.json().catch(() => null)
+      throw new Error(result?.error || 'Could not save the book preview details.')
+    }
+  },
   async save(pages, metadata, sourceFile, onProgress) {
     const key = newKey()
     await ensureMediaApi()

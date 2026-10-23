@@ -23,7 +23,7 @@ const Card = ({ title, aside, children, className = '' }) => (
   </section>
 )
 
-const LabelValue = ({ label, children, className = '' }) => children ? <div className={className}><p className="text-xs text-ink/55">{label}</p><div className="mt-0.5 break-words text-sm font-medium">{children}</div></div> : null
+const LabelValue = ({ label, children, className = '' }) => children ? <div className={className}><p className="text-xs text-ink/55">{label}</p><div className="mt-0.5 break-words whitespace-pre-wrap text-sm font-medium">{children}</div></div> : null
 const EMPTY_PHOTO_FILES = []
 const safeFilenamePart = (value) => String(value || '').normalize('NFKC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim().replace(/\s+/g, '-').slice(0, 60)
 const isSteadfastUrl = (value) => {
@@ -106,7 +106,14 @@ export function PhotoGallery({ photos }) {
 }
 
 function OrderItem({ item, index, image, onDownloadPhotos, zipLoading }) {
-  const label = item.kind === 'magazine' ? 'Magazine' : item.kind === 'song-book' ? 'Song Book' : item.kind === 'addon' ? 'Add-on' : item.kind || 'Product'
+  const itemName = `${item.name ?? ''} ${item.optionLabel ?? ''}`
+  const label = item.kind === 'magazine' ? 'Magazine'
+    : item.kind === 'song-book' ? 'Song Book'
+      : item.kind === 'addon' ? 'Add-on'
+        : item.kind === 'frame' || /frame/i.test(itemName) ? 'Frame'
+          : item.kind === 'polaroids' || /polaroid/i.test(itemName) ? 'Polaroids'
+            : item.kind === 'mini-magazine' || /mini.*magazine|magazine.*mini/i.test(itemName) ? 'Mini Magazine'
+              : item.kind || 'Product'
   const magazine = item.kind === 'magazine'
   return <article className="overflow-hidden rounded-xl border border-sand bg-[#fffefa]">
     <div className="flex items-center gap-3 p-4 sm:px-5">

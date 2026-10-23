@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
+import { CheckCircle2, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
@@ -119,7 +119,6 @@ export default function PolaroidsOrderPage() {
         <p className="mt-2 text-sm text-ink/60">Order ID: <strong className="text-ink">{placedOrder.id}</strong>. We’ll contact you to confirm delivery and payment.</p>
         <Button className="mt-6" onClick={() => navigate('/account')}>View my orders</Button>
       </section> : <>
-        <Link to="/polaroids" className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"><ArrowLeft size={16} /> Back to Polaroids</Link>
         <div className="mt-5"><p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Polaroid order</p><h1 className="mt-1 font-serif text-4xl">Choose your photos</h1><p className="mt-2 text-sm text-ink/60">One uploaded photo makes one Polaroid. Each piece is ৳{unitPrice}.</p></div>
         <form onSubmit={placeOrder} className="mt-7 grid w-full min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
           <section className="min-w-0 max-w-full space-y-6 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-7">

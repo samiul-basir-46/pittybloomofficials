@@ -46,11 +46,11 @@ export default function GalleryField({ value, onChange }) {
   return (
     <div className="space-y-3">
       {list.length > 0 && (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <ul className="flex gap-2 overflow-x-auto pb-2">
           {list.map((item, index) => (
-            <li key={item.id} className="overflow-hidden rounded-xl border border-sand bg-cream/50">
+            <li key={item.id} className="w-28 shrink-0 overflow-hidden rounded-xl border border-sand bg-cream/50">
               <div className="aspect-square bg-sand/60"><SmartImage src={item.image} alt={item.name || `Design ${index + 1}`} /></div>
-              <div className="space-y-1.5 p-2">
+              <div className="space-y-1 p-1.5">
                 <input aria-label={`Design ${index + 1} name`} className={`${inputClass} !py-1.5 text-xs`} placeholder="Design name (optional)" value={item.name ?? ''} onChange={(event) => update(index, { name: event.target.value })} />
                 <div className="flex items-center justify-between">
                   <div className="flex gap-1">

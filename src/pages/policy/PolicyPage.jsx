@@ -14,7 +14,7 @@ export default function Policy() {
     <Container className="py-16 sm:py-24">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 font-serif text-4xl sm:text-5xl">{data.title}</h1>
-        <p className="whitespace-pre-line leading-8 text-ink/70">{data.content}</p>
+        <p className="break-words whitespace-pre-line leading-7 text-ink/70 sm:leading-8">{data.content}</p>
       </div>
     </Container>
   )

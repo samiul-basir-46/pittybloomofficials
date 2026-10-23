@@ -3,6 +3,7 @@ import MagazineCard from './components/MagazineCard'
 import useAsync from '../../shared/hooks/useAsync'
 import { useSettings } from '../../shared/context/SettingsContext'
 import { getMagazines } from '../../shared/services/contentService'
+import ProductGrid from '../../shared/ui/ProductGrid'
 
 export default function Magazines() {
   const { data, loading } = useAsync(getMagazines)
@@ -15,11 +16,7 @@ export default function Magazines() {
         {loading ? (
           <p className="py-20 text-center text-ink/60">Loading…</p>
         ) : (
-          <div className="mx-auto grid max-w-[1384px] grid-cols-2 gap-x-5 gap-y-12 lg:grid-cols-4 lg:gap-x-14 lg:gap-y-16">
-            {data.map((m) => (
-              <MagazineCard key={m.id} magazine={m} />
-            ))}
-          </div>
+          <ProductGrid items={data ?? []} renderItem={(magazine) => <MagazineCard magazine={magazine} />} />
         )}
       </Container>
     </div>

@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ArrowDownAZ, ArrowLeft, ArrowRight, FileText, Images, Trash2, Upload, X } from 'lucide-react'
-import { bookStore, originalBookUrl } from '../shared/services/bookStore'
+import { bookPageUrl, bookStore, originalBookUrl } from '../shared/services/bookStore'
 import { getBookUploads, startBookUpload, subscribeBookUploads } from '../shared/services/bookUploadQueue'
-import { naturalOrder } from '../shared/services/pdfBook'
+import { naturalOrder, readImageBook } from '../shared/services/pdfBook'
 
 export default function PdfField({ value, onChange }) {
   const [progress, setProgress] = useState(false)
   const [error, setError] = useState('')
   const [uploadedBooks, setUploadedBooks] = useState([])
   const [draft, setDraft] = useState([]) // page images waiting to be arranged: [{ id, file, url }]
+  const [previewRevision, setPreviewRevision] = useState(0)
   const dragFrom = useRef(null)
   const mounted = useRef(true)
   const uploadJobs = useSyncExternalStore(subscribeBookUploads, getBookUploads, getBookUploads)
@@ -86,6 +87,54 @@ export default function PdfField({ value, onChange }) {
     upload(files)
   }
 
+  const replacePage = async (pageNumber, file) => {
+    if (!file || !value?.key) return
+    setError('')
+    setProgress(true)
+    try {
+      const { pages } = await readImageBook([file])
+      await bookStore.updatePage(value.key, pageNumber, pages[0])
+      await bookStore.updateManifest(value.key, {
+        pageCount: Number(value.pageCount),
+        ratio: value.ratio || 1 / 1.4142,
+        name: value.name || 'Book preview',
+        sourceAvailable: false,
+      })
+      onChange({ ...value, sourceAvailable: false })
+      setPreviewRevision(Date.now())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not replace this page.')
+    } finally {
+      setProgress(false)
+    }
+  }
+
+  const appendPages = async (files) => {
+    if (!files.length || !value?.key) return
+    setError('')
+    setProgress(true)
+    try {
+      const { pages, ratio } = await readImageBook(files)
+      const firstNewPage = Number(value.pageCount || 0) + 1
+      for (let index = 0; index < pages.length; index++) {
+        await bookStore.updatePage(value.key, firstNewPage + index, pages[index])
+      }
+      const pageCount = firstNewPage - 1 + pages.length
+      await bookStore.updateManifest(value.key, {
+        pageCount,
+        ratio: value.ratio || ratio,
+        name: value.name || 'Book preview',
+        sourceAvailable: false,
+      })
+      onChange({ ...value, pageCount, sourceAvailable: false })
+      setPreviewRevision(Date.now())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add these pages.')
+    } finally {
+      setProgress(false)
+    }
+  }
+
   return (
     <div className="space-y-2">
       {value?.key && (
@@ -93,7 +142,7 @@ export default function PdfField({ value, onChange }) {
           <FileText size={20} className="shrink-0 text-brand" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{value.name || 'Book PDF'}</p>
-            <p className="text-xs text-ink/60">{value.pageCount} pages · ready for preview{value.sourceAvailable === false ? ' · from images' : ''}</p>
+            <p className="text-xs text-ink/60">{value.pageCount} pages · ready to preview</p>
             {value.sourceAvailable && <a href={originalBookUrl(value.key)} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold text-brand hover:underline">Open original PDF</a>}
           </div>
           <button
@@ -112,11 +161,45 @@ export default function PdfField({ value, onChange }) {
         {progress ? 'Uploading in background…' : value?.key ? 'Replace PDF' : 'Upload PDF'}
         <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={pickPdf} disabled={progress} />
       </label>
-      <label className={`ml-2 inline-flex items-center gap-1.5 rounded-lg border border-sand bg-white px-3 py-1.5 text-xs font-medium ${progress ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-sand/60'}`}>
-        <Images size={14} />
-        Upload HD images (JPG/PNG)
-        <input type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={pickImages} disabled={progress} />
-      </label>
+
+      {value?.key && (
+        <div className="mt-3 space-y-2.5 rounded-xl border border-sand bg-cream/40 p-2.5 sm:p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">Preview pages</p>
+              <p className="text-xs text-ink/60">Swipe through pages. Replace only the page you need.</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-ink/60">{value.pageCount} pages</span>
+          </div>
+          <ol className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:p-0 md:grid-cols-4 xl:grid-cols-6">
+            {Array.from({ length: Number(value.pageCount || 0) }, (_, index) => {
+              const pageNumber = index + 1
+              return (
+                <li key={`${value.key}-${pageNumber}`} className="w-[108px] shrink-0 snap-start overflow-hidden rounded-xl border border-sand bg-white p-1.5 shadow-sm sm:w-auto sm:min-w-0 sm:p-2 sm:shadow-none">
+                  <img src={`${bookPageUrl(value.key, pageNumber)}?v=${previewRevision}`} alt={`Preview page ${pageNumber}`} className="aspect-[3/4] w-full rounded-lg bg-cream object-contain" loading="lazy" />
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    <span className="text-xs font-medium">Page {pageNumber}</span>
+                    <label className={`inline-flex min-h-8 cursor-pointer items-center justify-center rounded-lg border border-sand px-1.5 text-[11px] font-semibold text-brand hover:bg-cream sm:text-xs ${progress ? 'pointer-events-none opacity-50' : ''}`}>
+                      Replace
+                      <input type="file" accept="image/jpeg,image/png" className="hidden" disabled={progress} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void replacePage(pageNumber, file) }} />
+                    </label>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
+          <label className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-sand bg-white px-3 py-2 text-xs font-medium hover:bg-sand/60 ${progress ? 'pointer-events-none opacity-50' : ''}`}>
+            <Images size={14} /> Add page images
+            <input type="file" accept="image/jpeg,image/png" multiple className="hidden" disabled={progress} onChange={(event) => { const files = [...(event.target.files || [])].sort(naturalOrder); event.target.value = ''; void appendPages(files) }} />
+          </label>
+        </div>
+      )}
+      {!value?.key && (
+        <label className={`ml-2 inline-flex items-center gap-1.5 rounded-lg border border-sand bg-white px-3 py-1.5 text-xs font-medium ${progress ? 'cursor-wait opacity-70' : 'cursor-pointer hover:bg-sand/60'}`}>
+          <Images size={14} /> Upload page images
+          <input type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={pickImages} disabled={progress} />
+        </label>
+      )}
 
 
       {draft.length > 0 && (
@@ -157,12 +240,12 @@ export default function PdfField({ value, onChange }) {
           </div>
         </div>
       )}
-      <p className="text-xs text-ink/50">Every page is prepared at 1200px wide: sharp on any phone and light enough to open instantly. PDF: the original is also stored unchanged. HD images: select all the pages at once, then arrange them in the order you want before uploading.</p>
+      <p className="text-xs text-ink/50">Upload a PDF or page images. For small edits, replace only the affected page or add just the new pages.</p>
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>}
 
       {uploadedBooks.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-ink/60">PDFs uploaded to Cloudflare — select one to attach</p>
+          <p className="text-xs font-medium text-ink/60">Previously uploaded previews</p>
           {uploadedBooks.slice(0, 5).map((book) => (
             <button
               key={book.key}
@@ -171,7 +254,7 @@ export default function PdfField({ value, onChange }) {
               onClick={() => onChange(book)}
               className="block w-full truncate rounded-lg border border-sand px-3 py-2 text-left text-xs hover:bg-cream disabled:opacity-50"
             >
-              {book.name} · {book.pageCount} pages {value?.key === book.key ? '· attached' : '· attach'}
+              {book.name} · {book.pageCount} pages {value?.key === book.key ? '· selected' : '· use this preview'}
             </button>
           ))}
         </div>

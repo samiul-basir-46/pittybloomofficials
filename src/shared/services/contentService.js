@@ -28,7 +28,28 @@ const collection = (key, seed, sort = (items) => items) => ({
 })
 
 export const bestSellingApi = collection('bestSelling', bestSelling)
-export const moreProductsApi = collection('moreProducts', moreProducts)
+const moreProductsCollection = collection('moreProducts', moreProducts)
+const SONG_BOOK_TILE_ID = 'song-books'
+const isSongBookTile = (item) => item.id === SONG_BOOK_TILE_ID || item.to === '/song-books'
+const songBookTile = (book) => ({ id: SONG_BOOK_TILE_ID, name: 'Song Books', image: book.image || '/images/products/song-book.jpg', to: '/song-books' })
+const SONG_BOOK_TILE_MIGRATION_KEY = 'moreProductsSongBookSeeded'
+export const moreProductsApi = {
+  ...moreProductsCollection,
+  list: async () => {
+    const items = await moreProductsCollection.list()
+    if (await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false)) return items
+    if (items.some(isSongBookTile)) {
+      await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
+      return items
+    }
+    const book = (await getSongBooks())[0]
+    if (!book) return items
+    const tile = songBookTile(book)
+    await moreProductsCollection.save(tile)
+    await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
+    return [...items, tile]
+  },
+}
 const magazinesCollection = collection('magazines', magazines)
 const songBooksCollection = collection('songBooks', songBooks, (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
 export const songBooksApi = {
@@ -147,6 +168,11 @@ const claimMatchingLegacyOrders = async (orders, user) => {
 }
 export const ordersApi = !firebaseConfigured ? {
   ...localOrdersApi,
+  watchAdmin: (onChange, onError) => {
+    let active = true
+    void localOrdersApi.list().then((orders) => { if (active) onChange(orders) }).catch((error) => { if (active) onError?.(error) })
+    return () => { active = false }
+  },
   watch: (onChange) => {
     void localOrdersApi.list().then(onChange)
     return () => {}
@@ -176,6 +202,26 @@ export const ordersApi = !firebaseConfigured ? {
       remote.push(imported)
     }
     return remote.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+  },
+  watchAdmin: (onChange, onError) => {
+    let active = true
+    let unsubscribe = () => {}
+    void (async () => {
+      const ref = fsCollection(adminDb, 'orders')
+      const orderQuery = query(ref, orderBy('createdAt', 'desc'))
+      const snapshot = await getDocs(orderQuery)
+      const known = new Set(snapshot.docs.map((entry) => entry.id))
+      for (const legacy of await localOrdersApi.list()) {
+        if (known.has(legacy.id)) continue
+        const imported = { ...legacy, ownerUid: legacy.ownerUid || 'legacy-local-order' }
+        await setDoc(doc(adminDb, 'orders', imported.id), imported)
+      }
+      if (!active) return
+      unsubscribe = onSnapshot(orderQuery, (current) => {
+        onChange(current.docs.map((entry) => entry.data()))
+      }, onError)
+    })().catch((error) => { if (active) onError?.(error) })
+    return () => { active = false; unsubscribe() }
   },
   listMine: async () => {
     const user = requireSignedIn()
@@ -334,7 +380,12 @@ export const manualOrderCatalogApi = {
 export const getManualOrderCatalog = manualOrderCatalogApi.get
 
 export const getBestSelling = bestSellingApi.list
-export const getMoreProducts = moreProductsApi.list
+export const getMoreProducts = async () => {
+  const items = await moreProductsCollection.list()
+  if (items.some(isSongBookTile) || await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false)) return items
+  const book = (await getSongBooks())[0]
+  return book ? [...items, songBookTile(book)] : items
+}
 export const getMagazines = magazinesApi.list
 // Customers only see sizes that have a price.
 export const getSizes = async () => (await sizesApi.list()).filter((s) => s.price > 0)

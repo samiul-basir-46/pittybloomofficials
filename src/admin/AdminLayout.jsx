@@ -47,7 +47,7 @@ function UploadActivity() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{job.name}</p>
                 <p className={`text-xs ${job.status === 'error' ? 'text-red-600' : 'text-ink/60'}`}>
-                  {job.status === 'uploading' ? `${job.phase}${job.total ? ` · ${percent}%` : '…'}` : job.status === 'complete' ? 'Uploaded to Cloudflare. Save the item to attach it.' : job.error}
+                  {job.status === 'uploading' ? `${job.phase}${job.total ? ` · ${percent}%` : '…'}` : job.status === 'complete' ? 'Upload complete. Save the item to keep this preview.' : job.error}
                 </p>
               </div>
               {job.status !== 'uploading' && (

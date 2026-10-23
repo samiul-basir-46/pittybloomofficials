@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Check, CheckCircle2, ImagePlus, Maximize2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
+import { Check, CheckCircle2, ImagePlus, Maximize2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
@@ -34,23 +34,23 @@ function DesignPreview({ design, onClose }) {
 }
 
 // One frame of the order: its own design and its own photos.
-function FramePiece({ index, total, designs, designId, photos, error, onDesign, onPhotos, onRemovePhoto, onRemove, onPreview }) {
+function FramePiece({ pieceKey, index, total, designs, designId, photos, error, onDesign, onPhotos, onRemovePhoto, onRemove, onPreview }) {
   const input = useRef(null)
-  return <section className="rounded-2xl border border-sand bg-[#fffefa] p-4 sm:p-5" aria-label={`Frame ${index + 1}`}>
+  return <section id={`frame-piece-${pieceKey}`} className={`min-w-0 max-w-full scroll-mt-24 rounded-2xl border p-4 sm:p-5 ${error ? 'border-red-300 bg-red-50/30' : 'border-sand bg-[#fffefa]'}`} aria-label={`Frame ${index + 1}`}>
     <div className="flex items-center justify-between gap-3">
       <h3 className="font-serif text-xl">{total > 1 ? `Frame #${index + 1}` : 'Your frame'}</h3>
       {total > 1 && <button type="button" onClick={onRemove} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-600 hover:bg-red-50"><Trash2 size={14} /> Remove</button>}
     </div>
 
-    {designs.length > 0 && <div className="mt-4">
-      <p className="text-sm font-semibold">Choose a design <span className="text-red-600">*</span></p>
-      <div role="radiogroup" aria-label={`Design for frame ${index + 1}`} className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+    {designs.length > 0 && <div className="mt-4 min-w-0 max-w-full">
+      <p className="text-sm font-semibold">Choose one design for this frame <span className="text-red-600">*</span></p>
+      <div role="radiogroup" aria-label={`Design for frame ${index + 1}`} className="mt-2 flex min-w-0 max-w-full gap-2 overflow-x-auto pb-2">
         {designs.map((design) => {
           const selected = design.id === designId
-          return <div key={design.id} className={`relative overflow-hidden rounded-xl border-2 bg-white ${selected ? 'border-brand shadow-sm' : 'border-sand'}`}>
+          return <div key={design.id} className={`relative w-[76px] shrink-0 overflow-hidden rounded-lg border-2 bg-white sm:w-[84px] ${selected ? 'border-brand shadow-sm' : 'border-sand'}`}>
             <button type="button" role="radio" aria-checked={selected} aria-label={design.name || 'Design'} onClick={() => onDesign(design.id)} className="block w-full text-left">
-              <img src={design.image} alt={design.name || 'Frame design'} loading="lazy" className="aspect-square w-full object-cover" />
-              {design.name && <span className="block truncate px-1.5 py-1 text-[11px] font-medium">{design.name}</span>}
+              <img src={design.image} alt={design.name || 'Frame design'} loading="lazy" className="size-[72px] object-cover sm:size-[80px]" />
+              {design.name && <span className="block truncate px-1 py-1 text-[10px] font-medium">{design.name}</span>}
             </button>
             {selected && <span className="pointer-events-none absolute left-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}
             <button type="button" aria-label={`View ${design.name || 'design'} larger`} onClick={() => onPreview(design)} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-ink shadow-sm hover:bg-white"><Maximize2 size={12} /></button>
@@ -59,18 +59,18 @@ function FramePiece({ index, total, designs, designId, photos, error, onDesign, 
       </div>
     </div>}
 
-    <div className="mt-5">
+    <div className="mt-5 min-w-0 max-w-full">
       <p className="text-sm font-semibold">Photos for {total > 1 ? `frame #${index + 1}` : 'your frame'} <span className="text-red-600">*</span></p>
-      <p className="mt-0.5 text-xs text-ink/60">Upload all the pictures you want printed in this frame.</p>
+      <p className="mt-0.5 text-xs text-ink/60">Upload all photos for this frame. Every photo in this group uses the design selected above. To use a different design, add another frame.</p>
       <input ref={input} type="file" accept="image/*" multiple className="sr-only" onChange={(event) => { onPhotos(Array.from(event.target.files ?? [])); event.target.value = '' }} />
       {photos.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-        {photos.map((photo) => <div key={photo.id} className="relative w-20 shrink-0 overflow-hidden rounded-xl border border-sand bg-cream sm:w-24">
+        {photos.map((photo) => <div key={photo.id} className="relative w-16 shrink-0 overflow-hidden rounded-lg border border-sand bg-cream sm:w-[72px]">
           {photo.url && <img src={photo.url} alt={photo.name} className="aspect-square w-full object-cover" />}
           <p className="truncate px-1.5 py-1 text-[11px]" title={photo.name}>{photo.name}</p>
           <button type="button" aria-label={`Remove ${photo.name}`} onClick={() => onRemovePhoto(photo.id)} className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-white/95 text-red-600 shadow-sm hover:bg-white"><Trash2 size={13} /></button>
         </div>)}
       </div>}
-      <button type="button" onClick={() => input.current?.click()} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={17} /> {photos.length ? 'Add more photos' : 'Upload your photos'}</button>
+      <button type="button" onClick={() => input.current?.click()} className="mt-3 flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-3 text-center text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={17} /> {photos.length ? 'Add more photos' : 'Upload your photos'}</button>
       <p className="mt-1.5 text-xs text-ink/50">{photos.length} photo{photos.length === 1 ? '' : 's'} selected. Each image can be up to 20 MB.</p>
     </div>
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
@@ -95,16 +95,14 @@ export default function FrameOrderPage() {
   // Each frame of a frame product is its own piece (own design, own photos). The old size-based product keeps one piece with a quantity.
   const perPiece = Boolean(frame)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [customerErrors, setCustomerErrors] = useState({})
   const [pieces, setPieces] = useState(() => [{ key: newKey(), designId: '' }])
   const [pieceErrors, setPieceErrors] = useState({})
   const [preview, setPreview] = useState(null)
-  const [reference, setReference] = useState(null)
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
   const [, refresh] = useReducer((count) => count + 1, 0)
-  const inputRef = useRef(null)
-  const referenceKey = useRef(`frame-reference-${newKey()}`)
   const requestKey = useRef(newKey())
   const photoKeyOf = (piece) => `frame-photo-${piece.key}`
 
@@ -119,6 +117,7 @@ export default function FrameOrderPage() {
 
   if (legacyLoading || frameLoading) return <p className="py-32 text-center text-ink/60">Loading frame order…</p>
   if (!product || !option) return <div className="py-24 text-center">Frame size is unavailable. <Link className="text-brand underline" to="/frame">Choose a frame size</Link></div>
+  if (!designs.length) return <Container className="py-24 text-center"><h1 className="font-serif text-3xl">Designs are being prepared</h1><p className="mt-3 text-sm text-ink/60">Please choose another frame or check back later.</p><Link to="/frame" className="mt-6 inline-flex rounded-full border border-sand px-5 py-2 text-sm font-medium">Back to Frames</Link></Container>
 
   const designOf = (piece) => designs.find((design) => design.id === piece.designId) ?? null
   const count = perPiece ? pieces.length : qty
@@ -152,40 +151,44 @@ export default function FrameOrderPage() {
     photoStore.remove(photoKeyOf(piece), id)
     refresh()
   }
-  const handleReference = (event) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    if (!file.type.startsWith('image/')) { setError('Choose an image file for the reference design.'); return }
-    if (file.size > 20 * 1024 * 1024) { setError('The reference image must be smaller than 20 MB.'); return }
-    const previous = photoStore.list(referenceKey.current)[0]
-    if (previous) photoStore.remove(referenceKey.current, previous.id)
-    const result = photoStore.add(referenceKey.current, [file])
-    setReference(result.added[0] ?? null)
-    setError('')
+  const setCustomerField = (field) => (event) => {
+    setCustomer((current) => ({ ...current, [field]: event.target.value }))
+    setCustomerErrors((current) => ({ ...current, [field]: '' }))
   }
-  const setCustomerField = (field) => (event) => setCustomer((current) => ({ ...current, [field]: event.target.value }))
 
   const placeOrder = async (event) => {
     event.preventDefault()
     if (placing) return
     setError('')
-    // Every frame needs its own photo (and a design, when the shop offers designs).
+    // Validate every frame and contact field ourselves so all problems are shown together.
     const problems = {}
     pieces.forEach((piece, index) => {
       const label = pieces.length > 1 ? `Frame #${index + 1}` : 'your frame'
-      if (designs.length && !piece.designId) problems[piece.key] = `Choose a design for ${label}.`
-      else if (!photoStore.list(photoKeyOf(piece)).length) problems[piece.key] = `Upload at least one photo for ${label}.`
+      const missing = []
+      if (!piece.designId) missing.push('choose a design')
+      if (!photoStore.list(photoKeyOf(piece)).length) missing.push('upload at least one photo')
+      if (missing.length) {
+        problems[piece.key] = `For ${label}, ${missing.join(' and ')}.`
+      }
     })
+    const contactProblems = cartMode ? {} : {
+      name: customer.name.trim() ? '' : 'Enter your full name.',
+      phone: customer.phone.trim() ? '' : 'Enter your WhatsApp or phone number.',
+      address: customer.address.trim() ? '' : 'Enter your delivery address.',
+    }
     setPieceErrors(problems)
-    if (Object.keys(problems).length) {
-      setError('Please finish the details shown in red.')
+    setCustomerErrors(contactProblems)
+    if (Object.keys(problems).length || Object.values(contactProblems).some(Boolean)) {
+      setError('')
+      const firstInvalidPiece = pieces.find((piece) => problems[piece.key])
+      window.requestAnimationFrame(() => {
+        document.getElementById(firstInvalidPiece ? `frame-piece-${firstInvalidPiece.key}` : 'frame-delivery-information')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
       return
     }
     setPlacing(true)
     try {
-      await photoStore.flush([...pieces.map(photoKeyOf), ...(reference ? [referenceKey.current] : [])])
-      const savedReference = photoStore.list(referenceKey.current)[0]
+      await photoStore.flush(pieces.map(photoKeyOf))
       const items = pieces.map((piece, index) => {
         const saved = photoStore.list(photoKeyOf(piece))
         const design = designOf(piece)
@@ -198,7 +201,6 @@ export default function FrameOrderPage() {
           photos: {
             count: saved.length,
             files: saved.map((photo) => ({ id: photo.id, name: photo.name, size: photo.size, type: photo.type, storageKey: photo.storageKey })),
-            ...(index === 0 && savedReference ? { reference: { id: savedReference.id, name: savedReference.name, size: savedReference.size, type: savedReference.type, storageKey: savedReference.storageKey } } : {}),
           },
         }
       })
@@ -229,14 +231,13 @@ export default function FrameOrderPage() {
         <p className="mt-2 text-sm text-ink/60">Order ID: <strong className="text-ink">{placedOrder.id}</strong>. We’ll contact you to confirm delivery and payment.</p>
         <Button className="mt-6" onClick={() => navigate('/account')}>View my orders</Button>
       </section> : <>
-        <Link to="/frame" className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"><ArrowLeft size={16} /> Back to frame</Link>
         <div className="mt-5">
           <p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Frame order</p>
           <h1 className="mt-1 font-serif text-4xl">Almost there</h1>
-          <p className="mt-2 text-sm text-ink/60">{designs.length ? 'Choose a design and add your photos for each frame.' : 'Add as many print photos as you need and an optional design reference.'}{cartMode ? ' You can add delivery information in your cart.' : ' Then add your delivery information.'}</p>
+          <p className="mt-2 text-sm text-ink/60">Choose a design and add the photo or photos for each frame.{cartMode ? ' You can add delivery information in your cart.' : ' Then add your delivery information.'}</p>
         </div>
-        <form onSubmit={placeOrder} className="mt-7 grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
-          <section className="space-y-6 rounded-2xl border border-sand bg-white p-5 shadow-sm sm:p-7">
+        <form noValidate onSubmit={placeOrder} className="mt-7 grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
+          <section className="min-w-0 max-w-full space-y-6 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-7">
             {perPiece && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream px-4 py-3">
               <div><p className="font-semibold">How many frames?</p><p className="text-xs text-ink/60">Each frame gets its own design and photos.</p></div>
               <div className="flex items-center gap-2" role="group" aria-label="Number of frames">
@@ -247,43 +248,32 @@ export default function FrameOrderPage() {
             </div>}
 
             {pieces.map((piece, index) => <FramePiece
-              key={piece.key} index={index} total={pieces.length} designs={designs} designId={piece.designId}
+              key={piece.key} pieceKey={piece.key} index={index} total={pieces.length} designs={designs} designId={piece.designId}
               photos={photoStore.list(photoKeyOf(piece))} error={pieceErrors[piece.key]}
               onDesign={(id) => chooseDesign(piece, id)} onPhotos={(files) => addPhotos(piece, files)} onRemovePhoto={(id) => removePhoto(piece, id)}
               onRemove={() => removePiece(piece)} onPreview={setPreview}
             />)}
 
-            {designs.length === 0 && <div className="border-t border-sand pt-6">
-              <h2 className="font-serif text-2xl">Reference design</h2>
-              <p className="mt-1 text-sm text-ink/60">Upload a screenshot to show how you want the frame to look. This is optional.</p>
-              <input ref={inputRef} type="file" accept="image/*" className="sr-only" onChange={handleReference} />
-              {reference ? <div className="mt-4 flex items-center gap-3 rounded-xl border border-sand bg-cream p-3">
-                {reference.url && <img src={reference.url} alt="Reference design preview" className="size-16 rounded-lg object-cover" />}
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">{reference.name}</span>
-                <button type="button" aria-label="Remove reference image" onClick={() => { photoStore.remove(referenceKey.current, reference.id); setReference(null) }} className="grid size-10 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50"><Trash2 size={17} /></button>
-              </div> : <button type="button" onClick={() => inputRef.current?.click()} className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={18} /> Upload reference screenshot</button>}
-            </div>}
-
-            {!cartMode && <div className="border-t border-sand pt-6">
+            {!cartMode && <div id="frame-delivery-information" className="min-w-0 scroll-mt-24 border-t border-sand pt-6">
               <h2 className="font-serif text-2xl">Delivery information</h2>
               <p className="mb-4 mt-1 text-sm text-ink/60">We’ll contact you to confirm the delivery details.</p>
               <div className="space-y-3">
-                <input className={inputClass} placeholder="Full name" autoComplete="name" required value={customer.name} onChange={setCustomerField('name')} />
-                <input className={inputClass} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" required value={customer.phone} onChange={setCustomerField('phone')} />
-                <textarea className={inputClass} rows={4} placeholder="Full delivery address" autoComplete="street-address" required value={customer.address} onChange={setCustomerField('address')} />
+                <div><input aria-label="Full name" aria-invalid={Boolean(customerErrors.name)} aria-describedby={customerErrors.name ? 'frame-name-error' : undefined} className={`${inputClass} ${customerErrors.name ? 'border-red-500' : ''}`} placeholder="Full name" autoComplete="name" value={customer.name} onChange={setCustomerField('name')} />{customerErrors.name && <p id="frame-name-error" className="mt-1 text-xs text-red-700">{customerErrors.name}</p>}</div>
+                <div><input aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} aria-describedby={customerErrors.phone ? 'frame-phone-error' : undefined} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p id="frame-phone-error" className="mt-1 text-xs text-red-700">{customerErrors.phone}</p>}</div>
+                <div><textarea aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} aria-describedby={customerErrors.address ? 'frame-address-error' : undefined} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={4} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p id="frame-address-error" className="mt-1 text-xs text-red-700">{customerErrors.address}</p>}</div>
               </div>
             </div>}
-            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {error && <p role="alert" aria-live="assertive" className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? (cartMode ? 'Adding to cart…' : 'Placing order…') : (cartMode ? 'Add to Cart' : 'Place order')} <ShoppingBag size={17} /></Button>
           </section>
-          <aside className="rounded-2xl border border-sand bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-6">
+          <aside className="min-w-0 max-w-full rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-6">
             <h2 className="font-serif text-2xl">Order summary</h2>
             <ul className="mt-5 divide-y divide-sand border-b border-sand">
               {pieces.map((piece, index) => {
                 const design = designOf(piece)
                 return <li key={piece.key} className="flex items-center gap-3 py-3 first:pt-0">
                   <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={design?.image || product.image} alt={design?.name || product.name} className="size-full object-cover" /></div>
-                  <div className="min-w-0 flex-1"><p className="font-semibold">{product.name}{pieces.length > 1 ? ` #${index + 1}` : ''}</p><p className="mt-1 truncate text-sm text-ink/60">{option.label}{design?.name ? ` · ${design.name}` : ''}{perPiece ? '' : ` · Qty ${qty}`}</p></div>
+                  <div className="min-w-0 flex-1"><p className="font-semibold">{product.name}{pieces.length > 1 ? ` #${index + 1}` : ''}</p><p className="mt-1 truncate text-sm text-ink/60">{design?.name || 'Choose a design'} · {photoStore.list(photoKeyOf(piece)).length} photo{photoStore.list(photoKeyOf(piece)).length === 1 ? '' : 's'}</p></div>
                   <p className="font-semibold">{formatPrice(unit * (perPiece ? 1 : qty))}</p>
                 </li>
               })}

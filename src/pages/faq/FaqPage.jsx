@@ -13,7 +13,7 @@ export default function Faq() {
         {(data ?? []).map((f) => (
           <details key={f.id} className="border-b border-sand py-4">
             <summary className="cursor-pointer font-semibold">{f.question}</summary>
-            <p className="mt-3 whitespace-pre-line text-ink/70">{f.answer}</p>
+            <p className="mt-3 break-words whitespace-pre-line text-ink/70">{f.answer}</p>
           </details>
         ))}
       </div>

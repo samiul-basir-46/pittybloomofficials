@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search, ClipboardList, ChevronDown } from 'lucide-react'
 import useAsync from '../shared/hooks/useAsync'
-import { getOrderSettings, ordersApi } from '../shared/services/contentService'
+import useOrders from '../shared/hooks/useOrders'
+import { getOrderSettings } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
 import { getUrgency } from '../shared/utils/urgency'
 import { inputClass } from './classes'
@@ -62,6 +63,16 @@ function itemTags(items = []) {
   return [...groups].map(([label, qty]) => ({ label, qty }))
 }
 
+function orderPhotoSummary(items = []) {
+  return items.reduce((total, item) => {
+    const photos = item.photos
+    if (!photos) return total
+    total.photos += Math.max(photos.files?.length || 0, Number(photos.count) || 0)
+    total.references += Array.isArray(photos.reference) ? photos.reference.length : photos.reference ? 1 : 0
+    return total
+  }, { photos: 0, references: 0 })
+}
+
 function displayDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
@@ -69,7 +80,7 @@ function displayDate(value) {
 }
 
 export default function OrdersPage({ fixedView = 'all' }) {
-  const ordersQuery = useAsync(ordersApi.list)
+  const ordersQuery = useOrders()
   const settingsQuery = useAsync(getOrderSettings)
   const [params, setParams] = useSearchParams()
   const now = useMemo(() => new Date(), [])
@@ -84,7 +95,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
       ? [{ id: 'all', label: 'All statuses' }, { id: 'cancelled', label: 'Cancelled' }]
       : STATUS_FILTERS
   const statusFilter = statusOptions.some((filter) => filter.id === params.get('status')) ? params.get('status') : 'all'
-  const dateFilter = DATE_FILTERS.some((filter) => filter.id === params.get('date')) ? params.get('date') : fixedView === 'all' ? '7d' : 'all'
+  const dateFilter = DATE_FILTERS.some((filter) => filter.id === params.get('date')) ? params.get('date') : 'all'
   const requestedPage = Math.max(1, Number(params.get('page')) || 1)
 
   const set = (key, value, fallback, resetPage = true) => {
@@ -109,7 +120,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
     const created = orderDate(order)
     const age = now.getTime() - created.getTime()
     const matchesDate = dateFilter === 'all' || (dateFilter === 'today' ? localDate(order.createdAt) === localDate(now) : dateFilter === '30d' ? age <= 30 * 86400000 && age >= 0 : age <= 7 * 86400000 && age >= 0)
-    const statusMatchesList = fixedView === 'completed' ? order.status === 'Delivered' : fixedView === 'cancelled' ? order.status === 'Cancelled' : [...PENDING, 'Shipped'].includes(order.status)
+    const statusMatchesList = fixedView === 'completed' ? order.status === 'Delivered' : fixedView === 'cancelled' ? order.status === 'Cancelled' : true
     const matchesStatus = statusFilter === 'all' || (statusFilter === 'pending' ? PENDING.includes(order.status) : statusFilter === 'dispatched' ? order.status === 'Shipped' : statusFilter === 'completed' ? order.status === 'Delivered' : order.status === 'Cancelled')
     const matchesSearch = !search || [order.id, order.customer?.name, phoneOf(order), order.customer?.instagram, ...order.items.flatMap((item) => [item.name, item.optionLabel])].some((value) => String(value ?? '').toLowerCase().includes(search))
     const selectedCategory = CATEGORY_TABS.find((tab) => tab.id === category)
@@ -136,7 +147,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
   const dispatchedCount = all.filter((order) => order.status === 'Shipped').length
   const revenueToday = deliveredToday.reduce((sum, order) => sum + (Number(order.total) || 0), 0)
   const urgentOrders = all.filter((order) => PENDING.includes(order.status) && ['overdue', 'urgent'].includes(getUrgency(order, settings, now).level))
-  const tabsCount = (matcher) => all.filter((order) => [...PENDING, 'Shipped'].includes(order.status) && order.items.some(matcher)).length
+  const tabsCount = (matcher) => all.filter((order) => order.items.some(matcher)).length
   const tabClass = (active) => `tb inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium transition ${active ? 'border-[#2F3A33] bg-[#2F3A33] text-[#FDFCF9]' : 'border-[#D9D4C7] bg-[#FDFCF9] text-[#2A2824] hover:bg-[#F1EEE6]'}`
   const pages = Math.max(1, Math.ceil(matching.length / 9))
   const page = Math.min(requestedPage, pages)
@@ -161,7 +172,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
 
         <nav className="orders-filter-tabs mb-2 flex items-center gap-3 overflow-x-auto pb-3" aria-label="Order filters">
           {fixedView === 'all' && <>
-          <button type="button" aria-pressed={urgencyFilter === 'all' && category === 'all'} onClick={selectAll} className={tabClass(urgencyFilter === 'all' && category === 'all')}>All orders <span className="text-xs opacity-75">{all.filter((order) => [...PENDING, 'Shipped'].includes(order.status)).length}</span></button>
+          <button type="button" aria-pressed={urgencyFilter === 'all' && category === 'all'} onClick={selectAll} className={tabClass(urgencyFilter === 'all' && category === 'all')}>All orders <span className="text-xs opacity-75">{all.length}</span></button>
           <label className="relative inline-flex shrink-0">
             <span className="sr-only">Filter by priority</span>
             <select aria-label="Filter by priority" value={urgencyFilter} onChange={(event) => set('urgency', event.target.value, 'all')} className="min-h-11 appearance-none rounded-full border border-[#D9D4C7] bg-[#FDFCF9] py-2 pl-4 pr-10 text-sm font-medium text-[#2A2824] outline-none hover:bg-[#F1EEE6] focus:border-[#2F3A33]">
@@ -185,7 +196,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
               <input type="search" className={`${inputClass} min-h-10 w-full rounded-lg border-[#E4DED2] bg-white pl-8 pr-1.5 text-[11px] shadow-[0_1px_2px_rgba(42,40,36,0.03)] transition focus:border-[#9A8870] focus:ring-2 focus:ring-[#9A8870]/15 sm:min-h-11 sm:rounded-xl sm:pl-10 sm:pr-3 sm:text-sm`} placeholder="Search orders…" value={query} onChange={(event) => set('q', event.target.value, '')} />
             </label>
             <FilterSelect label="Status" value={statusFilter} onChange={(value) => set('status', value, 'all')} options={statusOptions} />
-            <FilterSelect label="Date" value={dateFilter} onChange={(value) => set('date', value, '7d')} options={DATE_FILTERS} />
+            <FilterSelect label="Date" value={dateFilter} onChange={(value) => set('date', value, 'all')} options={DATE_FILTERS} />
           </div>
 
           {ordersQuery.error ? <p role="alert" className="m-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">The orders could not be loaded. Please refresh the page.</p> : ordersQuery.loading && !ordersQuery.data ? <p className="py-12 text-center text-sm text-[#6B665C]">Loading orders…</p> : matching.length === 0 ? <div className="py-16 text-center text-[#6B665C]"><ClipboardList className="mx-auto mb-3" />{all.length ? 'No orders match these filters.' : 'No orders yet.'}</div> : <>
@@ -195,7 +206,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
                 <tbody>{pageRows.map(({ order, urgency }) => <tr key={order.id} className="border-t border-[#EEEAE0] hover:bg-[#FAF8F3]">
                   <td className="px-5 py-4"><Link className="font-semibold text-[#2F3A33] hover:underline" to={`/admin/orders/${encodeURIComponent(order.id)}`}>#{order.id}</Link><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{displayDate(order.createdAt)}</div></td>
                   <td className="px-5 py-4"><div className="max-w-48 truncate font-medium">{order.customer?.name || '—'}</div><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{phoneOf(order)}</div></td>
-                  <td className="max-w-[300px] px-5 py-4">{itemTags(order.items).map((tag) => <span key={tag.label} className="mr-1 inline-block whitespace-nowrap rounded-full bg-[#EFEBE1] px-2.5 py-0.5 text-xs font-medium text-[#4A463E]">{tag.label}{tag.qty > 1 ? ` × ${tag.qty}` : ''}</span>)}</td>
+                  <td className="max-w-[300px] px-5 py-4">{itemTags(order.items).map((tag) => <span key={tag.label} className="mr-1 inline-block whitespace-nowrap rounded-full bg-[#EFEBE1] px-2.5 py-0.5 text-xs font-medium text-[#4A463E]">{tag.label}{tag.qty > 1 ? ` × ${tag.qty}` : ''}</span>)}{(() => { const photos = orderPhotoSummary(order.items); return <>{photos.photos > 0 && <span className="mt-1 mr-1 inline-block whitespace-nowrap rounded-full bg-[#E8F0E8] px-2.5 py-0.5 text-xs font-medium text-[#34543A]">{photos.photos} customer photo{photos.photos === 1 ? '' : 's'}</span>}{photos.references > 0 && <span className="mt-1 inline-block whitespace-nowrap rounded-full bg-[#F1E8F2] px-2.5 py-0.5 text-xs font-medium text-[#624866]">{photos.references} reference</span>}</> })()}</td>
                   <td className="px-5 py-4">{urgency.level === 'urgent' || urgency.level === 'overdue' ? <span className="inline-block whitespace-nowrap rounded-full bg-[#F6E3DF] px-3 py-1 text-xs font-semibold text-[#8F3A31]">{urgency.level === 'overdue' ? 'Overdue' : 'Urgent'}</span> : <span className="whitespace-nowrap text-[13px] text-[#6B665C]">{PENDING.includes(order.status) ? 'Standard' : '—'}</span>}</td>
                   <td className="px-5 py-4"><StatusPill status={order.status} /></td><td className="whitespace-nowrap px-5 py-4 text-right font-medium">{formatPrice(order.total)}</td><td className="px-5 py-4 text-right"><Link className="inline-flex min-h-10 items-center justify-center rounded-[10px] border border-[#D9D4C7] bg-[#FDFCF9] px-3.5 text-[13px] font-medium text-[#2A2824] hover:bg-[#F1EEE6]" to={`/admin/orders/${encodeURIComponent(order.id)}`}>View</Link></td>
                 </tr>)}</tbody>

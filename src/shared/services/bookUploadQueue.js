@@ -35,9 +35,9 @@ export function startBookUpload(input) {
       const { pages, ratio } = await read(isPdf ? files[0] : files, (done, total) =>
         update(id, { phase: 'Preparing pages', done, total }),
       )
-      update(id, { phase: 'Uploading to Cloudflare', done: 0, total: pages.length })
+      update(id, { phase: 'Saving preview pages', done: 0, total: pages.length })
       const key = await bookStore.save(pages, { name: label, ratio }, isPdf ? files[0] : null, (done, total) =>
-        update(id, { phase: 'Uploading to Cloudflare', done, total }),
+        update(id, { phase: 'Saving preview pages', done, total }),
       )
       const book = { key, pageCount: pages.length, ratio, name: label, sourceAvailable: isPdf }
       update(id, { status: 'complete', phase: 'Ready to attach', book, done: pages.length, total: pages.length })
