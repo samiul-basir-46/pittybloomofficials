@@ -22,6 +22,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
   const [problem, setProblem] = useState('')
   const items = data ?? []
   const imageKeys = fields.filter((f) => f.type === 'image').map((f) => f.name)
+  const galleryKeys = fields.filter((f) => f.type === 'gallery').map((f) => f.name)
   const imageKey = imageKeys[0]
   const shown = items.filter((i) => label(i).toLowerCase().includes(query.trim().toLowerCase()))
   const updateFrameOptions = (options) => setForm((current) => ({ ...current, item: { ...current.item, options: options.map((option) => `${option.label} | ${option.price}${option.mrp ? ` | ${option.mrp}` : ''}${option.tag ? ` | ${option.tag}` : ''}`).join('\n') } }))
@@ -75,6 +76,15 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
         return [key, typeof image === 'string' && image.startsWith('data:') ? await uploadCatalogImage(image) : image]
       }))
       item = { ...item, ...Object.fromEntries(uploadedImages) }
+      // Gallery pictures (e.g. frame designs): upload the new ones, keep the ones already online.
+      for (const key of galleryKeys) {
+        const list = Array.isArray(item[key]) ? item[key] : []
+        const uploaded = []
+        for (const entry of list) {
+          uploaded.push(typeof entry.image === 'string' && entry.image.startsWith('data:') ? { ...entry, image: await uploadCatalogImage(entry.image) } : entry)
+        }
+        item = { ...item, [key]: uploaded }
+      }
       await api.save(item)
       setForm(null)
       setToast(form.isNew ? 'Added' : 'Saved')

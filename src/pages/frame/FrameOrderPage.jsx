@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, CheckCircle2, ImagePlus, Maximize2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
@@ -14,6 +14,69 @@ import { formatPrice } from '../../shared/utils/format'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
 
+const newKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+const MAX_FRAMES = 20
+
+// Full-size look at a design before choosing it.
+function DesignPreview({ design, onClose }) {
+  useEffect(() => {
+    const onKey = (event) => event.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return <div role="dialog" aria-modal="true" aria-label={design.name || 'Frame design'} className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" onClick={onClose}>
+    <figure className="relative max-h-full max-w-lg" onClick={(event) => event.stopPropagation()}>
+      <img src={design.image} alt={design.name || 'Frame design'} className="max-h-[80vh] w-full rounded-2xl bg-white object-contain" />
+      {design.name && <figcaption className="mt-2 text-center text-sm font-medium text-white">{design.name}</figcaption>}
+      <button type="button" aria-label="Close preview" onClick={onClose} className="absolute -right-2 -top-2 grid size-9 place-items-center rounded-full bg-white text-ink shadow"><X size={18} /></button>
+    </figure>
+  </div>
+}
+
+// One frame of the order: its own design and its own photos.
+function FramePiece({ index, total, designs, designId, photos, error, onDesign, onPhotos, onRemovePhoto, onRemove, onPreview }) {
+  const input = useRef(null)
+  return <section className="rounded-2xl border border-sand bg-[#fffefa] p-4 sm:p-5" aria-label={`Frame ${index + 1}`}>
+    <div className="flex items-center justify-between gap-3">
+      <h3 className="font-serif text-xl">{total > 1 ? `Frame #${index + 1}` : 'Your frame'}</h3>
+      {total > 1 && <button type="button" onClick={onRemove} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-600 hover:bg-red-50"><Trash2 size={14} /> Remove</button>}
+    </div>
+
+    {designs.length > 0 && <div className="mt-4">
+      <p className="text-sm font-semibold">Choose a design <span className="text-red-600">*</span></p>
+      <div role="radiogroup" aria-label={`Design for frame ${index + 1}`} className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+        {designs.map((design) => {
+          const selected = design.id === designId
+          return <div key={design.id} className={`relative overflow-hidden rounded-xl border-2 bg-white ${selected ? 'border-brand shadow-sm' : 'border-sand'}`}>
+            <button type="button" role="radio" aria-checked={selected} aria-label={design.name || 'Design'} onClick={() => onDesign(design.id)} className="block w-full text-left">
+              <img src={design.image} alt={design.name || 'Frame design'} loading="lazy" className="aspect-square w-full object-cover" />
+              {design.name && <span className="block truncate px-1.5 py-1 text-[11px] font-medium">{design.name}</span>}
+            </button>
+            {selected && <span className="pointer-events-none absolute left-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}
+            <button type="button" aria-label={`View ${design.name || 'design'} larger`} onClick={() => onPreview(design)} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-ink shadow-sm hover:bg-white"><Maximize2 size={12} /></button>
+          </div>
+        })}
+      </div>
+    </div>}
+
+    <div className="mt-5">
+      <p className="text-sm font-semibold">Photos for {total > 1 ? `frame #${index + 1}` : 'your frame'} <span className="text-red-600">*</span></p>
+      <p className="mt-0.5 text-xs text-ink/60">Upload all the pictures you want printed in this frame.</p>
+      <input ref={input} type="file" accept="image/*" multiple className="sr-only" onChange={(event) => { onPhotos(Array.from(event.target.files ?? [])); event.target.value = '' }} />
+      {photos.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+        {photos.map((photo) => <div key={photo.id} className="relative w-20 shrink-0 overflow-hidden rounded-xl border border-sand bg-cream sm:w-24">
+          {photo.url && <img src={photo.url} alt={photo.name} className="aspect-square w-full object-cover" />}
+          <p className="truncate px-1.5 py-1 text-[11px]" title={photo.name}>{photo.name}</p>
+          <button type="button" aria-label={`Remove ${photo.name}`} onClick={() => onRemovePhoto(photo.id)} className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-white/95 text-red-600 shadow-sm hover:bg-white"><Trash2 size={13} /></button>
+        </div>)}
+      </div>}
+      <button type="button" onClick={() => input.current?.click()} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={17} /> {photos.length ? 'Add more photos' : 'Upload your photos'}</button>
+      <p className="mt-1.5 text-xs text-ink/50">{photos.length} photo{photos.length === 1 ? '' : 's'} selected. Each image can be up to 20 MB.</p>
+    </div>
+    {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+  </section>
+}
+
 export default function FrameOrderPage() {
   const [params] = useSearchParams()
   const frameId = params.get('frame')
@@ -25,29 +88,71 @@ export default function FrameOrderPage() {
   const product = frame ? { id: frame.id, name: frame.title, image: frame.image } : legacyProduct
   const options = frame ? [{ id: frame.id, label: frame.title, price: Number(frame.price), mrp: Number(frame.mrp) || 0 }] : parseOptions(product?.options)
   const option = frame ? options[0] : options.find((entry) => entry.id === params.get('size')) ?? options[0]
+  const designs = (Array.isArray(frame?.designs) ? frame.designs : []).filter((design) => design?.id && design.image)
   const qtyValue = Number(params.get('qty'))
-  const qty = Number.isInteger(qtyValue) ? Math.min(20, Math.max(1, qtyValue)) : 1
+  const qty = Number.isInteger(qtyValue) ? Math.min(MAX_FRAMES, Math.max(1, qtyValue)) : 1
   const cartMode = params.get('mode') === 'cart'
+  // Each frame of a frame product is its own piece (own design, own photos). The old size-based product keeps one piece with a quantity.
+  const perPiece = Boolean(frame)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
-  const [framePhotos, setFramePhotos] = useState([])
+  const [pieces, setPieces] = useState(() => [{ key: newKey(), designId: '' }])
+  const [pieceErrors, setPieceErrors] = useState({})
+  const [preview, setPreview] = useState(null)
   const [reference, setReference] = useState(null)
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
+  const [, refresh] = useReducer((count) => count + 1, 0)
   const inputRef = useRef(null)
-  const framePhotoInput = useRef(null)
-  const framePhotoKey = useRef(`frame-photo-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`)
-  const referenceKey = useRef(`frame-reference-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`)
-  const requestKey = useRef(globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  const referenceKey = useRef(`frame-reference-${newKey()}`)
+  const requestKey = useRef(newKey())
+  const photoKeyOf = (piece) => `frame-photo-${piece.key}`
 
   useEffect(() => {
     if (placedOrder) window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [placedOrder])
 
+  // The frame is loaded after the first render; start with as many frames as the link asked for.
+  useEffect(() => {
+    if (perPiece && qty > 1) setPieces((current) => (current.length >= qty ? current : [...current, ...Array.from({ length: qty - current.length }, () => ({ key: newKey(), designId: '' }))]))
+  }, [perPiece, qty])
+
   if (legacyLoading || frameLoading) return <p className="py-32 text-center text-ink/60">Loading frame order…</p>
   if (!product || !option) return <div className="py-24 text-center">Frame size is unavailable. <Link className="text-brand underline" to="/frame">Choose a frame size</Link></div>
 
-  const handleFile = (event) => {
+  const designOf = (piece) => designs.find((design) => design.id === piece.designId) ?? null
+  const count = perPiece ? pieces.length : qty
+
+  const setCount = (next) => {
+    const wanted = Math.min(MAX_FRAMES, Math.max(1, next))
+    setPieces((current) => {
+      if (wanted > current.length) return [...current, ...Array.from({ length: wanted - current.length }, () => ({ key: newKey(), designId: '' }))]
+      current.slice(wanted).forEach((piece) => photoStore.list(photoKeyOf(piece)).forEach((photo) => photoStore.remove(photoKeyOf(piece), photo.id)))
+      return current.slice(0, wanted)
+    })
+  }
+  const removePiece = (piece) => {
+    photoStore.list(photoKeyOf(piece)).forEach((photo) => photoStore.remove(photoKeyOf(piece), photo.id))
+    setPieces((current) => current.filter((entry) => entry.key !== piece.key))
+  }
+  const chooseDesign = (piece, designId) => {
+    setPieces((current) => current.map((entry) => (entry.key === piece.key ? { ...entry, designId } : entry)))
+    setPieceErrors((current) => ({ ...current, [piece.key]: '' }))
+  }
+  const addPhotos = (piece, files) => {
+    if (!files.length) return
+    const valid = files.filter((file) => file.type.startsWith('image/') && file.size <= 20 * 1024 * 1024)
+    const result = photoStore.add(photoKeyOf(piece), valid, { allowDuplicates: true })
+    refresh()
+    setPieceErrors((current) => ({ ...current, [piece.key]: '' }))
+    const rejected = files.length - valid.length
+    setError(rejected ? `${result.added.length} photo${result.added.length === 1 ? '' : 's'} added. ${rejected} file${rejected === 1 ? ' was' : 's were'} skipped because it was not an image or was over 20 MB.` : '')
+  }
+  const removePhoto = (piece, id) => {
+    photoStore.remove(photoKeyOf(piece), id)
+    refresh()
+  }
+  const handleReference = (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -59,50 +164,51 @@ export default function FrameOrderPage() {
     setReference(result.added[0] ?? null)
     setError('')
   }
-  const handleFramePhoto = (event) => {
-    const files = Array.from(event.target.files ?? [])
-    event.target.value = ''
-    if (!files.length) return
-    const valid = files.filter((file) => file.type.startsWith('image/') && file.size <= 20 * 1024 * 1024)
-    const result = photoStore.add(framePhotoKey.current, valid, { allowDuplicates: true })
-    setFramePhotos(photoStore.list(framePhotoKey.current))
-    const rejected = files.length - valid.length
-    setError(rejected ? `${result.added.length} photo${result.added.length === 1 ? '' : 's'} added. ${rejected} file${rejected === 1 ? ' was' : 's were'} skipped because it was not an image or was over 20 MB.` : '')
-  }
   const setCustomerField = (field) => (event) => setCustomer((current) => ({ ...current, [field]: event.target.value }))
+
   const placeOrder = async (event) => {
     event.preventDefault()
     if (placing) return
-    setPlacing(true)
     setError('')
+    // Every frame needs its own photo (and a design, when the shop offers designs).
+    const problems = {}
+    pieces.forEach((piece, index) => {
+      const label = pieces.length > 1 ? `Frame #${index + 1}` : 'your frame'
+      if (designs.length && !piece.designId) problems[piece.key] = `Choose a design for ${label}.`
+      else if (!photoStore.list(photoKeyOf(piece)).length) problems[piece.key] = `Upload at least one photo for ${label}.`
+    })
+    setPieceErrors(problems)
+    if (Object.keys(problems).length) {
+      setError('Please finish the details shown in red.')
+      return
+    }
+    setPlacing(true)
     try {
-      const selectedFramePhotos = photoStore.list(framePhotoKey.current)
-      if (!selectedFramePhotos.length) {
-        setError('Upload at least one photo for your frame.')
-        setPlacing(false)
-        return
-      }
-      await photoStore.flush([framePhotoKey.current, ...(reference ? [referenceKey.current] : [])])
-      const savedFramePhotos = photoStore.list(framePhotoKey.current)
+      await photoStore.flush([...pieces.map(photoKeyOf), ...(reference ? [referenceKey.current] : [])])
       const savedReference = photoStore.list(referenceKey.current)[0]
-      const item = {
-        kind: frame ? 'frame' : 'product', id: frame?.id ?? product.id, name: product.name, image: product.image,
-        ...(frame ? { type: 'frame', optionId: frame.id } : {}),
-        optionLabel: option.label, price: option.price, mrp: option.mrp, qty,
-        meta: { cartConfigId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}` },
-        photos: {
-          count: savedFramePhotos.length,
-          files: savedFramePhotos.map((photo) => ({ id: photo.id, name: photo.name, size: photo.size, type: photo.type, storageKey: photo.storageKey })),
-          ...(savedReference ? { reference: { id: savedReference.id, name: savedReference.name, size: savedReference.size, type: savedReference.type, storageKey: savedReference.storageKey } } : {}),
-        },
-      }
+      const items = pieces.map((piece, index) => {
+        const saved = photoStore.list(photoKeyOf(piece))
+        const design = designOf(piece)
+        return {
+          kind: frame ? 'frame' : 'product', id: frame?.id ?? product.id, name: product.name, image: design?.image || product.image,
+          ...(frame ? { type: 'frame', optionId: frame.id } : {}),
+          optionLabel: design?.name ? `${option.label} · ${design.name}` : option.label, price: option.price, mrp: option.mrp, qty: perPiece ? 1 : qty,
+          ...(design ? { design: { id: design.id, name: design.name || '', image: design.image } } : {}),
+          meta: { cartConfigId: newKey(), ...(pieces.length > 1 ? { piece: index + 1, pieces: pieces.length } : {}) },
+          photos: {
+            count: saved.length,
+            files: saved.map((photo) => ({ id: photo.id, name: photo.name, size: photo.size, type: photo.type, storageKey: photo.storageKey })),
+            ...(index === 0 && savedReference ? { reference: { id: savedReference.id, name: savedReference.name, size: savedReference.size, type: savedReference.type, storageKey: savedReference.storageKey } } : {}),
+          },
+        }
+      })
       if (cartMode) {
-        addToCart(item)
+        items.forEach((item, index) => addToCart(item, { silent: index < items.length - 1 }))
         navigate('/cart')
         return
       }
       const order = await ordersApi.place(buildOrder({
-        id: '', cartItems: [item], customer: { ...customer, uid: user?.uid || '', email: user?.email || '' },
+        id: '', cartItems: items, customer: { ...customer, uid: user?.uid || '', email: user?.email || '' },
         extras: { deliveryLabel: 'Delivery details received' },
       }), requestKey.current)
       setPlacedOrder(order)
@@ -110,6 +216,9 @@ export default function FrameOrderPage() {
       setError(cause instanceof Error ? cause.message : 'Could not place the frame order. Please try again.')
     } finally { setPlacing(false) }
   }
+
+  const unit = option.price
+  const total = unit * count
 
   return <div className="min-h-screen bg-cream pb-16 pt-6 sm:pt-10">
     <Container>
@@ -124,36 +233,37 @@ export default function FrameOrderPage() {
         <div className="mt-5">
           <p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Frame order</p>
           <h1 className="mt-1 font-serif text-4xl">Almost there</h1>
-          <p className="mt-2 text-sm text-ink/60">Add as many print photos as you need and an optional design reference.{cartMode ? ' You can add delivery information in your cart.' : ' Then add your delivery information.'}</p>
+          <p className="mt-2 text-sm text-ink/60">{designs.length ? 'Choose a design and add your photos for each frame.' : 'Add as many print photos as you need and an optional design reference.'}{cartMode ? ' You can add delivery information in your cart.' : ' Then add your delivery information.'}</p>
         </div>
         <form onSubmit={placeOrder} className="mt-7 grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
           <section className="space-y-6 rounded-2xl border border-sand bg-white p-5 shadow-sm sm:p-7">
-            <div>
-              <h2 className="font-serif text-2xl">Photo for your frame <span className="font-sans text-sm font-semibold text-red-600">*</span></h2>
-              <p className="mt-1 text-sm text-ink/60">Upload all the pictures you want us to print and place in your frame.</p>
-              <input ref={framePhotoInput} type="file" accept="image/*" multiple className="sr-only" onChange={handleFramePhoto} />
-              {framePhotos.length > 0 && <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-                {framePhotos.map((photo) => <div key={photo.id} className="relative w-24 shrink-0 overflow-hidden rounded-xl border border-sand bg-cream sm:w-28">
-                  {photo.url && <img src={photo.url} alt={photo.name} className="aspect-square w-full object-cover" />}
-                  <p className="truncate px-2 py-1.5 text-xs" title={photo.name}>{photo.name}</p>
-                  <button type="button" aria-label={`Remove ${photo.name}`} onClick={() => { photoStore.remove(framePhotoKey.current, photo.id); setFramePhotos(photoStore.list(framePhotoKey.current)) }} className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-white/95 text-red-600 shadow-sm hover:bg-white"><Trash2 size={15} /></button>
-                </div>)}
-              </div>}
-              <button type="button" onClick={() => framePhotoInput.current?.click()} className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={18} /> {framePhotos.length ? 'Add more photos' : 'Upload your photos'}</button>
-              <p className="mt-2 text-xs text-ink/50">{framePhotos.length} photo{framePhotos.length === 1 ? '' : 's'} selected. Each image can be up to 20 MB.</p>
-            </div>
-            <div className="border-t border-sand pt-6">
-            <div>
+            {perPiece && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream px-4 py-3">
+              <div><p className="font-semibold">How many frames?</p><p className="text-xs text-ink/60">Each frame gets its own design and photos.</p></div>
+              <div className="flex items-center gap-2" role="group" aria-label="Number of frames">
+                <button type="button" aria-label="Fewer frames" onClick={() => setCount(count - 1)} disabled={count <= 1} className="grid size-10 place-items-center rounded-full border border-brand/40 text-brand hover:bg-white disabled:opacity-30"><Minus size={16} /></button>
+                <span className="w-8 text-center text-lg font-semibold" aria-live="polite">{count}</span>
+                <button type="button" aria-label="More frames" onClick={() => setCount(count + 1)} disabled={count >= MAX_FRAMES} className="grid size-10 place-items-center rounded-full border border-brand/40 text-brand hover:bg-white disabled:opacity-30"><Plus size={16} /></button>
+              </div>
+            </div>}
+
+            {pieces.map((piece, index) => <FramePiece
+              key={piece.key} index={index} total={pieces.length} designs={designs} designId={piece.designId}
+              photos={photoStore.list(photoKeyOf(piece))} error={pieceErrors[piece.key]}
+              onDesign={(id) => chooseDesign(piece, id)} onPhotos={(files) => addPhotos(piece, files)} onRemovePhoto={(id) => removePhoto(piece, id)}
+              onRemove={() => removePiece(piece)} onPreview={setPreview}
+            />)}
+
+            {designs.length === 0 && <div className="border-t border-sand pt-6">
               <h2 className="font-serif text-2xl">Reference design</h2>
               <p className="mt-1 text-sm text-ink/60">Upload a screenshot to show how you want the frame to look. This is optional.</p>
-              <input ref={inputRef} type="file" accept="image/*" className="sr-only" onChange={handleFile} />
+              <input ref={inputRef} type="file" accept="image/*" className="sr-only" onChange={handleReference} />
               {reference ? <div className="mt-4 flex items-center gap-3 rounded-xl border border-sand bg-cream p-3">
                 {reference.url && <img src={reference.url} alt="Reference design preview" className="size-16 rounded-lg object-cover" />}
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{reference.name}</span>
                 <button type="button" aria-label="Remove reference image" onClick={() => { photoStore.remove(referenceKey.current, reference.id); setReference(null) }} className="grid size-10 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50"><Trash2 size={17} /></button>
               </div> : <button type="button" onClick={() => inputRef.current?.click()} className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={18} /> Upload reference screenshot</button>}
-            </div>
-            </div>
+            </div>}
+
             {!cartMode && <div className="border-t border-sand pt-6">
               <h2 className="font-serif text-2xl">Delivery information</h2>
               <p className="mb-4 mt-1 text-sm text-ink/60">We’ll contact you to confirm the delivery details.</p>
@@ -168,16 +278,22 @@ export default function FrameOrderPage() {
           </section>
           <aside className="rounded-2xl border border-sand bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-6">
             <h2 className="font-serif text-2xl">Order summary</h2>
-            <div className="mt-5 flex items-center gap-3 border-b border-sand pb-5">
-              <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={product.image} alt={product.name} className="size-full object-cover" /></div>
-              <div className="min-w-0 flex-1"><p className="font-semibold">{product.name}</p><p className="mt-1 text-sm text-ink/60">{option.label} · Qty {qty}</p></div>
-              <p className="font-semibold">{formatPrice(option.price * qty)}</p>
-            </div>
+            <ul className="mt-5 divide-y divide-sand border-b border-sand">
+              {pieces.map((piece, index) => {
+                const design = designOf(piece)
+                return <li key={piece.key} className="flex items-center gap-3 py-3 first:pt-0">
+                  <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={design?.image || product.image} alt={design?.name || product.name} className="size-full object-cover" /></div>
+                  <div className="min-w-0 flex-1"><p className="font-semibold">{product.name}{pieces.length > 1 ? ` #${index + 1}` : ''}</p><p className="mt-1 truncate text-sm text-ink/60">{option.label}{design?.name ? ` · ${design.name}` : ''}{perPiece ? '' : ` · Qty ${qty}`}</p></div>
+                  <p className="font-semibold">{formatPrice(unit * (perPiece ? 1 : qty))}</p>
+                </li>
+              })}
+            </ul>
             <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery</span><span className="text-ink/60">Confirmed with you</span></div>
-            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(option.price * qty)}</span></div>
+            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(total)}</span></div>
             <p className="mt-4 text-xs leading-5 text-ink/50">{cartMode ? 'Add delivery information when you place the full cart order.' : 'No delivery date selection is needed. We’ll confirm delivery after you place the order.'}</p>
           </aside>
         </form>
+        {preview && <DesignPreview design={preview} onClose={() => setPreview(null)} />}
       </>}
     </Container>
   </div>

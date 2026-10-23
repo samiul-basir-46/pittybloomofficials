@@ -33,6 +33,7 @@ export const buildOrder = ({ id, cartItems, customer, extras = {} }) => {
     meta: i.meta || null,
     ...(i.details ? { details: i.details } : {}),
     ...(i.photos ? { photos: i.photos } : {}),
+    ...(i.design ? { design: i.design } : {}),
   }))
   const magazineTotal = sumOf(items, (i) => i.kind === 'magazine')
   const addonTotal = sumOf(items, (i) => i.kind === 'addon')
