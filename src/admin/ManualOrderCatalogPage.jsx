@@ -7,6 +7,7 @@ import { adminAuth } from '../shared/services/firebaseClient'
 import { getManualOrderCatalog, manualOrderCatalogApi, productsApi, sizesApi } from '../shared/services/contentService'
 import { mergeManualOrderCatalog } from '../pages/manual-order/catalog'
 import { parseOptions } from '../shared/utils/options'
+import { compressImage } from '../shared/utils/compressImage'
 
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
 function Input({ label, value, onChange, type = 'text', min, max, hint }) {
@@ -41,11 +42,15 @@ function CardImage({ card, onChange }) {
     const localPreview = URL.createObjectURL(file)
     setPreview(localPreview)
     try {
+      // Product tiles render at a small size, so keep their stored source light
+      // enough for mobile connections instead of uploading the camera original.
+      const compressed = await compressImage(file, 1000, 0.8)
+      const imageBlob = await (await fetch(compressed)).blob()
       const token = await adminAuth.currentUser.getIdToken()
       const response = await fetch(`${MEDIA_API}/manual-order-cards/${encodeURIComponent(card.id)}`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type },
-        body: file,
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/webp' },
+        body: imageBlob,
       })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Cloudflare could not save the card image.')

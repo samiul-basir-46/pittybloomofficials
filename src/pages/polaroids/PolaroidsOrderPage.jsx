@@ -11,6 +11,7 @@ import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
+import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
 
@@ -50,7 +51,7 @@ export default function PolaroidsOrderPage() {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
     if (!files.length) return
-    const valid = files.filter((file) => file.type.startsWith('image/') && file.size <= 20 * 1024 * 1024)
+    const valid = files.filter((file) => orderImageType(file) && file.size <= 20 * 1024 * 1024)
     const remaining = Math.max(0, qty - photoStore.list(photoKey.current).length)
     const result = photoStore.add(photoKey.current, valid.slice(0, remaining), { allowDuplicates: true })
     setPhotos(photoStore.list(photoKey.current))
@@ -62,7 +63,7 @@ export default function PolaroidsOrderPage() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!file.type.startsWith('image/') || file.size > 20 * 1024 * 1024) { setError('Choose an image under 20 MB for the reference.'); return }
+    if (!orderImageType(file) || file.size > 20 * 1024 * 1024) { setError('Choose an image under 20 MB for the reference.'); return }
     const previous = photoStore.list(referenceKey.current)[0]
     if (previous) photoStore.remove(referenceKey.current, previous.id)
     const added = photoStore.add(referenceKey.current, [file]).added[0]

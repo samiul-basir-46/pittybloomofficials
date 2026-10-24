@@ -1,6 +1,7 @@
 // Image blobs live in IndexedDB so page changes, refreshes, and saved drafts do not
 // discard the customer's files. Orders store only stable photo metadata and IDs.
 import { auth, firebaseConfigured } from '../../../shared/services/firebaseClient'
+import { orderImageType } from '../../../shared/utils/manualOrderRules'
 const DB_NAME = 'pitty-bloom-order-files'
 const DB_VERSION = 1
 const STORE_NAME = 'photos'
@@ -34,12 +35,13 @@ export const photoStore = {
     const current = cache.get(key) ?? []
     const result = { added: [], skipped: 0, rejected: 0, tooLarge: 0 }
     Array.from(files ?? []).forEach((file) => {
-      if (!file.type?.startsWith('image/')) return void result.rejected++
+      const type = orderImageType(file)
+      if (!type) return void result.rejected++
       if (file.size > 20 * 1024 * 1024) return void result.tooLarge++
       if (!allowDuplicates && current.some((p) => p.name === file.name && p.size === file.size)) return void result.skipped++
       const id = newId()
       const url = URL.createObjectURL?.(file) ?? ''
-      const photo = { id, name: file.name, size: file.size, type: file.type, url, file }
+      const photo = { id, name: file.name, size: file.size, type, url, file }
       current.push(photo)
       result.added.push(photo)
       if (url) objectUrls.set(id, url)

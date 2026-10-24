@@ -11,6 +11,7 @@ import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
+import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
 
@@ -140,7 +141,7 @@ export default function FrameOrderPage() {
   }
   const addPhotos = (piece, files) => {
     if (!files.length) return
-    const valid = files.filter((file) => file.type.startsWith('image/') && file.size <= 20 * 1024 * 1024)
+    const valid = files.filter((file) => orderImageType(file) && file.size <= 20 * 1024 * 1024)
     const result = photoStore.add(photoKeyOf(piece), valid, { allowDuplicates: true })
     refresh()
     setPieceErrors((current) => ({ ...current, [piece.key]: '' }))

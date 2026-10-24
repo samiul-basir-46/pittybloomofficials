@@ -7,7 +7,7 @@ import useAsync from '../../shared/hooks/useAsync'
 import { getManualOrderCatalog, getOrderSettings, getProducts, getSizes } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
-import { deliveryFee, dhakaToday, expeditedSurcharge, minimumDeliveryDate, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
+import { deliveryFee, detectOrderImageType, dhakaToday, expeditedSurcharge, minimumDeliveryDate, orderImageType, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog } from './catalog'
 import MagazineSizePreview from './MagazineSizePreview'
@@ -40,15 +40,16 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
   const [uploadError, setUploadError] = useState('')
   const [previews, setPreviews] = useState([])
   useEffect(() => {
-    const next = files.map((entry) => ({ ...entry, url: URL.createObjectURL(entry.file) }))
+    const next = files.map((entry) => ({ ...entry, url: URL.createObjectURL(new Blob([entry.file], { type: entry.type || orderImageType(entry.file) })) }))
     setPreviews(next)
     return () => next.forEach((preview) => URL.revokeObjectURL(preview.url))
   }, [files])
-  const acceptFiles = (incoming) => {
+  const acceptFiles = async (incoming) => {
     const list = Array.from(incoming || [])
-    const invalid = list.some((file) => !validUpload(file))
-    const fresh = list.filter((file) => validUpload(file)).map((file) => ({ id: newId(), file }))
-    setUploadError(invalid ? 'Use a JPG, PNG, or WebP image up to 10 MB.' : '')
+    const analyzed = await Promise.all(list.map(async (file) => ({ file, type: await detectOrderImageType(file) })))
+    const invalid = analyzed.some(({ file, type }) => !validUpload(file) || !type)
+    const fresh = analyzed.filter(({ file, type }) => validUpload(file) && type).map(({ file, type }) => ({ id: newId(), file, type }))
+    setUploadError(invalid ? 'Choose a supported image format up to 20 MB.' : '')
     if (!fresh.length) return
     const next = multiple ? [...files, ...fresh].slice(0, max) : fresh.slice(0, 1)
     if (multiple && Number.isFinite(max) && files.length + fresh.length > max) setUploadError(`You can add up to ${max} images here.`)
@@ -62,7 +63,8 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
     <div className="flex flex-wrap gap-2.5">
       {previews.map((preview) => <div key={preview.id} className={`relative ${onCoverChange ? 'w-28 shrink-0' : 'size-[76px]'} overflow-hidden rounded-xl border border-sand bg-white`}>
         <div className={`${onCoverChange ? 'mx-auto' : ''} relative size-[76px] overflow-hidden rounded-xl bg-cream`}>
-          <img src={preview.url} alt={preview.file.name} className="h-full w-full object-cover" />
+          <img src={preview.url} alt={preview.file.name} onError={(event) => { event.currentTarget.hidden = true; event.currentTarget.nextElementSibling.hidden = false }} className="h-full w-full object-cover" />
+          <span hidden className="absolute inset-0 grid place-items-center px-2 text-center text-[10px] text-ink/50">Preview unavailable</span>
           <button type="button" aria-label={`Remove ${preview.file.name}`} onClick={() => onChange(files.filter((item) => item.id !== preview.id))} className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-white/95 text-ink shadow"><Trash2 size={13} /></button>
         </div>
         {onCoverChange && <div className="flex gap-1 p-1.5">
@@ -75,7 +77,7 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
       </div>)}
       {(multiple ? files.length < max : files.length === 0) && <label className="grid size-[76px] cursor-pointer place-items-center rounded-xl border border-dashed border-brand/35 bg-[#FFFAF8] text-brand transition hover:bg-cream">
         <span className="grid justify-items-center gap-1"><Plus size={20} /><span className="text-[10px] font-semibold">Add photo</span></span>
-        <input type="file" accept="image/jpeg,image/png,image/webp" multiple={multiple} className="sr-only" onChange={(event) => { acceptFiles(event.target.files); event.target.value = '' }} />
+        <input type="file" accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.gif" multiple={multiple} className="sr-only" onChange={(event) => { acceptFiles(event.target.files); event.target.value = '' }} />
       </label>}
     </div>
     {(uploadError || error) && <p className="mt-2 text-xs text-red-700">{error || uploadError}</p>}
@@ -85,7 +87,7 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
 function ReviewPhotoGallery({ photos = [], frontId, backId }) {
   const [previews, setPreviews] = useState([])
   useEffect(() => {
-    const next = photos.map((photo) => ({ id: photo.id, name: photo.file.name, url: URL.createObjectURL(photo.file) }))
+    const next = photos.map((photo) => ({ id: photo.id, name: photo.file.name, url: URL.createObjectURL(new Blob([photo.file], { type: photo.type || orderImageType(photo.file) })) }))
     setPreviews(next)
     return () => next.forEach((preview) => URL.revokeObjectURL(preview.url))
   }, [photos])
@@ -94,7 +96,8 @@ function ReviewPhotoGallery({ photos = [], frontId, backId }) {
     {previews.map((photo) => {
       const labels = [photo.id === frontId && 'Front cover', photo.id === backId && 'Back cover'].filter(Boolean)
       return <figure key={photo.id} className="w-28 overflow-hidden rounded-xl border border-sand bg-white">
-        <img src={photo.url} alt={photo.name} className="aspect-square w-full object-cover" />
+        <img src={photo.url} alt={photo.name} onError={(event) => { event.currentTarget.hidden = true; event.currentTarget.nextElementSibling.hidden = false }} className="aspect-square w-full object-cover" />
+        <div hidden className="grid aspect-square place-items-center bg-cream px-2 text-center text-xs text-ink/55">Preview unavailable</div>
         <figcaption className="p-2">
           <p className="truncate text-[11px] text-ink/55" title={photo.name}>{photo.name}</p>
           <p className={`mt-1 text-[11px] font-semibold ${labels.length ? 'text-brand' : 'text-ink/45'}`}>{labels.join(' · ') || 'Uploaded photo'}</p>
@@ -391,18 +394,19 @@ export default function ManualOrderPage() {
   }
   const goBack = () => { setErrors({}); setStep((current) => Math.max(0, current - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
-  const filePayload = async (fileItems) => Promise.all((fileItems ?? []).map(async ({ id, file }) => {
+  const filePayload = async (fileItems) => Promise.all((fileItems ?? []).map(async (photo) => {
+    const { id, file } = photo
     if (uploaded.current.has(id)) {
       setUploadStatus((current) => ({ ...current, completed: current.completed + 1 }))
       return uploaded.current.get(id)
     }
     setProgress(`Uploading ${file.name}…`)
     const response = await fetch(`${MEDIA_API}/guest-media/${requestKey.current}/${id}`, {
-      method: 'PUT', headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name) }, body: file,
+      method: 'PUT', headers: { 'Content-Type': photo.type || orderImageType(file), 'X-File-Name': encodeURIComponent(file.name) }, body: file,
     })
     const result = await response.json().catch(() => null)
     if (!response.ok) throw new Error(result?.error || `Could not upload ${file.name}.`)
-    const saved = { id, name: file.name, size: file.size, type: file.type, storageKey: result.key }
+    const saved = { id, name: file.name, size: file.size, type: photo.type || orderImageType(file), storageKey: result.key }
     uploaded.current.set(id, saved)
     setUploadStatus((current) => ({ ...current, completed: current.completed + 1 }))
     return saved
@@ -505,7 +509,7 @@ export default function ManualOrderPage() {
               const image = cardImageUrl({ id, ...card })
               return <button key={id} type="button" aria-pressed={active} onClick={() => toggleProduct(id)} className={`group relative overflow-hidden rounded-2xl border text-left transition hover:-translate-y-0.5 hover:shadow-lg ${active ? 'border-brand bg-[#FFFAF8] ring-2 ring-brand/15' : 'border-sand bg-white hover:border-brand/35'}`}>
                 <span className="relative block aspect-[1.55/1] overflow-hidden bg-cream">
-                  {image ? <img src={image} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className={`grid h-full place-items-center ${tint} text-brand`}><Icon size={30} strokeWidth={1.7} /></span>}
+                  {image ? <img src={image} alt="" loading="lazy" decoding="async" fetchPriority="low" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className={`grid h-full place-items-center ${tint} text-brand`}><Icon size={30} strokeWidth={1.7} /></span>}
                   <span className={`absolute right-2.5 top-2.5 grid size-6 place-items-center rounded-full shadow-sm sm:right-3 sm:top-3 sm:size-7 ${active ? 'bg-brand text-white' : 'border border-sand/80 bg-white/95 text-transparent'}`}><Check size={13} /></span>
                 </span>
                 <span className="block p-3 sm:p-4"><span className="block text-sm font-semibold leading-5 sm:text-base">{title}</span>

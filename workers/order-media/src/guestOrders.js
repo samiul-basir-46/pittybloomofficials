@@ -1,9 +1,9 @@
 const FIRESTORE = 'https://firestore.googleapis.com/v1/projects'
-import { dateOffsetFromDhaka, expeditedSurcharge, minimumDeliveryOffset } from '../../../src/shared/utils/manualOrderRules.js'
+import { dateOffsetFromDhaka, expeditedSurcharge, minimumDeliveryOffset, ORDER_IMAGE_TYPES } from '../../../src/shared/utils/manualOrderRules.js'
 import { MANUAL_ORDER_CATALOG_DEFAULTS, MANUAL_ORDER_TYPE_TO_CARD, mergeManualOrderCatalog } from '../../../src/pages/manual-order/catalog.js'
 
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const IMAGE_TYPES = ORDER_IMAGE_TYPES
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 const SAFE_ID = /^[a-f0-9]{32}$/i
 const CATEGORIES = ['Birthday', 'Couple', 'Anniversary', 'Personal', 'Parents', 'Marriage', 'Special Day', 'Farewell', 'Best Friends', 'Other']
 const CATEGORY_REQUIRED = {
@@ -290,12 +290,19 @@ export async function handleGuestMedia(request, env, url, cors) {
     const rawName = request.headers.get('X-File-Name') || 'order-photo'
     let name = 'order-photo'
     try { name = decodeURIComponent(rawName).slice(0, 180).replace(/[\u0000-\u001f]/g, '') || name } catch { return json({ error: 'The file name is invalid.' }, 400, cors) }
-    if (!IMAGE_TYPES.has(type)) return json({ error: 'Use a JPG, PNG, or WebP image.' }, 415, cors)
+    if (!IMAGE_TYPES.has(type)) return json({ error: 'Use a supported image format.' }, 415, cors)
     const body = await readLimitedBody(request.body)
-    if (!body) return json({ error: 'Each image must be 10 MB or smaller.' }, 413, cors)
+    if (!body) return json({ error: 'Each image must be 20 MB or smaller.' }, 413, cors)
+    const ascii = (start, end) => new TextDecoder().decode(body.slice(start, end))
+    const brand = ascii(8, 12)
     const signatureOk = type === 'image/jpeg' ? body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff
-      : type === 'image/png' ? body[0] === 0x89 && body[1] === 0x50 && body[2] === 0x4e && body[3] === 0x47
-        : body.length >= 12 && new TextDecoder().decode(body.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(body.slice(8, 12)) === 'WEBP'
+      : type === 'image/png' ? body[0] === 0x89 && ascii(1, 4) === 'PNG'
+        : type === 'image/webp' ? ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP'
+          : type === 'image/gif' ? ascii(0, 3) === 'GIF'
+            : type === 'image/bmp' ? ascii(0, 2) === 'BM'
+              : type === 'image/tiff' ? (ascii(0, 2) === 'II' && body[2] === 42 && body[3] === 0) || (ascii(0, 2) === 'MM' && body[2] === 0 && body[3] === 42)
+                : ['image/heic', 'image/heif', 'image/avif'].includes(type) && body.length >= 12 && ascii(4, 8) === 'ftyp'
+                  && ['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1', 'avif', 'avis'].includes(brand)
     if (!signatureOk) return json({ error: 'This file does not appear to be a valid image.' }, 415, cors)
     const key = `manual-orders/${sessionKey}/${fileId}`
     await env.MEDIA_BUCKET.put(key, body, { httpMetadata: { contentType: type }, customMetadata: { originalName: name } })

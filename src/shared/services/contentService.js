@@ -258,7 +258,12 @@ export const ordersApi = !firebaseConfigured ? {
       ? {
           ...order,
           ownerUid: existing.data().ownerUid,
-          customer: { ...order.customer, uid: existing.data().customer?.uid ?? order.customer?.uid },
+          customer: {
+            ...order.customer,
+            ...((existing.data().customer?.uid ?? order.customer?.uid)
+              ? { uid: existing.data().customer?.uid ?? order.customer?.uid }
+              : {}),
+          },
         }
       : {
           ...order,

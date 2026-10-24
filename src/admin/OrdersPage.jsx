@@ -63,16 +63,6 @@ function itemTags(items = []) {
   return [...groups].map(([label, qty]) => ({ label, qty }))
 }
 
-function orderPhotoSummary(items = []) {
-  return items.reduce((total, item) => {
-    const photos = item.photos
-    if (!photos) return total
-    total.photos += Math.max(photos.files?.length || 0, Number(photos.count) || 0)
-    total.references += Array.isArray(photos.reference) ? photos.reference.length : photos.reference ? 1 : 0
-    return total
-  }, { photos: 0, references: 0 })
-}
-
 function displayDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
@@ -206,7 +196,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
                 <tbody>{pageRows.map(({ order, urgency }) => <tr key={order.id} className="border-t border-[#EEEAE0] hover:bg-[#FAF8F3]">
                   <td className="px-5 py-4"><Link className="font-semibold text-[#2F3A33] hover:underline" to={`/admin/orders/${encodeURIComponent(order.id)}`}>#{order.id}</Link><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{displayDate(order.createdAt)}</div></td>
                   <td className="px-5 py-4"><div className="max-w-48 truncate font-medium">{order.customer?.name || '—'}</div><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{phoneOf(order)}</div></td>
-                  <td className="max-w-[300px] px-5 py-4">{itemTags(order.items).map((tag) => <span key={tag.label} className="mr-1 inline-block whitespace-nowrap rounded-full bg-[#EFEBE1] px-2.5 py-0.5 text-xs font-medium text-[#4A463E]">{tag.label}{tag.qty > 1 ? ` × ${tag.qty}` : ''}</span>)}{(() => { const photos = orderPhotoSummary(order.items); return <>{photos.photos > 0 && <span className="mt-1 mr-1 inline-block whitespace-nowrap rounded-full bg-[#E8F0E8] px-2.5 py-0.5 text-xs font-medium text-[#34543A]">{photos.photos} customer photo{photos.photos === 1 ? '' : 's'}</span>}{photos.references > 0 && <span className="mt-1 inline-block whitespace-nowrap rounded-full bg-[#F1E8F2] px-2.5 py-0.5 text-xs font-medium text-[#624866]">{photos.references} reference</span>}</> })()}</td>
+                  <td className="max-w-[300px] px-5 py-4">{itemTags(order.items).map((tag) => <span key={tag.label} className="mr-1 inline-block whitespace-nowrap rounded-full bg-[#EFEBE1] px-2.5 py-0.5 text-xs font-medium text-[#4A463E]">{tag.label}{tag.qty > 1 ? ` × ${tag.qty}` : ''}</span>)}</td>
                   <td className="px-5 py-4">{urgency.level === 'urgent' || urgency.level === 'overdue' ? <span className="inline-block whitespace-nowrap rounded-full bg-[#F6E3DF] px-3 py-1 text-xs font-semibold text-[#8F3A31]">{urgency.level === 'overdue' ? 'Overdue' : 'Urgent'}</span> : <span className="whitespace-nowrap text-[13px] text-[#6B665C]">{PENDING.includes(order.status) ? 'Standard' : '—'}</span>}</td>
                   <td className="px-5 py-4"><StatusPill status={order.status} /></td><td className="whitespace-nowrap px-5 py-4 text-right font-medium">{formatPrice(order.total)}</td><td className="px-5 py-4 text-right"><Link className="inline-flex min-h-10 items-center justify-center rounded-[10px] border border-[#D9D4C7] bg-[#FDFCF9] px-3.5 text-[13px] font-medium text-[#2A2824] hover:bg-[#F1EEE6]" to={`/admin/orders/${encodeURIComponent(order.id)}`}>View</Link></td>
                 </tr>)}</tbody>
