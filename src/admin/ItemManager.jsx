@@ -22,6 +22,8 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
   const [problem, setProblem] = useState('')
   const items = data ?? []
   const imageKeys = fields.filter((f) => f.type === 'image').map((f) => f.name)
+  // Forms with page or design pictures get a wider window so thumbnails are big enough to see.
+  const wideForm = fields.some((f) => ['pdf', 'gallery'].includes(f.type))
   const galleryKeys = fields.filter((f) => f.type === 'gallery').map((f) => f.name)
   const imageKey = imageKeys[0]
   const shown = items.filter((i) => label(i).toLowerCase().includes(query.trim().toLowerCase()))
@@ -184,7 +186,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
         >
           <form
             onSubmit={submit}
-            className="max-h-full w-full max-w-lg space-y-5 overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+            className={`max-h-full w-full ${wideForm ? 'max-w-3xl' : 'max-w-lg'} space-y-5 overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6`}
           >
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-2xl">{form.isNew ? 'Add new' : 'Edit'}</h2>
