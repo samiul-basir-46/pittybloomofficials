@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, Che
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
-import { getManualOrderCatalog, getOrderSettings, getProducts, getSizes } from '../../shared/services/contentService'
+import { getFrameDesigns, getManualOrderCatalog, getOrderSettings, getProducts, getSizes } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { deliveryFee, detectOrderImageType, dhakaToday, expeditedSurcharge, minimumDeliveryDate, orderImageType, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
@@ -27,7 +27,7 @@ const newId = () => {
   if (cryptoApi?.getRandomValues) return Array.from(cryptoApi.getRandomValues(new Uint8Array(16)), (value) => value.toString(16).padStart(2, '0')).join('')
   return `${Date.now()}${Math.random().toString(16).slice(2)}`
 }
-const makeItem = (type) => ({ key: newId(), type, quantity: 1, optionId: '', sizeId: '', category: 'Birthday', custom: {}, notes: '', photos: [], reference: null, frontId: '', backId: '', songName: '', lyrics: '' })
+const makeItem = (type) => ({ key: newId(), type, quantity: 1, optionId: '', designId: '', sizeId: '', category: 'Birthday', custom: {}, notes: '', photos: [], reference: null, frontId: '', backId: '', songName: '', lyrics: '' })
 const field = (label, value, onChange, { type = 'text', required = false, placeholder = '', error = '', className = '' } = {}) => (
   <label className={`block ${className}`}>
     <span className="mb-1.5 block text-sm font-medium text-ink">{label}{required && <span className="text-brand"> *</span>}</span>
@@ -206,6 +206,9 @@ export default function ManualOrderPage() {
   const sizesData = useAsync(getSizes)
   const settingsData = useAsync(getOrderSettings)
   const manualCatalogData = useAsync(getManualOrderCatalog)
+  const designsData = useAsync(getFrameDesigns)
+  const frameDesigns = designsData.data ?? []
+  const [previewDesign, setPreviewDesign] = useState(null)
   const [selected, setSelected] = useState({})
   const [polaroid, setPolaroid] = useState({ quantity: 9, photos: [], reference: null })
   const [frames, setFrames] = useState([])
@@ -329,6 +332,7 @@ export default function ManualOrderPage() {
       if (!frameOptions.some((option) => option.id === item.optionId)) next[`frame-${item.key}-option`] = `Choose an available size for Frame #${index + 1}.`
       if (!Number.isInteger(Number(item.quantity)) || Number(item.quantity) < 1 || Number(item.quantity) > Number(manualCatalog.frames.maxQuantity || 20)) next[`frame-${item.key}-quantity`] = `Choose a quantity from 1 to ${Number(manualCatalog.frames.maxQuantity || 20)}.`
       if (!item.photos.length) next[`frame-${item.key}-photos`] = `Add at least one print photo for Frame #${index + 1}.`
+      if (frameDesigns.length && !item.designId && !item.reference) next[`frame-${item.key}-design`] = `Choose a design for Frame #${index + 1} (or upload your own reference).`
     })
     selected.miniMagazines && miniBooks.forEach((item, index) => {
       if (item.photos.length < 2 || item.photos.length > 8) next[`mini-${item.key}-photos`] = `Mini Magazine #${index + 1} needs 2–8 photos so you can choose both covers.`
@@ -450,7 +454,7 @@ export default function ManualOrderPage() {
         body: JSON.stringify({
           submissionKey: requestKey.current,
           items: preparedItems.map((item) => ({
-            type: item.type, key: item.key, quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', sizeId: item.sizeId || '',
+            type: item.type, key: item.key, quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', designId: item.designId || '', sizeId: item.sizeId || '',
             category: item.category || '', custom: item.custom || {}, notes: item.notes || '', songName: item.songName || '', lyrics: item.lyrics || '',
             photos: item.files, referenceFile: item.referenceFile, frontId: item.frontId || '', backId: item.backId || '',
           })),
@@ -489,6 +493,7 @@ export default function ManualOrderPage() {
   const galleryErrors = (prefix, item) => ({ photos: errors[`${prefix}-${item.key}-photos`], front: errors[`${prefix}-${item.key}-front`], back: errors[`${prefix}-${item.key}-back`] })
 
   return <>
+    {previewDesign && <div role="dialog" aria-modal="true" aria-label={previewDesign.name || 'Frame design'} className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" onClick={() => setPreviewDesign(null)}><figure className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}><img src={previewDesign.image} alt={previewDesign.name || 'Frame design'} className="max-h-[80vh] w-full rounded-2xl bg-white object-contain" />{previewDesign.name && <figcaption className="mt-2 text-center text-sm font-medium text-white">{previewDesign.name}</figcaption>}<button type="button" onClick={() => setPreviewDesign(null)} className="mt-3 block w-full rounded-xl bg-white py-2.5 text-sm font-semibold">Close</button></figure></div>}
   <Container className="pb-36 pt-4 sm:pb-16 sm:pt-10">
     <div className="mx-auto max-w-6xl">
       <div className="mb-5 text-center sm:mb-8">
@@ -548,7 +553,16 @@ export default function ManualOrderPage() {
                 {field('Quantity', item.quantity, (value) => updateList(setFrames, item.key, 'quantity', value), { type: 'number', error: errors[`frame-${item.key}-quantity`] })}
                 <div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Frame subtotal</span><p className="mt-1 font-semibold text-brand">{formatPrice((option?.price || 0) * (Number(item.quantity) || 0))}</p></div>
               </div>
-              <div className="mt-5 grid gap-5 lg:grid-cols-2"><UploadPicker title="Print photos" files={item.photos} onChange={(photos) => updateList(setFrames, item.key, 'photos', photos)} help="Upload the photos you want printed and placed in your frame." error={errors[`frame-${item.key}-photos`]} /><UploadPicker title="Frame design reference (optional)" files={item.reference ? [item.reference] : []} onChange={(files) => updateList(setFrames, item.key, 'reference', files[0] ?? null)} multiple={false} help="A sample showing the frame style you prefer." /></div>
+              {frameDesigns.length > 0 && <div className="mt-5"><p className="text-sm font-medium">Choose a design for this frame{!item.reference && <span className="text-brand"> *</span>}</p>
+                <div role="radiogroup" aria-label={`Design for Frame #${index + 1}`} className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-2">{frameDesigns.map((design) => {
+                  const active = item.designId === design.id
+                  return <div key={design.id} className={`relative w-[84px] shrink-0 overflow-hidden rounded-lg border-2 bg-white ${active ? 'border-brand shadow-sm' : 'border-sand'}`}>
+                    <button type="button" role="radio" aria-checked={active} aria-label={design.name || 'Design'} onClick={() => updateList(setFrames, item.key, 'designId', active ? '' : design.id)} className="block w-full text-left"><img src={design.image} alt={design.name || 'Frame design'} loading="lazy" className="size-[80px] object-cover" />{design.name && <span className="block truncate px-1 py-1 text-[10px] font-medium">{design.name}</span>}{active && <span className="absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}</button>
+                    <button type="button" aria-label={`View ${design.name || 'design'} larger`} onClick={() => setPreviewDesign(design)} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-ink shadow"><Eye size={13} /></button>
+                  </div>
+                })}</div>
+                {errors[`frame-${item.key}-design`] && <span className="mt-1 block text-xs text-red-700">{errors[`frame-${item.key}-design`]}</span>}</div>}
+              <div className="mt-5 grid gap-5 lg:grid-cols-2"><UploadPicker title="Print photos" files={item.photos} onChange={(photos) => updateList(setFrames, item.key, 'photos', photos)} help="Upload the photos you want printed and placed in your frame." error={errors[`frame-${item.key}-photos`]} /><UploadPicker title="Own design reference (optional)" files={item.reference ? [item.reference] : []} onChange={(files) => updateList(setFrames, item.key, 'reference', files[0] ?? null)} multiple={false} help="Only if you want a style that is not in the designs above." /></div>
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setFrames, item.key, 'notes', event.target.value)} className={inputClass} /></label>
             </div>
           })}</div>
@@ -649,7 +663,7 @@ export default function ManualOrderPage() {
           <div className="divide-y divide-sand">{items.map((item, index) => {
             let title = ''; let option = ''; let unitPrice = item.price || 0; let quantity = Number(item.quantity ?? item.qty ?? 1)
             if (item.type === 'polaroids') { title = manualCatalog.polaroids.title; option = `${quantity} prints · ${formatPrice(manualCatalog.polaroids.unitPrice)} each` }
-            if (item.type === 'frame') { title = `Frame #${index + 1}`; option = item.optionId; unitPrice = frameOptions.find((row) => row.id === item.optionId)?.price || 0 }
+            if (item.type === 'frame') { title = `Frame #${index + 1}`; option = [item.optionId, frameDesigns.find((row) => row.id === item.designId)?.name].filter(Boolean).join(' · '); unitPrice = frameOptions.find((row) => row.id === item.optionId)?.price || 0 }
             if (item.type === 'mini-magazine') { title = manualCatalog.miniMagazines.title; option = '8 pages' }
             if (item.type === 'magazine') { title = `${manualCatalog.magazines.title} #${index + 1}`; const size = magazineOptions.find((row) => row.id === item.sizeId); option = size ? `${size.format} · ${size.pages} pages · ${item.category}` : item.category; unitPrice = size?.price || 0 }
             if (item.type === 'song-book') { title = `${manualCatalog.songBooks.title} #${index + 1}`; option = `12 pages · ${item.songName}` }

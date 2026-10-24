@@ -413,6 +413,16 @@ export const getSizes = async () => (await sizesApi.list()).filter((s) => s.pric
 export const getOccasions = async () => (await occasionsApi.list()).filter((o) => o.status !== 'Inactive')
 export const getProducts = productsApi.list
 export const getProduct = async (id) => (await productsApi.list()).find((p) => p.id === id) ?? null
+// All designs uploaded in Admin > Frames, de-duplicated; used by the guest/manual order form.
+export const getFrameDesigns = async () => {
+  const seen = new Map()
+  for (const frame of await getFrameProducts()) {
+    for (const design of Array.isArray(frame.designs) ? frame.designs : []) {
+      if (design?.id && design.image && !seen.has(design.id)) seen.set(design.id, { id: design.id, name: design.name || '', image: design.image })
+    }
+  }
+  return [...seen.values()]
+}
 export const getFrameProducts = async () => (await frameProductsApi.list()).filter((item) => item.status !== 'Inactive')
 export const getFrameProduct = async (id) => (await getFrameProducts()).find((item) => item.id === id) ?? null
 export const getActiveAddons = async () => (await addonsApi.list()).filter((a) => a.status !== 'Inactive')

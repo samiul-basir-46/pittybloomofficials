@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import ManualOrderPage from './ManualOrderPage'
 
 vi.mock('../../shared/services/contentService', () => ({
+  getFrameDesigns: async () => [],
   getProducts: async () => [{ id: 'frame', name: 'Frame', options: 'Medium (8×10 in) | 999\nLarge (12×16 in) | 1499' }],
   getSizes: async () => [
     { id: 'a4-4', format: 'A4', pages: 4, price: 299 },

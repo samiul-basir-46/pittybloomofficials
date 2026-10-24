@@ -83,17 +83,40 @@ function parseProductOptions(value = '') {
   }).filter((option) => option.label && Number.isFinite(option.price) && option.price > 0)
 }
 
+// Every design uploaded in Admin > Frames, so the guest form only ever accepts designs that really exist.
+async function loadFrameDesigns(project) {
+  try {
+    const response = await fetch(`${docsBase(project)}:runQuery`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'contentData' }], where: { fieldFilter: { field: { fieldPath: 'group' }, op: 'EQUAL', value: { stringValue: 'frameProducts' } } } } }),
+    })
+    if (!response.ok) return []
+    const rows = await response.json()
+    const designs = new Map()
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const value = row?.document ? decodeFields(row.document.fields ?? {}).value : null
+      if (!value || value.status === 'Inactive' || !Array.isArray(value.designs)) continue
+      for (const design of value.designs) {
+        if (design?.id && design.image && !designs.has(String(design.id))) designs.set(String(design.id), { id: String(design.id).slice(0, 80), name: text(design.name, 80), image: String(design.image).slice(0, 600) })
+      }
+    }
+    return [...designs.values()]
+  } catch { return [] }
+}
+
 async function trustedCatalog(project) {
   const frameDoc = await getFirestoreDoc(project, 'contentData/products--frame')
   const sizeDocs = await Promise.all(DEFAULT_SIZES.map((size) => getFirestoreDoc(project, `contentData/printSizes--${encodeURIComponent(size.id)}`)))
   const settingsDoc = await getFirestoreDoc(project, 'contentData/orderSettings--singleton')
   const manualOrderDoc = await getFirestoreDoc(project, 'contentData/manualOrderCatalog--singleton')
   const frameProduct = frameDoc?.value
+  const frameDesigns = await loadFrameDesigns(project)
   const configuredSizes = DEFAULT_SIZES.map((fallback, index) => {
     const saved = sizeDocs[index]?.value
     return saved ? { ...fallback, ...saved, id: fallback.id } : fallback
   })
   return {
+    frameDesigns,
     frameOptions: frameProduct ? parseProductOptions(frameProduct.options) : DEFAULT_FRAME_OPTIONS,
     sizes: configuredSizes,
     deliverySettings: settingsDoc?.value ?? {},
@@ -153,7 +176,11 @@ function buildItem(input, config, photos, referenceFile) {
     if (quantity > Number(card.maxQuantity || 20)) throw new Error(`Frame quantity cannot be more than ${Number(card.maxQuantity || 20)} for one size.`)
     const option = config.frameOptions.find((row) => row.id === input.optionId)
     if (!option) throw new Error('A selected frame size is no longer available. Please choose another size.')
-    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: option.label, qty: quantity, price: option.price, note: notes, photos: { count: photos.length, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } }
+    const designs = config.frameDesigns ?? []
+    const design = input.designId ? designs.find((row) => row.id === String(input.designId)) : null
+    if (input.designId && !design) throw new Error('A selected frame design is no longer available. Please choose another design.')
+    if (!design && designs.length && !referenceFile) throw new Error('Choose a design for each frame.')
+    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: design?.name ? `${option.label} · ${design.name}` : option.label, ...(design ? { design: { id: design.id, name: design.name, image: design.image } } : {}), qty: quantity, price: option.price, note: notes, photos: { count: photos.length, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'mini-magazine') {
     const unitPrice = Number(card.unitPrice)
