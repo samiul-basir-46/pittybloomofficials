@@ -554,6 +554,7 @@ export default function ManualOrderPage() {
                 <div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Frame subtotal</span><p className="mt-1 font-semibold text-brand">{formatPrice((option?.price || 0) * (Number(item.quantity) || 0))}</p></div>
               </div>
               {frameDesigns.length > 0 && <div className="mt-5"><p className="text-sm font-medium">Choose a design for this frame{!item.reference && <span className="text-brand"> *</span>}</p>
+                <p className="mt-0.5 text-xs text-ink/60">{Number(item.quantity) > 1 ? `This design (and these photos) will be used for all ${Number(item.quantity)} frames. To use a different design for another frame, set quantity to 1 and tap “Add another frame”.` : 'Need a different design for another frame? Tap “Add another frame” below.'}</p>
                 <div role="radiogroup" aria-label={`Design for Frame #${index + 1}`} className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-2">{frameDesigns.map((design) => {
                   const active = item.designId === design.id
                   return <div key={design.id} className={`relative w-[84px] shrink-0 overflow-hidden rounded-lg border-2 bg-white ${active ? 'border-brand shadow-sm' : 'border-sand'}`}>
