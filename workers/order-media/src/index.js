@@ -240,7 +240,12 @@ export default {
       }
       const result = await courierResponse.json().catch(() => ({}))
       if (!courierResponse.ok || result.status !== 200 || !result.consignment) {
-        return json({ error: String(result.message || 'Steadfast could not create this consignment.').slice(0, 240) }, 502, cors)
+        const detail = result.errors && typeof result.errors === 'object'
+          ? Object.values(result.errors).flat().map(String).join(' ')
+          : ''
+        const reason = [typeof result.message === 'string' ? result.message : '', detail].filter(Boolean).join(' - ')
+        console.error('Steadfast rejected consignment', invoice, courierResponse.status, reason.slice(0, 200))
+        return json({ error: (reason || `Steadfast could not create this consignment (HTTP ${courierResponse.status}).`).slice(0, 300) }, 502, cors)
       }
       const trackingUrl = result.tracking_url || result.tracking_link || result.public_tracking_url || result.customer_tracking_url
         || result.consignment.tracking_url || result.consignment.tracking_link || result.consignment.public_tracking_url || result.consignment.customer_tracking_url || ''

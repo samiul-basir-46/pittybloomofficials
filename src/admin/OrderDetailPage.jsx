@@ -14,6 +14,7 @@ import { adminAuth } from '../shared/services/firebaseClient'
 import { useAdminAuth } from './AdminAuthContext'
 import { longDate } from '../pages/order/lib/pricing'
 import { createSteadfastConsignment } from './steadfastApi'
+import { dispatchOrder } from './dispatchFlow'
 import { downloadPhotoZip } from './photoZip'
 
 const Card = ({ title, aside, children, className = '' }) => (
@@ -269,35 +270,16 @@ export default function OrderDetailPage() {
     if (!dispatchForm || dispatching) return
     setDispatching(true)
     setNotice({ type: '', text: '' })
+    const outcome = await dispatchOrder({ order, form: dispatchForm, email: c.email || '', createConsignment: createSteadfastConsignment, recordShipment: ordersApi.recordShipment })
     try {
-      const result = await createSteadfastConsignment({ invoice: order.id, ...dispatchForm, recipient_email: c.email || '' })
-      if (!result.tracking_code) throw new Error('Steadfast created no tracking code. Check the courier panel before retrying.')
-      const trackingNumber = String(result.tracking_code)
-      const trackingUrl = String(result.consignment?.tracking_link || result.consignment?.tracking_url || result.tracking_link || result.tracking_url || result.public_tracking_url || result.customer_tracking_url || '')
-      await ordersApi.save({
-        ...order,
-        status: 'Shipped',
-        statusUpdatedAt: new Date().toISOString(),
-        courierName: 'Steadfast Courier',
-        trackingNumber,
-        trackingUrl,
-        tracking_link: trackingUrl,
-        tracking_code: trackingNumber,
-        steadfastTrackingCode: trackingNumber,
-        consignmentId: String(result.consignment_id || ''),
-        consignment_id: String(result.consignment_id || ''),
-        steadfastConsignment: result.consignment,
-        recipientName: dispatchForm.recipient_name,
-        customerPhone: dispatchForm.recipient_phone,
-        shippingAddress: dispatchForm.recipient_address,
-        codAmount: Number(dispatchForm.cod_amount) || 0,
-        ...(dispatchForm.note.trim() ? { deliveryNote: dispatchForm.note.trim() } : {}),
-      })
-      await orders.reload()
-      setDispatchForm(null)
-      navigate('/admin/orders?status=dispatched&date=all')
-    } catch (error) {
-      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Steadfast dispatch failed.' })
+      if (outcome.ok) {
+        try { await orders.reload() } catch { /* the shipment is saved; a stale list is refreshed on the next load */ }
+        setDispatchForm(null)
+        navigate('/admin/orders?status=dispatched&date=all')
+      } else {
+        setNotice({ type: outcome.stage === 'save' ? 'warn' : 'error', text: outcome.message })
+        if (outcome.stage !== 'courier') setDispatchForm(null)
+      }
     } finally { setDispatching(false) }
   }
   const remove = async () => {
@@ -379,7 +361,7 @@ export default function OrderDetailPage() {
             </div>
             <button type="button" disabled={['Delivered', 'Cancelled'].includes(order.status)} onClick={() => { if (window.confirm(`Cancel order ${order.id}?`)) changeStatus('Cancelled') }} className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-45">Cancel order</button>
           </div>
-          {notice.text && <p role={notice.type === 'error' ? 'alert' : 'status'} className={`mt-3 flex items-center gap-1.5 text-sm ${notice.type === 'error' ? 'text-red-600' : 'text-green-700'}`}>{notice.type === 'ok' && <Check size={15} />}{notice.text}</p>}
+          {notice.text && <p role={notice.type === 'error' ? 'alert' : 'status'} className={`mt-3 flex items-center gap-1.5 text-sm ${notice.type === 'error' ? 'text-red-600' : notice.type === 'warn' ? 'text-amber-700' : 'text-green-700'}`}>{notice.type === 'ok' && <Check size={15} />}{notice.text}</p>}
           <button type="button" onClick={remove} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700 hover:bg-red-100"><Trash2 size={16} /> Delete order</button>
         </Card>
 

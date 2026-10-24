@@ -132,6 +132,7 @@ const nextLocalOrderId = async () => {
   }, 0)
   return `PB-${day}-${String(highest + 1).padStart(2, '0')}`
 }
+const withoutUndefined = (value) => JSON.parse(JSON.stringify(value ?? {}))
 const requireSignedIn = () => {
   if (!auth?.currentUser) throw new Error('Sign in to your customer account before placing an order.')
   return auth.currentUser
@@ -182,6 +183,11 @@ export const ordersApi = !firebaseConfigured ? {
     return () => {}
   },
   updateStatus: changeLocalOrderStatus,
+  recordShipment: async (id, fields) => {
+    const order = (await localOrdersApi.list()).find((item) => item.id === id)
+    if (!order) throw new Error('Order not found.')
+    return localOrdersApi.save({ ...order, ...withoutUndefined(fields) })
+  },
   place: async (order) => {
     const id = await nextLocalOrderId()
     const saved = { ...order, id }
@@ -257,7 +263,8 @@ export const ordersApi = !firebaseConfigured ? {
     const next = existing.exists()
       ? {
           ...order,
-          ownerUid: existing.data().ownerUid,
+          // Guest/manual orders are created by the Worker without an ownerUid; `undefined` makes Firestore reject the write.
+          ownerUid: existing.data().ownerUid ?? order.ownerUid ?? user?.uid ?? 'admin',
           customer: {
             ...order.customer,
             ...((existing.data().customer?.uid ?? order.customer?.uid)
@@ -270,8 +277,17 @@ export const ordersApi = !firebaseConfigured ? {
           ownerUid: order.ownerUid || user?.uid || 'admin',
           customer: { ...order.customer, uid: order.customer?.uid || user?.uid || '', contactEmail: order.customer?.email || '', email: user?.email || '' },
         }
-    await setDoc(ref, next)
-    return next
+    const clean = withoutUndefined(next)
+    await setDoc(ref, clean)
+    return clean
+  },
+  // Writes only the shipment fields so a courier hand-off never rewrites (or trips over) the rest of the order.
+  recordShipment: async (id, fields) => {
+    const clean = withoutUndefined(fields)
+    const localOrder = (await localOrdersApi.list()).find((order) => order.id === id)
+    if (localOrder) await localOrdersApi.save({ ...localOrder, ...clean })
+    await updateDoc(doc(adminDb, 'orders', id), clean)
+    return clean
   },
   place: async (order, requestKey) => {
     const user = requireSignedIn()
