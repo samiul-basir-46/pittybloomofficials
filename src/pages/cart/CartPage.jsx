@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, ShoppingBag, Trash2 } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import SmartImage from '../../shared/ui/SmartImage'
@@ -203,6 +203,7 @@ export default function CartPage() {
     address: savedOrderCheckout?.customer?.address || '',
     note: savedOrderCheckout?.customer?.note || '',
   }))
+  const [deliveryArea, setDeliveryArea] = useState('')
   useEffect(() => {
     if (profile.loading) return
     setCustomer((current) => ({
@@ -220,6 +221,9 @@ export default function CartPage() {
   const hasIncompleteMagazine = Boolean(incompleteOrder)
   const deliveryCharge = Number(savedOrderCheckout?.deliveryCharge) || 0
   const rushCharge = Number(savedOrderCheckout?.rushCharge) || 0
+  const hasFrameOrPolaroids = items.some((item) => item.kind === 'frame' || /frame|polaroid/i.test(`${item.id || ''} ${item.name || ''}`))
+  const productDeliveryCharge = deliveryArea === 'inside' ? 60 : deliveryArea === 'outside' ? 110 : 0
+  const totalDeliveryCharge = hasFrameOrPolaroids ? Math.max(deliveryCharge, productDeliveryCharge) : deliveryCharge
   const placeOrder = async (e) => {
     e.preventDefault()
     if (submitting.current || items.length === 0) return
@@ -227,6 +231,7 @@ export default function CartPage() {
       navigate(`/account?next=${encodeURIComponent('/cart?checkout=1')}`)
       return
     }
+    if (hasFrameOrPolaroids && !deliveryArea) { setSubmitError('Select Inside Dhaka or Outside Dhaka.'); return }
     submitting.current = true
     setSubmitError('')
     submissionKey.current ??= globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -240,11 +245,11 @@ export default function CartPage() {
         cartItems: items,
         customer: orderCustomer,
         extras: savedOrderCheckout ? {
-          deliveryCharge,
+          deliveryCharge: totalDeliveryCharge,
           rushCharge,
-          deliveryLabel: savedOrderCheckout.deliveryLabel,
-          deliveryInfo: savedOrderCheckout.deliveryInfo,
-        } : {},
+          deliveryLabel: hasFrameOrPolaroids ? `${deliveryArea === 'inside' ? 'Inside' : 'Outside'} Dhaka${savedOrderCheckout.deliveryLabel ? ` · ${savedOrderCheckout.deliveryLabel}` : ''}` : savedOrderCheckout.deliveryLabel,
+          deliveryInfo: { ...savedOrderCheckout.deliveryInfo, ...(hasFrameOrPolaroids ? { location: deliveryArea, locationLabel: `${deliveryArea === 'inside' ? 'Inside' : 'Outside'} Dhaka` } : {}) },
+        } : hasFrameOrPolaroids ? { deliveryCharge: totalDeliveryCharge, deliveryLabel: `${deliveryArea === 'inside' ? 'Inside' : 'Outside'} Dhaka`, deliveryInfo: { location: deliveryArea, locationLabel: `${deliveryArea === 'inside' ? 'Inside' : 'Outside'} Dhaka` } } : {},
       }), submissionKey.current)
       await photoStore.removeFiles(order.items.flatMap((item) => item.photos?.files ?? []))
       setPlaced(order)
@@ -316,16 +321,16 @@ export default function CartPage() {
                     <dd>{formatPrice(savings)}</dd>
                   </div>
                 )}
-                {savedOrderCheckout?.deliveryLabel && <div className="flex justify-between"><dt className="text-ink/60">Selected delivery</dt><dd className="text-right">{savedOrderCheckout.deliveryLabel}</dd></div>}
-                {deliveryCharge > 0 && <div className="flex justify-between"><dt className="text-ink/60">Delivery charge</dt><dd>{formatPrice(deliveryCharge)}</dd></div>}
+                {(savedOrderCheckout?.deliveryLabel || (hasFrameOrPolaroids && deliveryArea)) && <div className="flex justify-between"><dt className="text-ink/60">Selected delivery</dt><dd className="text-right">{hasFrameOrPolaroids ? `${deliveryArea === 'inside' ? 'Inside' : deliveryArea === 'outside' ? 'Outside' : ''} Dhaka${savedOrderCheckout?.deliveryLabel ? ` · ${savedOrderCheckout.deliveryLabel}` : ''}` : savedOrderCheckout.deliveryLabel}</dd></div>}
+                {(deliveryCharge > 0 || productDeliveryCharge > 0) && <div className="flex justify-between"><dt className="text-ink/60">Delivery charge</dt><dd>{formatPrice(totalDeliveryCharge)}</dd></div>}
                 {rushCharge > 0 && <div className="flex justify-between"><dt className="text-ink/60">Rush delivery</dt><dd>{formatPrice(rushCharge)}</dd></div>}
-                {!savedOrderCheckout?.deliveryLabel && <div className="flex justify-between">
+                {!savedOrderCheckout?.deliveryLabel && !hasFrameOrPolaroids && <div className="flex justify-between">
                   <dt className="text-ink/60">Delivery</dt>
                   <dd className="text-right text-ink/60">Confirmed on order</dd>
                 </div>}
                 <div className="flex justify-between border-t border-sand pt-3 text-lg">
                   <dt className="font-semibold">Total</dt>
-                  <dd className="font-extrabold">{formatPrice(subtotal + deliveryCharge + rushCharge)}</dd>
+                  <dd className="font-extrabold">{formatPrice(subtotal + totalDeliveryCharge + rushCharge)}</dd>
                 </div>
               </dl>
               {settings.deliveryNote && <p className="text-xs leading-5 text-ink/50">{settings.deliveryNote}</p>}
@@ -335,6 +340,7 @@ export default function CartPage() {
                 <input className={inputClass} placeholder="Recipient name" required value={customer.name} onChange={set('name')} />
                 <input className={inputClass} type="tel" placeholder="Delivery phone number" required value={customer.phone} onChange={set('phone')} />
                 <textarea className={inputClass} rows={3} placeholder="Delivery address" required value={customer.address} onChange={set('address')} />
+                {hasFrameOrPolaroids && <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setSubmitError('') }} className={`${inputClass} appearance-none pr-10`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span></label>}
                 <input className={inputClass} placeholder="Delivery note (optional)" value={customer.note} onChange={set('note')} />
               </div> : <div className="border-t border-sand pt-5"><Button type="button" className="w-full gap-2 shadow-lg" onClick={beginCheckout}><ShoppingBag size={18} /> {hasIncompleteMagazine ? `Continue ${incompleteOrder.kind === 'song-book' ? 'Song Book' : 'magazine'} order` : 'Place order'}</Button></div>}
 

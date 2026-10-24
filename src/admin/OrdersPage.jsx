@@ -75,6 +75,8 @@ export default function OrdersPage({ fixedView = 'all' }) {
   const [params, setParams] = useSearchParams()
   const now = useMemo(() => new Date(), [])
   const all = ordersQuery.data ?? []
+  // Delivered orders belong in the dedicated Completed orders view.
+  const listOrders = fixedView === 'all' ? all.filter((order) => order.status !== 'Delivered') : all
   const settings = settingsQuery.data ?? {}
   const query = params.get('q') ?? ''
   const urgencyFilter = ['all', 'overdue', 'urgent', 'standard'].includes(params.get('urgency')) ? params.get('urgency') : 'all'
@@ -106,7 +108,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
   }
 
   const search = query.trim().toLowerCase()
-  const matching = useMemo(() => all.map((order) => ({ order, urgency: getUrgency(order, settings, now) })).filter(({ order, urgency }) => {
+  const matching = useMemo(() => listOrders.map((order) => ({ order, urgency: getUrgency(order, settings, now) })).filter(({ order, urgency }) => {
     const created = orderDate(order)
     const age = now.getTime() - created.getTime()
     const matchesDate = dateFilter === 'all' || (dateFilter === 'today' ? localDate(order.createdAt) === localDate(now) : dateFilter === '30d' ? age <= 30 * 86400000 && age >= 0 : age <= 7 * 86400000 && age >= 0)
@@ -117,7 +119,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
     const matchesCategory = !selectedCategory || order.items.some(selectedCategory.matches)
     const matchesUrgency = urgencyFilter === 'all' || urgency.level === urgencyFilter
     return statusMatchesList && matchesDate && matchesStatus && matchesSearch && matchesCategory && (fixedView !== 'all' || matchesUrgency)
-  }), [all, now, dateFilter, statusFilter, fixedView, search, category, urgencyFilter, settings]).sort((a, b) => {
+  }), [listOrders, now, dateFilter, statusFilter, fixedView, search, category, urgencyFilter, settings]).sort((a, b) => {
     if (fixedView !== 'all') return String(b.order.createdAt).localeCompare(String(a.order.createdAt))
     const rank = (entry) => entry.order.status === 'Shipped' ? 3 : ({ overdue: 0, urgent: 1, standard: 2 }[entry.urgency.level] ?? 2)
     const difference = rank(a) - rank(b)
@@ -137,7 +139,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
   const dispatchedCount = all.filter((order) => order.status === 'Shipped').length
   const revenueToday = deliveredToday.reduce((sum, order) => sum + (Number(order.total) || 0), 0)
   const urgentOrders = all.filter((order) => PENDING.includes(order.status) && ['overdue', 'urgent'].includes(getUrgency(order, settings, now).level))
-  const tabsCount = (matcher) => all.filter((order) => order.items.some(matcher)).length
+  const tabsCount = (matcher) => listOrders.filter((order) => order.items.some(matcher)).length
   const tabClass = (active) => `tb inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium transition ${active ? 'border-[#2F3A33] bg-[#2F3A33] text-[#FDFCF9]' : 'border-[#D9D4C7] bg-[#FDFCF9] text-[#2A2824] hover:bg-[#F1EEE6]'}`
   const pages = Math.max(1, Math.ceil(matching.length / 9))
   const page = Math.min(requestedPage, pages)
@@ -162,7 +164,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
 
         <nav className="orders-filter-tabs mb-2 flex items-center gap-3 overflow-x-auto pb-3" aria-label="Order filters">
           {fixedView === 'all' && <>
-          <button type="button" aria-pressed={urgencyFilter === 'all' && category === 'all'} onClick={selectAll} className={tabClass(urgencyFilter === 'all' && category === 'all')}>All orders <span className="text-xs opacity-75">{all.length}</span></button>
+          <button type="button" aria-pressed={urgencyFilter === 'all' && category === 'all'} onClick={selectAll} className={tabClass(urgencyFilter === 'all' && category === 'all')}>All orders <span className="text-xs opacity-75">{listOrders.length}</span></button>
           <label className="relative inline-flex shrink-0">
             <span className="sr-only">Filter by priority</span>
             <select aria-label="Filter by priority" value={urgencyFilter} onChange={(event) => set('urgency', event.target.value, 'all')} className="min-h-11 appearance-none rounded-full border border-[#D9D4C7] bg-[#FDFCF9] py-2 pl-4 pr-10 text-sm font-medium text-[#2A2824] outline-none hover:bg-[#F1EEE6] focus:border-[#2F3A33]">

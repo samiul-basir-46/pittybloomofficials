@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
@@ -14,6 +14,9 @@ import { formatPrice } from '../../shared/utils/format'
 import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
+
+const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
+const deliveryAreaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
 
 export default function PolaroidsOrderPage() {
   const [params] = useSearchParams()
@@ -29,6 +32,7 @@ export default function PolaroidsOrderPage() {
   const [photos, setPhotos] = useState([])
   const [reference, setReference] = useState(null)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [deliveryArea, setDeliveryArea] = useState('')
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
@@ -80,6 +84,7 @@ export default function PolaroidsOrderPage() {
       setError(`Choose exactly ${qty} photo${qty === 1 ? '' : 's'} for ${qty} Polaroid${qty === 1 ? '' : 's'}.`)
       return
     }
+    if (!cartMode && !deliveryArea) { setError('Select Inside Dhaka or Outside Dhaka.'); return }
     setPlacing(true)
     setError('')
     try {
@@ -103,7 +108,7 @@ export default function PolaroidsOrderPage() {
         id: '',
         cartItems: [item],
         customer: { ...customer, uid: user?.uid || '', email: user?.email || '' },
-        extras: { deliveryLabel: 'Delivery details received' },
+        extras: { deliveryCharge: deliveryFee(deliveryArea), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
       }), requestKey.current)
       setPlacedOrder(order)
     } catch (cause) {
@@ -141,6 +146,7 @@ export default function PolaroidsOrderPage() {
               <input className={inputClass} placeholder="Full name" autoComplete="name" required value={customer.name} onChange={setCustomerField('name')} />
               <input className={inputClass} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" required value={customer.phone} onChange={setCustomerField('phone')} />
               <textarea className={inputClass} rows={4} placeholder="Full delivery address" autoComplete="street-address" required value={customer.address} onChange={setCustomerField('address')} />
+              <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => setDeliveryArea(event.target.value)} className={`${inputClass} appearance-none pr-10`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span></label>
             </div></div>}
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? (cartMode ? 'Adding to cart…' : 'Placing order…') : (cartMode ? 'Add to Cart' : 'Place order')} <ShoppingBag size={17} /></Button>
@@ -148,8 +154,8 @@ export default function PolaroidsOrderPage() {
           <aside className="min-w-0 max-w-full rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-6">
             <h2 className="font-serif text-2xl">Order summary</h2>
             <div className="mt-5 flex items-center gap-3 border-b border-sand pb-5"><div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={product.image} alt={product.name} className="size-full object-cover" /></div><div className="min-w-0 flex-1"><p className="font-semibold">Polaroids</p><p className="mt-1 text-sm text-ink/60">{qty} piece{qty === 1 ? '' : 's'} · ৳{unitPrice} each</p></div><p className="font-semibold">{formatPrice(qty * unitPrice)}</p></div>
-            <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery</span><span className="text-ink/60">Confirmed with you</span></div>
-            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(qty * unitPrice)}</span></div>
+            <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery {deliveryArea ? `(${deliveryAreaLabel(deliveryArea)})` : ''}</span><span>{cartMode ? 'Set at cart checkout' : deliveryArea ? formatPrice(deliveryFee(deliveryArea)) : 'Select an area'}</span></div>
+            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(qty * unitPrice + (cartMode ? 0 : deliveryFee(deliveryArea)))}</span></div>
             <p className="mt-4 text-xs leading-5 text-ink/50">{cartMode ? 'Add delivery information when you place the full cart order.' : 'No delivery date selection is needed. We’ll confirm delivery after you place the order.'}</p>
           </aside>
         </form>

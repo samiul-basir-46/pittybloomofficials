@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, CheckCircle2, ImagePlus, Maximize2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
+import { Check, CheckCircle2, ChevronDown, ImagePlus, Maximize2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
@@ -14,6 +14,9 @@ import { formatPrice } from '../../shared/utils/format'
 import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
+
+const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
+const deliveryAreaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
 
 const newKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 const MAX_FRAMES = 20
@@ -96,6 +99,7 @@ export default function FrameOrderPage() {
   // Each frame of a frame product is its own piece (own design, own photos). The old size-based product keeps one piece with a quantity.
   const perPiece = Boolean(frame)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [deliveryArea, setDeliveryArea] = useState('')
   const [customerErrors, setCustomerErrors] = useState({})
   const [pieces, setPieces] = useState(() => [{ key: newKey(), designId: '' }])
   const [pieceErrors, setPieceErrors] = useState({})
@@ -176,6 +180,7 @@ export default function FrameOrderPage() {
       name: customer.name.trim() ? '' : 'Enter your full name.',
       phone: customer.phone.trim() ? '' : 'Enter your WhatsApp or phone number.',
       address: customer.address.trim() ? '' : 'Enter your delivery address.',
+      deliveryArea: deliveryArea ? '' : 'Select Inside Dhaka or Outside Dhaka.',
     }
     setPieceErrors(problems)
     setCustomerErrors(contactProblems)
@@ -212,7 +217,7 @@ export default function FrameOrderPage() {
       }
       const order = await ordersApi.place(buildOrder({
         id: '', cartItems: items, customer: { ...customer, uid: user?.uid || '', email: user?.email || '' },
-        extras: { deliveryLabel: 'Delivery details received' },
+        extras: { deliveryCharge: deliveryFee(deliveryArea), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
       }), requestKey.current)
       setPlacedOrder(order)
     } catch (cause) {
@@ -221,7 +226,8 @@ export default function FrameOrderPage() {
   }
 
   const unit = option.price
-  const total = unit * count
+  const deliveryCharge = cartMode ? 0 : deliveryFee(deliveryArea)
+  const total = unit * count + deliveryCharge
 
   return <div className="min-h-screen bg-cream pb-16 pt-6 sm:pt-10">
     <Container>
@@ -262,6 +268,7 @@ export default function FrameOrderPage() {
                 <div><input aria-label="Full name" aria-invalid={Boolean(customerErrors.name)} aria-describedby={customerErrors.name ? 'frame-name-error' : undefined} className={`${inputClass} ${customerErrors.name ? 'border-red-500' : ''}`} placeholder="Full name" autoComplete="name" value={customer.name} onChange={setCustomerField('name')} />{customerErrors.name && <p id="frame-name-error" className="mt-1 text-xs text-red-700">{customerErrors.name}</p>}</div>
                 <div><input aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} aria-describedby={customerErrors.phone ? 'frame-phone-error' : undefined} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p id="frame-phone-error" className="mt-1 text-xs text-red-700">{customerErrors.phone}</p>}</div>
                 <div><textarea aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} aria-describedby={customerErrors.address ? 'frame-address-error' : undefined} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={4} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p id="frame-address-error" className="mt-1 text-xs text-red-700">{customerErrors.address}</p>}</div>
+                <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setCustomerErrors((current) => ({ ...current, deliveryArea: '' })) }} className={`${inputClass} appearance-none pr-10 ${customerErrors.deliveryArea ? 'border-red-500' : ''}`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span>{customerErrors.deliveryArea && <span className="mt-1 block text-xs text-red-700">{customerErrors.deliveryArea}</span>}</label>
               </div>
             </div>}
             {error && <p role="alert" aria-live="assertive" className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -279,7 +286,7 @@ export default function FrameOrderPage() {
                 </li>
               })}
             </ul>
-            <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery</span><span className="text-ink/60">Confirmed with you</span></div>
+            <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery {deliveryArea ? `(${deliveryAreaLabel(deliveryArea)})` : ''}</span><span>{cartMode ? 'Set at cart checkout' : deliveryArea ? formatPrice(deliveryCharge) : 'Select an area'}</span></div>
             <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(total)}</span></div>
             <p className="mt-4 text-xs leading-5 text-ink/50">{cartMode ? 'Add delivery information when you place the full cart order.' : 'No delivery date selection is needed. We’ll confirm delivery after you place the order.'}</p>
           </aside>
