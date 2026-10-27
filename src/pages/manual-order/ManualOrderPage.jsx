@@ -27,7 +27,8 @@ const newId = () => {
   if (cryptoApi?.getRandomValues) return Array.from(cryptoApi.getRandomValues(new Uint8Array(16)), (value) => value.toString(16).padStart(2, '0')).join('')
   return `${Date.now()}${Math.random().toString(16).slice(2)}`
 }
-const makeItem = (type) => ({ key: newId(), type, quantity: 1, optionId: '', designId: '', sizeId: '', category: 'Birthday', custom: {}, notes: '', photos: [], reference: null, frontId: '', backId: '', songName: '', lyrics: '' })
+const makeFrameConfiguration = () => ({ key: newId(), designId: '', photos: [], notes: '' })
+const makeItem = (type) => ({ key: newId(), type, quantity: 1, optionId: '', designId: '', sizeId: '', category: 'Birthday', custom: {}, notes: '', photos: [], reference: null, configurations: type === 'frame' ? [makeFrameConfiguration()] : undefined, frontId: '', backId: '', songName: '', lyrics: '' })
 const field = (label, value, onChange, { type = 'text', required = false, placeholder = '', error = '', className = '' } = {}) => (
   <label className={`block ${className}`}>
     <span className="mb-1.5 block text-sm font-medium text-ink">{label}{required && <span className="text-brand"> *</span>}</span>
@@ -212,6 +213,8 @@ export default function ManualOrderPage() {
   const [selected, setSelected] = useState({})
   const [polaroid, setPolaroid] = useState({ quantity: 9, photos: [], reference: null })
   const [frames, setFrames] = useState([])
+  const [expandedFrameKey, setExpandedFrameKey] = useState('')
+  const [frameQuantityDrafts, setFrameQuantityDrafts] = useState({})
   const [miniBooks, setMiniBooks] = useState([])
   const [magazines, setMagazines] = useState([])
   const [songBooks, setSongBooks] = useState([])
@@ -245,11 +248,11 @@ export default function ManualOrderPage() {
   const a4Sizes = sizes.filter((size) => size.format === 'A4' && size.price > 0 && size.pages >= 4 && size.pages <= 40 && size.pages % 4 === 0).sort((a, b) => a.pages - b.pages)
   const a5Sizes = sizes.filter((size) => size.format === 'A5' && [4, 8].includes(size.pages) && size.price > 0).sort((a, b) => a.pages - b.pages)
   const magazineOptions = [...a4Sizes, ...a5Sizes]
-  const loading = productsData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading
-  const loadError = productsData.error || sizesData.error || settingsData.error || manualCatalogData.error
+  const loading = productsData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading || designsData.loading
+  const loadError = productsData.error || sizesData.error || settingsData.error || manualCatalogData.error || designsData.error
   const items = [
     ...(selected.polaroids ? [{ key: 'polaroids', type: 'polaroids', qty: Number(polaroid.quantity) || 0, price: Number(manualCatalog.polaroids.unitPrice), photos: polaroid.photos, reference: polaroid.reference }] : []),
-    ...(selected.frames ? frames.map((item) => ({ ...item, type: 'frame', price: frameOptions.find((option) => option.id === item.optionId)?.price || 0 })) : []),
+    ...(selected.frames ? frames.flatMap((group) => (group.configurations ?? []).map((configuration) => ({ ...configuration, type: 'frame', optionId: group.optionId, quantity: 1, price: frameOptions.find((option) => option.id === group.optionId)?.price || 0 }))) : []),
     ...(selected.miniMagazines ? miniBooks.map((item) => ({ ...item, type: 'mini-magazine', price: Number(manualCatalog.miniMagazines.unitPrice) })) : []),
     ...(selected.magazines ? magazines.map((item) => ({ ...item, type: 'magazine', price: magazineOptions.find((option) => option.id === item.sizeId)?.price || 0 })) : []),
     ...(selected.songBooks ? songBooks.map((item) => ({ ...item, type: 'song-book', price: Number(manualCatalog.songBooks.unitPrice) })) : []),
@@ -281,7 +284,11 @@ export default function ManualOrderPage() {
     })
     if (enabling) {
       setExpandedProduct(id)
-      if (id === 'frames' && !frames.length) setFrames([makeItem('frame')])
+      if (id === 'frames' && !frames.length) {
+        const group = makeItem('frame')
+        setFrames([group])
+        setExpandedFrameKey(group.configurations[0].key)
+      } else if (id === 'frames') setExpandedFrameKey(frames[0]?.configurations[0]?.key || '')
       if (id === 'miniMagazines' && !miniBooks.length) setMiniBooks([makeItem('mini-magazine')])
       if (id === 'magazines' && !magazines.length) setMagazines([makeItem('magazine')])
       if (id === 'songBooks' && !songBooks.length) setSongBooks([makeItem('song-book')])
@@ -328,11 +335,13 @@ export default function ManualOrderPage() {
       if (Number(polaroid.quantity) < Number(manualCatalog.polaroids.minQuantity || 9)) next.polaroidQuantity = `The minimum Polaroid order is ${Number(manualCatalog.polaroids.minQuantity || 9)} pieces.`
       if (polaroid.photos.length !== Number(polaroid.quantity)) next.polaroidPhotos = `Upload exactly ${Number(polaroid.quantity) || 0} photos, one for each Polaroid.`
     }
-    selected.frames && frames.forEach((item, index) => {
-      if (!frameOptions.some((option) => option.id === item.optionId)) next[`frame-${item.key}-option`] = `Choose an available size for Frame #${index + 1}.`
-      if (!Number.isInteger(Number(item.quantity)) || Number(item.quantity) < 1 || Number(item.quantity) > Number(manualCatalog.frames.maxQuantity || 20)) next[`frame-${item.key}-quantity`] = `Choose a quantity from 1 to ${Number(manualCatalog.frames.maxQuantity || 20)}.`
-      if (!item.photos.length) next[`frame-${item.key}-photos`] = `Add at least one print photo for Frame #${index + 1}.`
-      if (frameDesigns.length && !item.designId && !item.reference) next[`frame-${item.key}-design`] = `Choose a design for Frame #${index + 1} (or upload your own reference).`
+    selected.frames && frames.flatMap((group) => group.configurations.map((configuration) => ({ group, configuration }))).forEach(({ group, configuration }, index) => {
+      const key = configuration.key
+      if (!frameOptions.some((option) => option.id === group.optionId)) next[`frame-${key}-option`] = `Choose an available size for Frame #${index + 1}.`
+      if (group.configurations.length > Number(manualCatalog.frames.maxQuantity || 20)) next[`frame-${group.key}-quantity`] = `Choose a quantity from 1 to ${Number(manualCatalog.frames.maxQuantity || 20)}.`
+      const available = frameDesigns.filter((design) => design.sizeId === group.optionId)
+      if (!available.some((design) => design.id === configuration.designId)) next[`frame-${key}-design`] = available.length ? `Choose a design for Frame #${index + 1}.` : `No designs are currently available for this size.`
+      if (!configuration.photos.length) next[`frame-${key}-photos`] = `Add at least one print photo for Frame #${index + 1}.`
     })
     selected.miniMagazines && miniBooks.forEach((item, index) => {
       if (item.photos.length < 2 || item.photos.length > 8) next[`mini-${item.key}-photos`] = `Mini Magazine #${index + 1} needs 2–8 photos so you can choose both covers.`
@@ -354,7 +363,8 @@ export default function ManualOrderPage() {
       if (!item.photos.some((photo) => photo.id === item.frontId)) next[`song-${item.key}-front`] = 'Choose a front cover photo.'
       if (!item.photos.some((photo) => photo.id === item.backId)) next[`song-${item.key}-back`] = 'Choose a back cover photo.'
     })
-    if (selected.frames && frames.length > Number(manualCatalog.frames.maxItems || 20)) next.framesEmpty = `You can add up to ${manualCatalog.frames.maxItems} frame sizes to one order.`
+    const frameCount = frames.reduce((count, group) => count + group.configurations.length, 0)
+    if (selected.frames && frameCount > Number(manualCatalog.frames.maxItems || 20)) next.framesEmpty = `You can add up to ${manualCatalog.frames.maxItems} individual frames to one order.`
     if (selected.miniMagazines && miniBooks.length > Number(manualCatalog.miniMagazines.maxItems || 20)) next.miniEmpty = `You can add up to ${manualCatalog.miniMagazines.maxItems} Mini Pocket Magazines to one order.`
     if (selected.magazines && magazines.length > Number(manualCatalog.magazines.maxItems || 20)) next.magazinesEmpty = `You can add up to ${manualCatalog.magazines.maxItems} magazines to one order.`
     if (selected.songBooks && songBooks.length > Number(manualCatalog.songBooks.maxItems || 20)) next.songBooksEmpty = `You can add up to ${manualCatalog.songBooks.maxItems} Song Books to one order.`
@@ -390,6 +400,10 @@ export default function ManualOrderPage() {
               : firstError?.startsWith('song-') ? 'songBooks'
                 : firstError?.startsWith('polaroid') ? 'polaroids' : null
         if (productId) setExpandedProduct(productId)
+        if (firstError?.startsWith('frame-')) {
+          const invalidConfiguration = frames.flatMap((group) => group.configurations).find((configuration) => Object.keys(next).some((key) => key.startsWith(`frame-${configuration.key}-`)))
+          if (invalidConfiguration) setExpandedFrameKey(invalidConfiguration.key)
+        }
       }
       return
     }
@@ -419,7 +433,7 @@ export default function ManualOrderPage() {
   const prepareItems = async () => {
     const rows = []
     if (selected.polaroids) rows.push({ type: 'polaroids', item: polaroid })
-    if (selected.frames) rows.push(...frames.map((item) => ({ type: 'frame', item })))
+    if (selected.frames) rows.push(...frames.flatMap((group) => group.configurations.map((configuration) => ({ type: 'frame', item: { ...configuration, optionId: group.optionId, groupKey: group.key, quantity: 1 } }))))
     if (selected.miniMagazines) rows.push(...miniBooks.map((item) => ({ type: 'mini-magazine', item })))
     if (selected.magazines) rows.push(...magazines.map((item) => ({ type: 'magazine', item })))
     if (selected.songBooks) rows.push(...songBooks.map((item) => ({ type: 'song-book', item })))
@@ -454,7 +468,7 @@ export default function ManualOrderPage() {
         body: JSON.stringify({
           submissionKey: requestKey.current,
           items: preparedItems.map((item) => ({
-            type: item.type, key: item.key, quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', designId: item.designId || '', sizeId: item.sizeId || '',
+            type: item.type, key: item.key, groupKey: item.groupKey || '', quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', designId: item.designId || '', sizeId: item.sizeId || '',
             category: item.category || '', custom: item.custom || {}, notes: item.notes || '', songName: item.songName || '', lyrics: item.lyrics || '',
             photos: item.files, referenceFile: item.referenceFile, frontId: item.frontId || '', backId: item.backId || '',
           })),
@@ -472,7 +486,7 @@ export default function ManualOrderPage() {
   }
 
   if (loading) return <Container className="py-24 text-center text-ink/60">Loading your order options…</Container>
-  if (loadError) return <Container className="py-24 text-center"><p>We could not load product options.</p><button type="button" onClick={() => [productsData.reload(), sizesData.reload(), settingsData.reload()]} className="mt-3 text-brand underline">Try again</button></Container>
+  if (loadError) return <Container className="py-24 text-center"><p>We could not load product options.</p><button type="button" onClick={() => [productsData.reload(), sizesData.reload(), settingsData.reload(), manualCatalogData.reload(), designsData.reload()]} className="mt-3 text-brand underline">Try again</button></Container>
 
   if (success) return <Container className="py-12 sm:py-20">
     <div className="mx-auto max-w-2xl rounded-3xl border border-sand bg-white p-6 text-center shadow-lg sm:p-10">
@@ -491,6 +505,42 @@ export default function ManualOrderPage() {
 
   const updateList = (setter, key, fieldName, value) => setItemList(setter, key, fieldName, value)
   const galleryErrors = (prefix, item) => ({ photos: errors[`${prefix}-${item.key}-photos`], front: errors[`${prefix}-${item.key}-front`], back: errors[`${prefix}-${item.key}-back`] })
+  const updateFrameConfiguration = (groupKey, configurationKey, fieldName, value) => setFrames((groups) => groups.map((group) => group.key !== groupKey ? group : { ...group, configurations: group.configurations.map((configuration) => configuration.key === configurationKey ? { ...configuration, [fieldName]: value } : configuration) }))
+  const updateFrameSize = (groupKey, optionId) => setFrames((groups) => groups.map((group) => {
+    if (group.key !== groupKey) return group
+    const validDesignIds = new Set(frameDesigns.filter((design) => design.sizeId === optionId).map((design) => design.id))
+    return { ...group, optionId, configurations: group.configurations.map((configuration) => validDesignIds.has(configuration.designId) ? configuration : { ...configuration, designId: '' }) }
+  }))
+  const frameQuantityLimit = (groupKey) => {
+    const maxPerSize = Number(manualCatalog.frames.maxQuantity || 20)
+    const maxInOrder = Number(manualCatalog.frames.maxItems || 20)
+    const otherCount = frames.filter((group) => group.key !== groupKey).reduce((count, group) => count + group.configurations.length, 0)
+    return Math.max(1, Math.min(maxPerSize, maxInOrder - otherCount))
+  }
+  const setFrameQuantity = (groupKey, rawValue) => {
+    const max = frameQuantityLimit(groupKey)
+    const quantity = Math.min(max, Math.max(1, Number.parseInt(rawValue, 10) || 1))
+    setFrames((groups) => groups.map((group) => {
+      if (group.key !== groupKey) return group
+      const configurations = group.configurations.slice(0, quantity)
+      while (configurations.length < quantity) configurations.push(makeFrameConfiguration())
+      return { ...group, configurations }
+    }))
+  }
+  const removeFrameConfiguration = (groupKey, configurationKey) => {
+    const nextExpanded = frames.flatMap((group) => group.configurations).find((configuration) => configuration.key !== configurationKey)?.key || ''
+    setExpandedFrameKey((current) => current === configurationKey ? nextExpanded : current)
+    setFrames((groups) => groups.flatMap((group) => {
+      if (group.key !== groupKey) return [group]
+      const configurations = group.configurations.filter((configuration) => configuration.key !== configurationKey)
+      return configurations.length ? [{ ...group, configurations }] : []
+    }))
+  }
+  const addFrameGroup = () => {
+    const group = makeItem('frame')
+    setFrames((current) => [...current, group])
+    setExpandedFrameKey(group.configurations[0].key)
+  }
 
   return <>
     {previewDesign && <div role="dialog" aria-modal="true" aria-label={previewDesign.name || 'Frame design'} className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" onClick={() => setPreviewDesign(null)}><figure className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}><img src={previewDesign.image} alt={previewDesign.name || 'Frame design'} className="max-h-[80vh] w-full rounded-2xl bg-white object-contain" />{previewDesign.name && <figcaption className="mt-2 text-center text-sm font-medium text-white">{previewDesign.name}</figcaption>}<button type="button" onClick={() => setPreviewDesign(null)} className="mt-3 block w-full rounded-xl bg-white py-2.5 text-sm font-semibold">Close</button></figure></div>}
@@ -543,31 +593,45 @@ export default function ManualOrderPage() {
           <label className="mt-5 block"><span className="mb-1.5 block text-sm font-medium">Print notes (optional)</span><textarea rows="2" value={polaroid.notes || ''} onChange={(event) => setPolaroid({ ...polaroid, notes: event.target.value })} className={inputClass} placeholder="Captions, order of photos, or any special request" /></label>
         </ProductSectionCard>}
 
-        {selected.frames && <ProductSectionCard id="frames" title={manualCatalog.frames.title} subtitle="Separate size and photo for each frame · catalog pricing" expanded={expandedProduct === 'frames'} onToggle={() => setExpandedProduct((current) => current === 'frames' ? null : 'frames')}>
-          <div className="space-y-4">{frames.map((item, index) => {
-            const option = frameOptions.find((row) => row.id === item.optionId)
-            return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-4 sm:p-5">
-              <ItemHeader title={`Frame #${index + 1}`} onRemove={() => removeProductItem(setFrames, frames, 'frames', item.key)} />
+        {selected.frames && <ProductSectionCard id="frames" title={manualCatalog.frames.title} subtitle="Set a size and quantity, then choose a separate design and photos for each frame" expanded={expandedProduct === 'frames'} onToggle={() => setExpandedProduct((current) => current === 'frames' ? null : 'frames')}>
+          <div className="space-y-4">{frames.flatMap((group) => group.configurations.map((item, configurationIndex) => ({ group, item, configurationIndex }))).map(({ group, item, configurationIndex }, index) => {
+            const option = frameOptions.find((row) => row.id === group.optionId)
+            const matchingDesigns = frameDesigns.filter((design) => design.sizeId === group.optionId)
+            const selectedDesign = matchingDesigns.find((design) => design.id === item.designId)
+            const hasFrameErrors = Object.keys(errors).some((key) => key.startsWith(`frame-${item.key}-`))
+            return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-3 sm:p-4">
+              <details open={expandedFrameKey === item.key} className="group/frame">
+                <summary role="button" aria-label={`Configure Frame #${index + 1}`} onClick={(event) => { event.preventDefault(); setExpandedFrameKey((current) => current === item.key ? '' : item.key) }} className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-1 py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-brand/30 [&::-webkit-details-marker]:hidden">
+                  <span className="shrink-0 text-sm font-semibold">Frame #{index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-ink/60">{option?.label || 'Choose size'} · {selectedDesign?.name || 'Choose design'} · {item.photos.length} photo{item.photos.length === 1 ? '' : 's'}</span>
+                  {hasFrameErrors && <span className="shrink-0 rounded-full bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700">Needs attention</span>}
+                  <ChevronDown size={17} className={`shrink-0 text-ink/55 transition-transform ${expandedFrameKey === item.key ? 'rotate-180' : ''}`} />
+                </summary>
+                <div className="mt-3 border-t border-sand pt-3">
+              <div className="mb-3 flex justify-end"><button type="button" onClick={() => removeFrameConfiguration(group.key, item.key)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-ink/55 hover:bg-red-50 hover:text-red-700"><Trash2 size={13} /> Remove frame</button></div>
               <div className="grid gap-4 sm:grid-cols-3">
-                <label className="block"><span className="mb-1.5 block text-sm font-medium">Frame size</span><select value={item.optionId} onChange={(event) => updateList(setFrames, item.key, 'optionId', event.target.value)} className={inputClass}><option value="">Choose a size</option>{frameOptions.map((row) => <option key={row.id} value={row.id}>{row.label} · {formatPrice(row.price)}</option>)}</select>{errors[`frame-${item.key}-option`] && <span className="mt-1 block text-xs text-red-700">{errors[`frame-${item.key}-option`]}</span>}</label>
-                {field('Quantity', item.quantity, (value) => updateList(setFrames, item.key, 'quantity', value), { type: 'number', error: errors[`frame-${item.key}-quantity`] })}
-                <div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Frame subtotal</span><p className="mt-1 font-semibold text-brand">{formatPrice((option?.price || 0) * (Number(item.quantity) || 0))}</p></div>
+                {configurationIndex === 0 ? <label className="block"><span className="mb-1.5 block text-sm font-medium">Frame size</span><select aria-label={`Frame size for Frame #${index + 1}`} value={group.optionId} onChange={(event) => updateFrameSize(group.key, event.target.value)} className={inputClass}><option value="">Choose a size</option>{frameOptions.map((row) => <option key={row.id} value={row.id}>{row.label} · {formatPrice(row.price)}</option>)}</select>{errors[`frame-${item.key}-option`] && <span className="mt-1 block text-xs text-red-700">{errors[`frame-${item.key}-option`]}</span>}</label> : <div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Selected size</span><p className="mt-1 font-medium">{option?.label || 'Choose a size on Frame #1'}</p></div>}
+                {configurationIndex === 0 ? <label className="block"><span className="mb-1.5 block text-sm font-medium">Quantity</span><div className="flex min-h-11 items-center overflow-hidden rounded-xl border border-sand bg-white focus-within:border-brand"><button type="button" aria-label="Remove one frame" disabled={group.configurations.length <= 1} onClick={() => { setFrameQuantityDrafts((drafts) => { const next = { ...drafts }; delete next[group.key]; return next }); setFrameQuantity(group.key, group.configurations.length - 1) }} className="grid size-11 shrink-0 place-items-center text-lg text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-35">−</button><input aria-label="Quantity" type="text" inputMode="numeric" pattern="[0-9]*" value={frameQuantityDrafts[group.key] ?? group.configurations.length} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { const value = event.target.value.replace(/\D/g, ''); setFrameQuantityDrafts((drafts) => ({ ...drafts, [group.key]: value })); if (value) setFrameQuantity(group.key, value) }} onBlur={(event) => { setFrameQuantity(group.key, event.target.value || 1); setFrameQuantityDrafts((drafts) => { const next = { ...drafts }; delete next[group.key]; return next }) }} className="h-11 min-w-0 w-full border-0 bg-transparent px-2 text-center text-sm outline-none focus:ring-0" /><button type="button" aria-label="Add one frame" disabled={group.configurations.length >= frameQuantityLimit(group.key)} onClick={() => { setFrameQuantityDrafts((drafts) => { const next = { ...drafts }; delete next[group.key]; return next }); setFrameQuantity(group.key, group.configurations.length + 1) }} className="grid size-11 shrink-0 place-items-center text-lg text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-35">+</button></div>{errors[`frame-${group.key}-quantity`] && <span className="mt-1 block text-xs text-red-700">{errors[`frame-${group.key}-quantity`]}</span>}</label> : <div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Configuration</span><p className="mt-1 font-medium">Frame #{index + 1} of {group.configurations.length}</p></div>}
+                <div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Frame subtotal</span><p className="mt-1 font-semibold text-brand">{formatPrice(option?.price || 0)}</p></div>
               </div>
-              {frameDesigns.length > 0 && <div className="mt-5"><p className="text-sm font-medium">Choose a design for this frame{!item.reference && <span className="text-brand"> *</span>}</p>
-                <p className="mt-0.5 text-xs text-ink/60">{Number(item.quantity) > 1 ? `This design (and these photos) will be used for all ${Number(item.quantity)} frames. To use a different design for another frame, set quantity to 1 and tap “Add another frame”.` : 'Need a different design for another frame? Tap “Add another frame” below.'}</p>
-                <div role="radiogroup" aria-label={`Design for Frame #${index + 1}`} className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-2">{frameDesigns.map((design) => {
+              <div className="mt-5"><p className="text-sm font-medium">Choose a design for this frame <span className="text-brand">*</span></p>
+                <p className="mt-0.5 text-xs text-ink/60">{option ? `Designs available for ${option.label}. Each frame can use a different design.` : 'Choose a frame size to see its designs.'}</p>
+                {!option ? <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-sm text-ink/65">Choose a frame size to see its designs.</p> : matchingDesigns.length ? <div role="radiogroup" aria-label={`Design for Frame #${index + 1}`} className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-2">{matchingDesigns.map((design) => {
                   const active = item.designId === design.id
                   return <div key={design.id} className={`relative w-[84px] shrink-0 overflow-hidden rounded-lg border-2 bg-white ${active ? 'border-brand shadow-sm' : 'border-sand'}`}>
-                    <button type="button" role="radio" aria-checked={active} aria-label={design.name || 'Design'} onClick={() => updateList(setFrames, item.key, 'designId', active ? '' : design.id)} className="block w-full text-left"><img src={design.image} alt={design.name || 'Frame design'} loading="lazy" className="size-[80px] object-cover" />{design.name && <span className="block truncate px-1 py-1 text-[10px] font-medium">{design.name}</span>}{active && <span className="absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}</button>
+                    <button type="button" role="radio" aria-checked={active} aria-label={design.name || 'Design'} onClick={() => updateFrameConfiguration(group.key, item.key, 'designId', design.id)} className="block w-full text-left"><img src={design.image} alt={design.name || 'Frame design'} loading="lazy" className="size-[80px] object-cover" />{design.name && <span className="block truncate px-1 py-1 text-[10px] font-medium">{design.name}</span>}{active && <span className="absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}</button>
                     <button type="button" aria-label={`View ${design.name || 'design'} larger`} onClick={() => setPreviewDesign(design)} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-ink shadow"><Eye size={13} /></button>
                   </div>
-                })}</div>
-                {errors[`frame-${item.key}-design`] && <span className="mt-1 block text-xs text-red-700">{errors[`frame-${item.key}-design`]}</span>}</div>}
-              <div className="mt-5 grid gap-5 lg:grid-cols-2"><UploadPicker title="Print photos" files={item.photos} onChange={(photos) => updateList(setFrames, item.key, 'photos', photos)} help="Upload the photos you want printed and placed in your frame." error={errors[`frame-${item.key}-photos`]} /><UploadPicker title="Own design reference (optional)" files={item.reference ? [item.reference] : []} onChange={(files) => updateList(setFrames, item.key, 'reference', files[0] ?? null)} multiple={false} help="Only if you want a style that is not in the designs above." /></div>
-              <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setFrames, item.key, 'notes', event.target.value)} className={inputClass} /></label>
+                })}</div> : <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-sm text-ink/65">No designs are currently available for this size.</p>}
+                {selectedDesign && <div className="mt-3 flex items-center gap-3 rounded-xl border border-brand/15 bg-[#FFFAF8] p-2.5"><img src={selectedDesign.image} alt="" className="size-12 rounded-lg object-cover" /><span className="text-xs text-ink/60">Selected design: <strong className="text-ink">{selectedDesign.name || 'Design'}</strong></span></div>}
+                {errors[`frame-${item.key}-design`] && <span className="mt-1 block text-xs text-red-700">{errors[`frame-${item.key}-design`]}</span>}</div>
+              <div className="mt-5"><UploadPicker title="Print photos" files={item.photos} onChange={(photos) => updateFrameConfiguration(group.key, item.key, 'photos', photos)} help="Upload the photo or artwork for this frame." error={errors[`frame-${item.key}-photos`]} /></div>
+              <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateFrameConfiguration(group.key, item.key, 'notes', event.target.value)} className={inputClass} /></label>
+                </div>
+              </details>
             </div>
           })}</div>
-          <button type="button" disabled={!canAddItems('frames', frames.length)} onClick={() => addItem(setFrames, 'frame')} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('frames', frames.length) ? 'Add another frame' : 'Frame item limit reached'}</button>
+          <button type="button" disabled={!canAddItems('frames', frames.reduce((count, group) => count + group.configurations.length, 0))} onClick={addFrameGroup} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('frames', frames.reduce((count, group) => count + group.configurations.length, 0)) ? 'Add another frame' : 'Frame item limit reached'}</button>
         </ProductSectionCard>}
 
         {selected.miniMagazines && <ProductSectionCard id="miniMagazines" title={`${manualCatalog.miniMagazines.title}s`} subtitle={`${formatPrice(manualCatalog.miniMagazines.unitPrice)} each · up to 8 photos per item`} expanded={expandedProduct === 'miniMagazines'} onToggle={() => setExpandedProduct((current) => current === 'miniMagazines' ? null : 'miniMagazines')}>

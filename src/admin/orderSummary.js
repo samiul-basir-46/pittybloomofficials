@@ -114,7 +114,7 @@ function orderLine(order, section, items, sectionCount, settings, now) {
     ? magazineText(items)
     : items.map((item) => item.kind === 'song-book' ? songBookText(item) : `${item.name}${Number(item.qty) > 1 ? ` (${item.qty}pcs)` : ''}`).join(' + ')
   const occasions = magazine ? [...new Set(items.map((item) => detailValue(item, /^occasion$/i)).filter(Boolean).map((value) => titleCase(value.replace(/^[^\p{L}\p{N}]+/u, '').trim())))].join(' | ') : ''
-  const personal = magazine ? [...new Set(items.flatMap((item) => (item.details ?? []).filter((row) => !/^occasion$/i.test(row.label) && !/note/i.test(row.label)).map((row) => row.value?.trim()).filter(Boolean)))].join(' , ') : ''
+  const personal = magazine ? [...new Set(items.flatMap((item) => (item.details ?? []).filter((row) => !/^occasion$/i.test(row.label) && !/note|age|date/i.test(row.label)).map((row) => row.value?.trim()).filter(Boolean)))].join(' , ') : ''
   const emoji = magazine ? items.map((item) => detailValue(item, /^occasion$/i).match(/^\p{Extended_Pictographic}/u)?.[0] ?? '').find(Boolean) ?? '' : ''
   const personalization = personal ? ` [${emoji ? `${emoji} ` : ''}${personal}]` : ''
   const itemSubtotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.qty) || 1), 0)
@@ -149,5 +149,5 @@ export function groupedOrderSummaries(orders, settings, now = new Date()) {
     const bi = preferred.indexOf(b)
     return (ai < 0 ? preferred.length : ai) - (bi < 0 ? preferred.length : bi) || a.localeCompare(b)
   })
-  return names.map((name) => `-------------${name}----------------\n\n${sections.get(name).join('\n')}`).join('\n\n')
+  return names.map((name) => `-------------${name}----------------\n\n${sections.get(name).join('\n\n')}`).join('\n\n')
 }

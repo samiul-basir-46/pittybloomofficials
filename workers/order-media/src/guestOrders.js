@@ -1,5 +1,6 @@
 const FIRESTORE = 'https://firestore.googleapis.com/v1/projects'
 import { dateOffsetFromDhaka, expeditedSurcharge, minimumDeliveryOffset, ORDER_IMAGE_TYPES } from '../../../src/shared/utils/manualOrderRules.js'
+import { frameSizeIdFor } from '../../../src/shared/utils/frameSizeMapping.js'
 import { MANUAL_ORDER_CATALOG_DEFAULTS, MANUAL_ORDER_TYPE_TO_CARD, mergeManualOrderCatalog } from '../../../src/pages/manual-order/catalog.js'
 
 const IMAGE_TYPES = ORDER_IMAGE_TYPES
@@ -84,7 +85,7 @@ function parseProductOptions(value = '') {
 }
 
 // Every design uploaded in Admin > Frames, so the guest form only ever accepts designs that really exist.
-async function loadFrameDesigns(project) {
+async function loadFrameDesigns(project, frameOptions) {
   try {
     const response = await fetch(`${docsBase(project)}:runQuery`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -96,8 +97,9 @@ async function loadFrameDesigns(project) {
     for (const row of Array.isArray(rows) ? rows : []) {
       const value = row?.document ? decodeFields(row.document.fields ?? {}).value : null
       if (!value || value.status === 'Inactive' || !Array.isArray(value.designs)) continue
+      const sizeId = frameSizeIdFor(value, frameOptions)
       for (const design of value.designs) {
-        if (design?.id && design.image && !designs.has(String(design.id))) designs.set(String(design.id), { id: String(design.id).slice(0, 80), name: text(design.name, 80), image: String(design.image).slice(0, 600) })
+        if (design?.id && design.image && sizeId && !designs.has(String(design.id))) designs.set(String(design.id), { id: String(design.id).slice(0, 80), name: text(design.name, 80), image: String(design.image).slice(0, 600), sizeId })
       }
     }
     return [...designs.values()]
@@ -110,14 +112,15 @@ async function trustedCatalog(project) {
   const settingsDoc = await getFirestoreDoc(project, 'contentData/orderSettings--singleton')
   const manualOrderDoc = await getFirestoreDoc(project, 'contentData/manualOrderCatalog--singleton')
   const frameProduct = frameDoc?.value
-  const frameDesigns = await loadFrameDesigns(project)
+  const frameOptions = frameProduct ? parseProductOptions(frameProduct.options) : DEFAULT_FRAME_OPTIONS
+  const frameDesigns = await loadFrameDesigns(project, frameOptions)
   const configuredSizes = DEFAULT_SIZES.map((fallback, index) => {
     const saved = sizeDocs[index]?.value
     return saved ? { ...fallback, ...saved, id: fallback.id } : fallback
   })
   return {
     frameDesigns,
-    frameOptions: frameProduct ? parseProductOptions(frameProduct.options) : DEFAULT_FRAME_OPTIONS,
+    frameOptions,
     sizes: configuredSizes,
     deliverySettings: settingsDoc?.value ?? {},
     manualOrderCatalog: mergeManualOrderCatalog(manualOrderDoc?.value ?? MANUAL_ORDER_CATALOG_DEFAULTS),
@@ -173,14 +176,14 @@ function buildItem(input, config, photos, referenceFile) {
   }
   if (input.type === 'frame') {
     if (!photos.length) throw new Error('Add at least one print photo for this frame.')
-    if (quantity > Number(card.maxQuantity || 20)) throw new Error(`Frame quantity cannot be more than ${Number(card.maxQuantity || 20)} for one size.`)
+    if (quantity !== 1) throw new Error('Configure each frame separately so every frame can have its own design and photos.')
     const option = config.frameOptions.find((row) => row.id === input.optionId)
     if (!option) throw new Error('A selected frame size is no longer available. Please choose another size.')
     const designs = config.frameDesigns ?? []
-    const design = input.designId ? designs.find((row) => row.id === String(input.designId)) : null
-    if (input.designId && !design) throw new Error('A selected frame design is no longer available. Please choose another design.')
-    if (!design && designs.length && !referenceFile) throw new Error('Choose a design for each frame.')
-    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: design?.name ? `${option.label} · ${design.name}` : option.label, ...(design ? { design: { id: design.id, name: design.name, image: design.image } } : {}), qty: quantity, price: option.price, note: notes, photos: { count: photos.length, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } }
+    const design = designs.find((row) => row.id === String(input.designId))
+    if (!design) throw new Error('Choose a design for each frame.')
+    if (design.sizeId !== option.id) throw new Error('The selected design is not available for this frame size. Choose a matching design.')
+    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}`, design: { id: design.id, name: design.name, image: design.image }, qty: 1, price: option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'mini-magazine') {
     const unitPrice = Number(card.unitPrice)
@@ -267,14 +270,26 @@ export async function handleGuestOrder(request, env, cors) {
     const mediaRows = []
     const orderItems = []
     const itemCounts = new Map()
+    const frameGroupSizes = new Map()
+    const frameSizeCounts = new Map()
     for (const item of input.items) {
       const cardId = MANUAL_ORDER_TYPE_TO_CARD[item.type]
       const card = cardId ? config.manualOrderCatalog[cardId] : null
       const itemCount = (itemCounts.get(cardId) || 0) + 1
       if (!card?.enabled || itemCount > Number(card.maxItems || 20)) throw new Error('One of the selected products is unavailable or has too many items. Please update your order.')
       itemCounts.set(cardId, itemCount)
+      if (item.type === 'frame') {
+        const groupKey = text(item.groupKey, 80)
+        if (!groupKey) throw new Error('Each frame needs its own configuration. Please update your order.')
+        const optionId = text(item.optionId, 100)
+        if (frameGroupSizes.has(groupKey) && frameGroupSizes.get(groupKey) !== optionId) throw new Error('A frame quantity group cannot contain different sizes. Please update your order.')
+        frameGroupSizes.set(groupKey, optionId)
+        const sizeCount = (frameSizeCounts.get(optionId) || 0) + 1
+        if (sizeCount > Number(card.maxQuantity || 20)) throw new Error('A frame size has too many individual frames. Please reduce the quantity.')
+        frameSizeCounts.set(optionId, sizeCount)
+      }
       const photos = await verifyMedia(env, submissionKey, item.photos ?? [], item.type === 'polaroids' ? false : false)
-      const reference = await verifyReference(env, submissionKey, item.referenceFile)
+      const reference = item.type === 'frame' ? null : await verifyReference(env, submissionKey, item.referenceFile)
       mediaRows.push(...photos, ...(reference ? [reference] : []))
       orderItems.push(buildItem(item, config, photos, reference))
     }

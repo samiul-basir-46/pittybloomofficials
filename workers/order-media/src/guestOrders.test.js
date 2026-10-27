@@ -24,21 +24,22 @@ describe('guest multi-product order endpoint', () => {
       const saved = photo(`${prefix}-${index + 1}.jpg`); files.push(saved); return saved
     })
     const polaroids = addPhotos(1, 'polaroid')
-    const frame = addPhotos(1, 'frame')
+    const frameOne = addPhotos(1, 'frame-one')
+    const frameTwo = addPhotos(1, 'frame-two')
     const miniOne = addPhotos(2, 'mini-one')
     const miniTwo = addPhotos(2, 'mini-two')
     const magazineA4 = addPhotos(2, 'mag-a4')
     const magazineA5 = addPhotos(2, 'mag-a5')
     const songOne = addPhotos(2, 'song-one')
     const songTwo = addPhotos(2, 'song-two')
-    const frameReference = photo('frame-reference.jpg'); files.push(frameReference)
     const input = {
       submissionKey: sessionKey,
       customer: { name: 'Mina', instagram: 'mina.gifts', whatsapp: '01712345678' },
       delivery: { recipient: 'Rafi', phone: '01812345678', address: 'House 4, Road 2', city: 'Dhaka', area, date },
       items: [
         { type: 'polaroids', quantity: 9, photos: polaroids },
-        { type: 'frame', optionId: 'Medium (8×10 in)', quantity: 2, photos: frame, referenceFile: frameReference, price: 1 },
+        { type: 'frame', key: 'frame-config-1', groupKey: 'frame-group', optionId: 'Medium (8×10 in)', quantity: 1, designId: 'medium-design', photos: frameOne, price: 1 },
+        { type: 'frame', key: 'frame-config-2', groupKey: 'frame-group', optionId: 'Medium (8×10 in)', quantity: 1, designId: 'medium-design', photos: frameTwo, price: 1 },
         { type: 'mini-magazine', quantity: 1, photos: miniOne, frontId: miniOne[0].id, backId: miniOne[1].id },
         { type: 'mini-magazine', quantity: 1, photos: miniTwo, frontId: miniTwo[1].id, backId: miniTwo[0].id },
         { type: 'magazine', sizeId: 'a4-20', category: 'Birthday', custom: { name: 'Asha', age: '20', date: '2026-11-05' }, photos: magazineA4, frontId: magazineA4[0].id, backId: magazineA4[1].id },
@@ -49,8 +50,25 @@ describe('guest multi-product order endpoint', () => {
     }
     const documentFields = []
     const existingById = new Map()
+    const frameDesignRecord = {
+      document: {
+        fields: {
+          value: {
+            mapValue: { fields: {
+              title: { stringValue: 'Medium Frame' },
+              description: { stringValue: 'Medium frame size 8×10 inches' },
+              status: { stringValue: 'Available' },
+              designs: { arrayValue: { values: [{ mapValue: { fields: {
+                id: { stringValue: 'medium-design' }, name: { stringValue: 'Medium design' }, image: { stringValue: 'https://example.test/medium.jpg' },
+              } } }] } },
+            } },
+          },
+        },
+      },
+    }
     const fetchMock = vi.fn(async (url, options = {}) => {
       const target = String(url)
+      if (target.endsWith(':runQuery')) return jsonResponse([frameDesignRecord])
       if (target.includes('/contentData/')) {
         if (target.endsWith('printSizes--a4-20')) return jsonResponse({ fields: { value: values({ id: 'a4-20', format: 'A4', pages: 20, price: 1149, photos: '45–50' }) } })
         return jsonResponse({ error: { status: 'NOT_FOUND' } }, 404)
@@ -81,13 +99,20 @@ describe('guest multi-product order endpoint', () => {
     expect((await rejected.json()).error).toMatch(/too soon/)
     input.delivery.date = earliestDate
 
+    input.items[1].optionId = 'Small (6×8 in)'
+    const mismatchedDesign = await handleGuestOrder(request(), env, {})
+    expect(mismatchedDesign.status).toBe(400)
+    expect((await mismatchedDesign.json()).error).toMatch(/not available for this frame size/)
+    input.items[1].optionId = 'Medium (8×10 in)'
+
     const first = await handleGuestOrder(request(), env, {})
     const saved = await first.json()
     expect(first.status).toBe(201)
-    expect(saved.order.items).toHaveLength(8)
-    expect(saved.order.items.map((item) => item.price)).toEqual([8, 999, 150, 150, 1149, 200, 849, 849])
-    expect(saved.order.items[1].photos.reference.storageKey).toBe(frameReference.storageKey)
-    expect(saved.order.items[4].photos.front).toBe(magazineA4[0].name)
+    expect(saved.order.items).toHaveLength(9)
+    expect(saved.order.items.map((item) => item.price)).toEqual([8, 999, 999, 150, 150, 1149, 200, 849, 849])
+    expect(saved.order.items[1]).toMatchObject({ qty: 1, meta: { frameSizeId: 'Medium (8\u00d710 in)', frameConfigurationId: 'frame-config-1' }, design: { id: 'medium-design' } })
+    expect(saved.order.items[2].photos.files[0].storageKey).toBe(frameTwo[0].storageKey)
+    expect(saved.order.items[5].photos.front).toBe(magazineA4[0].name)
     expect(saved.order.magazineTotal).toBe(1349)
     expect(saved.order.otherTotal).toBe(4068)
     const offset = dateOffsetFromDhaka(date, now)

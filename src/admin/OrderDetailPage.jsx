@@ -25,6 +25,16 @@ const Card = ({ title, aside, children, className = '' }) => (
 )
 
 const LabelValue = ({ label, children, className = '' }) => children ? <div className={className}><p className="text-xs text-ink/55">{label}</p><div className="mt-0.5 break-words whitespace-pre-wrap text-sm font-medium">{children}</div></div> : null
+
+function ExpandableText({ children, className = '' }) {
+  const [expanded, setExpanded] = useState(false)
+  const text = String(children ?? '')
+  const expandable = text.length > 220
+  return <div>
+    <p className={`${className} break-words whitespace-pre-wrap leading-5 ${expandable && !expanded ? 'line-clamp-5' : ''}`}>{text}</p>
+    {expandable && <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="mt-1 min-h-8 text-xs font-semibold text-brand underline underline-offset-2">{expanded ? 'Show less' : 'Show full note'}</button>}
+  </div>
+}
 const EMPTY_PHOTO_FILES = []
 const safeFilenamePart = (value) => String(value || '').normalize('NFKC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').trim().replace(/\s+/g, '-').slice(0, 60)
 const isSteadfastUrl = (value) => {
@@ -125,8 +135,8 @@ function OrderItem({ item, index, image, onDownloadPhotos, zipLoading }) {
     </div>
     {(item.details?.length > 0 || item.note || item.photos || item.design) && <div className="border-t border-sand px-4 pb-4 sm:px-5">
       {item.design?.image && <div className="mt-4"><h3 className="mb-2 text-xs font-semibold text-ink/65">Selected design</h3><div className="flex items-center gap-3 rounded-lg bg-cream p-3"><a href={item.design.image} target="_blank" rel="noreferrer" className="block size-24 shrink-0 overflow-hidden rounded-lg bg-white"><SmartImage src={item.design.image} alt={item.design.name || 'Selected design'} /></a><p className="text-sm font-medium">{item.design.name || 'Unnamed design'}</p></div></div>}
-      {item.details?.length > 0 && <><h3 className="mb-2 mt-4 text-xs font-semibold text-ink/65">Personalization</h3><dl className="grid gap-2 sm:grid-cols-2">{item.details.map((row, n) => <LabelValue key={`${row.label}-${n}`} label={row.label}>{row.value}</LabelValue>)}</dl></>}
-      {item.note && <div className="mt-4"><p className="mb-1 text-xs text-ink/55">Customer note</p><p className="rounded-lg bg-cream p-3 text-sm text-ink/80">{item.note}</p></div>}
+      {item.details?.length > 0 && <><h3 className="mb-2 mt-4 text-xs font-semibold text-ink/65">Personalization</h3><dl className="grid gap-2 sm:grid-cols-2">{item.details.map((row, n) => <LabelValue key={`${row.label}-${n}`} label={row.label}><ExpandableText>{row.value}</ExpandableText></LabelValue>)}</dl></>}
+      {item.note && <div className="mt-4"><p className="mb-1 text-xs text-ink/55">Customer note</p><div className="rounded-lg bg-cream p-3 text-sm text-ink/80"><ExpandableText>{item.note}</ExpandableText></div></div>}
       {item.photos && <><div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-semibold text-ink/65">Item photos{item.photos.count ? ` · ${item.photos.count}` : ''}</h3>{item.photos.files?.length > 0 && <button type="button" disabled={zipLoading} onClick={onDownloadPhotos} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-sand bg-white px-3 text-xs font-medium hover:bg-cream disabled:opacity-50"><ArrowDownToLine size={14} />{zipLoading ? 'Preparing ZIP…' : 'Download photos (ZIP)'}</button>}</div><PhotoGallery photos={item.photos} />{item.photos.reference && <div className="mt-4"><h4 className="mb-2 text-xs font-semibold text-ink/65">Design reference</h4><PhotoGallery photos={{ count: 1, files: [item.photos.reference] }} /></div>}</>}
     </div>}
   </article>

@@ -13,6 +13,8 @@ import { faqs } from '../../pages/faq/data'
 import { policies } from '../../pages/policy/data'
 import { navLinks } from '../layout/navLinks'
 import { SITE } from '../config/site'
+import { frameSizeIdFor } from '../utils/frameSizeMapping'
+import { parseOptions } from '../utils/options'
 import { MANUAL_ORDER_CATALOG_DEFAULTS } from '../../pages/manual-order/catalog'
 import { adminAuth, adminDb, auth, db, firebaseConfigured } from './firebaseClient'
 import { collection as fsCollection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, runTransaction, setDoc, updateDoc, where } from 'firebase/firestore'
@@ -416,9 +418,11 @@ export const getProduct = async (id) => (await productsApi.list()).find((p) => p
 // All designs uploaded in Admin > Frames, de-duplicated; used by the guest/manual order form.
 export const getFrameDesigns = async () => {
   const seen = new Map()
-  for (const frame of await getFrameProducts()) {
+  const [frameProducts, frameCatalog] = await Promise.all([getFrameProducts(), getProduct('frame')])
+  const frameOptions = parseOptions(frameCatalog?.options)
+  for (const frame of frameProducts) {
     for (const design of Array.isArray(frame.designs) ? frame.designs : []) {
-      if (design?.id && design.image && !seen.has(design.id)) seen.set(design.id, { id: design.id, name: design.name || '', image: design.image })
+      if (design?.id && design.image && !seen.has(design.id)) seen.set(design.id, { id: design.id, name: design.name || '', image: design.image, sizeId: frameSizeIdFor(frame, frameOptions) })
     }
   }
   return [...seen.values()]
