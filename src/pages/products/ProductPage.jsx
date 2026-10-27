@@ -13,6 +13,7 @@ import { getProduct } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { inputClass } from '../../admin/classes'
+import ExpandableText from '../../shared/ui/ExpandableText'
 
 function Detail({ product, options }) {
   const navigate = useNavigate()
@@ -54,7 +55,7 @@ function Detail({ product, options }) {
             <span className="text-3xl font-extrabold">{formatPrice(option.price)}</span>
             {save > 0 && <span className="rounded-full border border-sand bg-cream px-3 py-1 text-xs font-semibold text-warm">Save {formatPrice(save)}</span>}
           </p>
-          {product.description && <p className="mt-5 leading-7 text-ink/70">{product.description}</p>}
+          {product.description && <ExpandableText text={product.description} className="mt-5 leading-7 text-ink/70" />}
           {!isPolaroids && <p className="mb-4 mt-8 font-semibold">{isFrame ? 'Choose frame size' : 'Choose an option'}</p>}
           {!isPolaroids && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {options.map((o) => <button key={o.id} type="button" onClick={() => setOptionId(o.id)} className={`relative rounded-xl border bg-white px-3 py-4 text-center transition ${o.id === option.id ? 'border-2 border-brand bg-cream' : 'border-sand hover:border-brand/40'}`}>

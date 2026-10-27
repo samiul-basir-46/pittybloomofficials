@@ -10,6 +10,7 @@ import useAsync from '../../shared/hooks/useAsync'
 import { getSongBook, getSongBooks } from '../../shared/services/contentService'
 import { formatPrice } from '../../shared/utils/format'
 import { useCart } from '../../shared/context/CartContext'
+import ExpandableText from '../../shared/ui/ExpandableText'
 
 export default function SongBookDetailPage() {
   const { id } = useParams()
@@ -45,7 +46,7 @@ export default function SongBookDetailPage() {
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand sm:text-sm">Song Book</p>
           <h1 className="mt-3 font-serif text-[1.35rem] sm:mt-4 sm:text-5xl">{book.title}</h1>
-          <div className="mt-5 space-y-2 text-sm text-ink/75 sm:mt-8 sm:space-y-3 sm:text-base"><p>{book.description}</p><p>Personalized with your song, lyrics and photos.</p></div>
+          <div className="mt-5 space-y-2 text-sm text-ink/75 sm:mt-8 sm:space-y-3 sm:text-base"><ExpandableText text={book.description} /><p>Personalized with your song, lyrics and photos.</p></div>
           <p className="mb-3 mt-6 font-semibold sm:mb-5 sm:mt-10">Choose Song Book Length</p>
           <div role="radiogroup" aria-label="Song Book page count" className="mx-auto grid max-w-md grid-cols-2 gap-3">{[12, 16].map((count) => { const amount = Number(count === 12 ? book.price12 : book.price16); return <button key={count} type="button" role="radio" aria-checked={pages === count} disabled={!Number.isFinite(amount) || amount <= 0} onClick={() => setPages(count)} className={`rounded-2xl border-2 p-4 text-left transition disabled:opacity-40 ${pages === count ? 'border-brand bg-cream shadow-sm' : 'border-sand bg-white hover:border-brand/40'}`}><span className="block font-serif text-xl">{count} pages</span><span className="mt-1 block font-semibold text-brand">{formatPrice(amount)}</span></button> })}</div>
           <p className="mt-5 text-xs leading-5 text-ink/55">Choose Personal, Couple, or Best Friend and add your song, lyrics and photos. 60–80 lyric words is recommended; there is no word-count limit.</p>
