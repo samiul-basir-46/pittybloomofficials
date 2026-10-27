@@ -5,6 +5,7 @@ import { MANUAL_ORDER_CATALOG_DEFAULTS, MANUAL_ORDER_TYPE_TO_CARD, mergeManualOr
 
 const IMAGE_TYPES = ORDER_IMAGE_TYPES
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+const MAX_PHOTOS_PER_ITEM = 1000
 const SAFE_ID = /^[a-f0-9]{32}$/i
 const CATEGORIES = ['Birthday', 'Couple', 'Anniversary', 'Personal', 'Parents', 'Marriage', 'Special Day', 'Farewell', 'Best Friends', 'Other']
 const CATEGORY_REQUIRED = {
@@ -130,24 +131,25 @@ async function trustedCatalog(project) {
 function dhakaNow(now = new Date()) {
   return Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(({ type, value }) => [type, value]))
 }
-async function verifyMedia(env, sessionKey, files, allowEmpty = true) {
-  if (!Array.isArray(files) || (!allowEmpty && !files.length) || files.length > 50) throw new Error('This item has an invalid number of photos.')
-  const verified = []
-  for (const file of files) {
-    const id = String(file?.id ?? '')
-    const key = String(file?.storageKey ?? '')
-    const size = Number(file?.size)
-    const type = String(file?.type ?? '')
-    if (!SAFE_ID.test(id) || key !== `manual-orders/${sessionKey}/${id}` || !IMAGE_TYPES.has(type) || !Number.isInteger(size) || size < 1 || size > MAX_IMAGE_BYTES) {
-      throw new Error('An uploaded photo is invalid. Please remove it and add it again.')
-    }
-    const object = await env.MEDIA_BUCKET.head(key)
-    if (!object || Number(object.size) !== size || object.httpMetadata?.contentType !== type) throw new Error(`The uploaded photo ${safeName(file.name)} could not be verified. Please upload it again.`)
-    verified.push({ id, name: safeName(file.name) || 'order-photo', size, type, storageKey: key })
+async function verifyOne(env, sessionKey, file) {
+  const id = String(file?.id ?? '')
+  const key = String(file?.storageKey ?? '')
+  const size = Number(file?.size)
+  const type = String(file?.type ?? '')
+  if (!SAFE_ID.test(id) || key !== `manual-orders/${sessionKey}/${id}` || !IMAGE_TYPES.has(type) || !Number.isInteger(size) || size < 1 || size > MAX_IMAGE_BYTES) {
+    throw new Error('An uploaded photo is invalid. Please remove it and add it again.')
   }
+  const object = await env.MEDIA_BUCKET.head(key)
+  if (!object || Number(object.size) !== size || object.httpMetadata?.contentType !== type) throw new Error(`The uploaded photo ${safeName(file.name)} could not be verified. Please upload it again.`)
+  return { id, name: safeName(file.name) || 'order-photo', size, type, storageKey: key }
+}
+// No practical photo-count limit: orders with 80+ photos (e.g. Polaroids) are normal. Checked in small parallel batches to stay fast.
+async function verifyMedia(env, sessionKey, files, allowEmpty = true) {
+  if (!Array.isArray(files) || (!allowEmpty && !files.length) || files.length > MAX_PHOTOS_PER_ITEM) throw new Error('This item has an invalid number of photos.')
+  const verified = []
+  for (let i = 0; i < files.length; i += 10) verified.push(...await Promise.all(files.slice(i, i + 10).map((file) => verifyOne(env, sessionKey, file))))
   return verified
 }
-
 async function verifyReference(env, sessionKey, file) {
   if (!file) return null
   const verified = await verifyMedia(env, sessionKey, [file], false)

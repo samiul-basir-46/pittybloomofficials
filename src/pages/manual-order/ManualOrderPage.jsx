@@ -412,23 +412,54 @@ export default function ManualOrderPage() {
   }
   const goBack = () => { setErrors({}); setStep((current) => Math.max(0, current - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
-  const filePayload = async (fileItems) => Promise.all((fileItems ?? []).map(async (photo) => {
+  // One upload with a timeout and automatic retries, so a single slow or dropped request never freezes the whole order.
+  const uploadPhoto = async (photo) => {
     const { id, file } = photo
-    if (uploaded.current.has(id)) {
-      setUploadStatus((current) => ({ ...current, completed: current.completed + 1 }))
-      return uploaded.current.get(id)
+    if (uploaded.current.has(id)) return uploaded.current.get(id)
+    const type = photo.type || orderImageType(file)
+    let lastError
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 120000)
+      try {
+        const response = await fetch(`${MEDIA_API}/guest-media/${requestKey.current}/${id}`, {
+          method: 'PUT', headers: { 'Content-Type': type, 'X-File-Name': encodeURIComponent(file.name) }, body: file, signal: controller.signal,
+        })
+        const result = await response.json().catch(() => null)
+        if (response.ok) {
+          const saved = { id, name: file.name, size: file.size, type, storageKey: result.key }
+          uploaded.current.set(id, saved)
+          return saved
+        }
+        lastError = new Error(result?.error || `Could not upload ${file.name} (error ${response.status}).`)
+        if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) throw lastError
+      } catch (error) {
+        if (error === lastError) throw error
+        lastError = new Error(error?.name === 'AbortError' ? `Uploading ${file.name} took too long. Check your internet and try again.` : `Network problem while uploading ${file.name}. Check your internet and try again.`)
+      } finally { clearTimeout(timer) }
+      if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, attempt * 1500))
     }
-    setProgress(`Uploading ${file.name}…`)
-    const response = await fetch(`${MEDIA_API}/guest-media/${requestKey.current}/${id}`, {
-      method: 'PUT', headers: { 'Content-Type': photo.type || orderImageType(file), 'X-File-Name': encodeURIComponent(file.name) }, body: file,
-    })
-    const result = await response.json().catch(() => null)
-    if (!response.ok) throw new Error(result?.error || `Could not upload ${file.name}.`)
-    const saved = { id, name: file.name, size: file.size, type: photo.type || orderImageType(file), storageKey: result.key }
-    uploaded.current.set(id, saved)
-    setUploadStatus((current) => ({ ...current, completed: current.completed + 1 }))
-    return saved
-  }))
+    throw lastError
+  }
+
+  // Uploads every photo of the order a few at a time (never all at once) and reports real progress.
+  const uploadAllPhotos = async (photos) => {
+    const queue = [...new Map(photos.map((photo) => [photo.id, photo])).values()]
+    let cursor = 0
+    let failure = null
+    const worker = async () => {
+      while (!failure && cursor < queue.length) {
+        const photo = queue[cursor++]
+        try {
+          await uploadPhoto(photo)
+          setUploadStatus((current) => ({ ...current, completed: current.completed + 1 }))
+        } catch (error) { failure = failure || error }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(3, queue.length) }, worker))
+    if (failure) throw failure
+  }
+  const filePayload = (fileItems) => (fileItems ?? []).map((photo) => uploaded.current.get(photo.id))
 
   const prepareItems = async () => {
     const rows = []
@@ -437,15 +468,10 @@ export default function ManualOrderPage() {
     if (selected.miniMagazines) rows.push(...miniBooks.map((item) => ({ type: 'mini-magazine', item })))
     if (selected.magazines) rows.push(...magazines.map((item) => ({ type: 'magazine', item })))
     if (selected.songBooks) rows.push(...songBooks.map((item) => ({ type: 'song-book', item })))
-    let completed = 0
-    const prepared = []
-    for (const { type, item } of rows) {
-      setProgress(`Preparing photos ${++completed} of ${rows.length} items…`)
-      const files = await filePayload(item.photos)
-      const references = await filePayload(item.reference ? [item.reference] : [])
-      prepared.push({ ...item, type, files, referenceFile: references[0] ?? null })
-    }
-    return prepared
+    const allPhotos = rows.flatMap(({ item }) => [...(item.photos ?? []), ...(item.reference ? [item.reference] : [])])
+    setProgress('Uploading your photos…')
+    await uploadAllPhotos(allPhotos)
+    return rows.map(({ type, item }) => ({ ...item, type, files: filePayload(item.photos), referenceFile: filePayload(item.reference ? [item.reference] : [])[0] ?? null }))
   }
 
   const submitOrder = async () => {

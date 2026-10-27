@@ -48,7 +48,7 @@ export const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside'
 export const validBangladeshPhone = (value = '') => /^(?:\+?88)?01[3-9]\d{8}$/.test(String(value).replace(/[\s()-]/g, ''))
 
 const IMAGE_MIME_BY_EXTENSION = {
-  jpg: 'image/jpeg', jpeg: 'image/jpeg', jpe: 'image/jpeg',
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', jpe: 'image/jpeg', jfif: 'image/jpeg', pjpeg: 'image/jpeg', pjp: 'image/jpeg',
   png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp',
   tif: 'image/tiff', tiff: 'image/tiff', heic: 'image/heic', heif: 'image/heif', avif: 'image/avif',
 }
