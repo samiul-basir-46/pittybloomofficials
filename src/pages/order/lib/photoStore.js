@@ -98,13 +98,15 @@ export const photoStore = {
         : (await withStore('readonly', (store) => store.get(id)))?.blob
     } catch { return null }
   },
-  async flush(keys) {
+  async flush(keys, { onProgress } = {}) {
     // Test DOMs and a few restricted browsers do not expose IndexedDB; keep the
     // current in-memory upload flow usable there.
     const hasIndexedDB = Boolean(globalThis.indexedDB)
     if (!hasIndexedDB && !firebaseConfigured) return
     const ids = keys.flatMap((key) => (cache.get(key) ?? []).map((p) => p.id))
-    if (hasIndexedDB) await Promise.allSettled(ids.map((id) => pendingWrites.get(id)).filter(Boolean))
+    // Browsers (iPhone Safari especially) can be very slow saving many big files locally. The files are still in
+    // memory for the upload, so never wait on that local copy for more than a few seconds.
+    if (hasIndexedDB) await Promise.race([Promise.allSettled(ids.map((id) => pendingWrites.get(id)).filter(Boolean)), new Promise((resolve) => setTimeout(resolve, 8000))])
     const failed = ids.find((id) => writeFailures.has(id))
     if (failed && !firebaseConfigured) throw writeFailures.get(failed)
     if (firebaseConfigured) {
@@ -112,25 +114,19 @@ export const photoStore = {
       if (keys.flatMap((key) => cache.get(key) ?? []).some((photo) => photo.missing)) {
         throw new Error('A saved photo could not be loaded. Re-add the missing image before saving or placing this order.')
       }
-      await Promise.all(keys.flatMap((key) => cache.get(key) ?? []).filter((p) => !p.storageKey).map(async (photo) => {
+      const pending = keys.flatMap((key) => cache.get(key) ?? []).filter((p) => !p.storageKey)
+      let done = 0
+      onProgress?.(0, pending.length)
+      await runLimited(pending, 3, async (photo) => {
         let file = photo.file
         if (!file) file = (await withStore('readonly', (store) => store.get(photo.id)))?.blob
         if (!file) throw new Error(`The selected photo “${photo.name}” is not available. Please add it again.`)
-        const token = await auth.currentUser.getIdToken()
-        const response = await fetch(`${MEDIA_API}/media/${encodeURIComponent(photo.id)}`, {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': photo.type || file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(photo.name) },
-          body: file,
-        })
-        if (!response.ok) {
-          const failure = await response.json().catch(() => null)
-          throw new Error(failure?.error || 'Could not upload a selected photo to Cloudflare R2.')
-        }
-        const saved = await response.json()
+        const saved = await uploadWithRetry(photo, file)
         photo.storageKey = saved.key
         photo.file = undefined
         writeFailures.delete(photo.id)
-      }))
+        onProgress?.(++done, pending.length)
+      })
     }
   },
   remove(key, id) {
@@ -169,4 +165,47 @@ async function downloadRemote(storageKey, tokenAuth = auth) {
   const response = await fetch(`${MEDIA_API}/media?key=${encodeURIComponent(storageKey)}`, { headers: { Authorization: `Bearer ${token}` } })
   if (!response.ok) throw new Error(`Could not load a photo from Cloudflare R2 (HTTP ${response.status}).`)
   return response.blob()
+}
+
+// Runs `task` over `items` with at most `limit` in flight; stops starting new work after the first failure.
+async function runLimited(items, limit, task) {
+  let cursor = 0
+  let failure = null
+  const worker = async () => {
+    while (!failure && cursor < items.length) {
+      const item = items[cursor++]
+      try { await task(item) } catch (error) { failure = failure || error }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  if (failure) throw failure
+}
+
+// One photo upload with a timeout and automatic retries for network drops, 408/429 and 5xx.
+async function uploadWithRetry(photo, file) {
+  let lastError
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 120000)
+    try {
+      const token = await auth.currentUser.getIdToken()
+      const response = await fetch(`${MEDIA_API}/media/${encodeURIComponent(photo.id)}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': photo.type || file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(photo.name) },
+        body: file,
+        signal: controller.signal,
+      })
+      if (response.ok) return await response.json()
+      const failure = await response.json().catch(() => null)
+      lastError = new Error(failure?.error || `Could not upload “${photo.name}” (error ${response.status}).`)
+      if (response.status < 500 && response.status !== 408 && response.status !== 429) throw Object.assign(lastError, { final: true })
+    } catch (error) {
+      if (error?.final) throw error
+      lastError = new Error(error?.name === 'AbortError'
+        ? `Uploading “${photo.name}” took too long. Please check your internet and try again.`
+        : `Network problem while uploading “${photo.name}”. Please check your internet and try again.`)
+    } finally { clearTimeout(timer) }
+    if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, attempt * 1500))
+  }
+  throw lastError
 }

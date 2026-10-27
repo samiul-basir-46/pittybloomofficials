@@ -82,6 +82,7 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
   const formats = useMemo(() => getFormats(settings), [settings])
   const topRef = useRef(null)
   const submitting = useRef(false)
+  const [uploadProgress, setUploadProgress] = useState('')
   const submissionKey = useRef(null)
 
   const [draft, setDraft] = useState(() => {
@@ -314,7 +315,8 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
     setStatus('submitting')
     setSubmitError('')
     try {
-      await photoStore.flush([...copies.map((copy) => copy.key), ...chosenAddons.flatMap((addon) => [addon.photoKey, addon.referenceKey].filter(Boolean))])
+      await photoStore.flush([...copies.map((copy) => copy.key), ...chosenAddons.flatMap((addon) => [addon.photoKey, addon.referenceKey].filter(Boolean))], { onProgress: (done, total) => setUploadProgress(total ? `Uploading photos ${done} / ${total}…` : '') })
+      setUploadProgress('Saving your order…')
       // Keep one request key across retries so a timed-out response cannot create a duplicate.
       submissionKey.current ??= globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
       const order = buildMagazineOrder({ id: '', draft, copies, occasions, addons: chosenAddons, magazine, totals, settings, now, longDate })
@@ -347,7 +349,12 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
 
       // The order must be saved before anything else happens. If saving fails we land in the catch below:
       // no success screen, no message opened, and the draft is kept so the customer can try again.
-      const savedOrder = await ordersApi.place(order, submissionKey.current)
+      // The request key makes this safe to retry, so a hung connection ends with a clear message instead of spinning forever.
+      let placeTimer
+      const savedOrder = await Promise.race([
+        ordersApi.place(order, submissionKey.current),
+        new Promise((_, reject) => { placeTimer = setTimeout(() => reject(new Error('Saving the order is taking too long. Check your internet connection and press Place order again. Your photos are already uploaded.')), 60000) }),
+      ]).finally(() => clearTimeout(placeTimer))
 
       // The order is placed, so local photos and any saved copy of this draft are no longer needed.
       await photoStore.removeFiles(order.items.flatMap((item) => item.photos?.files ?? []))
@@ -359,6 +366,7 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
     } catch (error) {
       console.error('Magazine order submission failed:', error)
       submitting.current = false
+      setUploadProgress('')
       setStatus('error')
       const detail = error?.code === 'permission-denied'
         ? 'Firebase denied this order. Please sign in again and check that Firestore rules are deployed.'
@@ -469,7 +477,7 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
                 <Button type="submit" className="ml-auto shrink-0 gap-2 whitespace-nowrap shadow-lg disabled:opacity-70 max-[460px]:px-3 max-[460px]:text-sm" disabled={busy}>
                   {busy ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" /> Placing your order…
+                      <Loader2 size={18} className="animate-spin" /> {uploadProgress || 'Placing your order…'}
                     </>
                   ) : last && cartMode ? (
                     <>
