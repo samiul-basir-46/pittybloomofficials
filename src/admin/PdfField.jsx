@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { ArrowDownAZ, ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, FileText, Images, Loader2, Maximize2, Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
+import { ArrowDownAZ, ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, FileText, Images, Loader2, Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import { bookPageUrl, bookStore, originalBookUrl } from '../shared/services/bookStore'
 import { getBookUploads, startBookUpload, subscribeBookUploads } from '../shared/services/bookUploadQueue'
-import { naturalOrder, readImageBook } from '../shared/services/pdfBook'
+import { IMAGE_TYPES, naturalOrder, readImageBook } from '../shared/services/pdfBook'
+const IMAGE_ACCEPT = IMAGE_TYPES.join(',')
 
-const IMAGE_TYPES = ['image/jpeg', 'image/png']
 const isPdfFile = (file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
 const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:pointer-events-none disabled:opacity-50'
@@ -26,7 +26,7 @@ function Progress({ label, done, total }) {
 }
 
 // A big look at one page, with the actions for it.
-function PageViewer({ bookKey, pageCount, revision, index, busy, onIndex, onReplace, onClose }) {
+function PageViewer({ bookKey, pageCount, revision, index, busy, onIndex, onReplace, onRemove, onClose }) {
   useEffect(() => {
     const onKey = (event) => {
       if (event.key === 'Escape') onClose()
@@ -47,15 +47,16 @@ function PageViewer({ bookKey, pageCount, revision, index, busy, onIndex, onRepl
         <button type="button" aria-label="Close" onClick={onClose} className="grid size-10 place-items-center rounded-full bg-white/15 hover:bg-white/25"><X size={20} /></button>
       </div>
       <div className="relative mx-auto flex min-h-0 w-full max-w-3xl flex-1 items-center justify-center" onClick={(event) => event.stopPropagation()}>
-        <img src={`${bookPageUrl(bookKey, pageNumber)}?v=${revision}`} alt={`${where}`} className="max-h-full max-w-full rounded-lg bg-white object-contain shadow-2xl" />
+        <img src={`${bookPageUrl(bookKey, pageNumber, revision)}`} alt={`${where}`} className="max-h-full max-w-full rounded-lg bg-white object-contain shadow-2xl" />
         <button type="button" aria-label="Previous page" onClick={() => onIndex(index - 1)} disabled={index === 0} className={`${arrow} absolute left-1 sm:-left-14`}><ChevronLeft size={22} /></button>
         <button type="button" aria-label="Next page" onClick={() => onIndex(index + 1)} disabled={index >= pageCount - 1} className={`${arrow} absolute right-1 sm:-right-14`}><ChevronRight size={22} /></button>
       </div>
       <div className="mx-auto flex w-full max-w-3xl justify-center pt-3" onClick={(event) => event.stopPropagation()}>
         <label className={`${primaryButton} cursor-pointer ${busy ? 'pointer-events-none opacity-50' : ''}`}>
           <RefreshCw size={16} /> Replace this page
-          <input type="file" accept="image/jpeg,image/png" className="hidden" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onReplace(pageNumber, file) }} />
+          <input type="file" accept={IMAGE_ACCEPT} className="hidden" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onReplace(pageNumber, file) }} />
         </label>
+        <button type="button" disabled={busy} onClick={() => onRemove(pageNumber)} className={`${softButton} ml-2 text-red-700 disabled:opacity-50`}><Trash2 size={16} /> Remove page</button>
       </div>
     </div>
   )
@@ -67,7 +68,7 @@ export default function PdfField({ value, onChange }) {
   const [error, setError] = useState('')
   const [uploadedBooks, setUploadedBooks] = useState([])
   const [draft, setDraft] = useState([]) // page images waiting to be arranged: [{ id, file, url }]
-  const [previewRevision, setPreviewRevision] = useState(0)
+  const [previewRevision, setPreviewRevision] = useState(value?.revision || 0)
   const [viewing, setViewing] = useState(null) // page index open in the big viewer
   const [dragging, setDragging] = useState(false)
   const dragFrom = useRef(null)
@@ -109,7 +110,7 @@ export default function PdfField({ value, onChange }) {
   const stageImages = (list) => {
     const files = [...list].filter((file) => IMAGE_TYPES.includes(file.type)).sort(naturalOrder)
     if (!files.length) {
-      setError('Choose JPG or PNG page images.')
+      setError('Choose JPG, PNG or WebP page images.')
       return
     }
     setError('')
@@ -179,14 +180,56 @@ export default function PdfField({ value, onChange }) {
         name: value.name || 'Book preview',
         sourceAvailable: false,
       })
-      onChange({ ...value, sourceAvailable: false })
-      setPreviewRevision(Date.now())
+      const revision = Date.now()
+      onChange({ ...value, sourceAvailable: false, revision })
+      setPreviewRevision(revision)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not replace this page.')
     } finally {
       setProgress(false)
       setBusyLabel('')
     }
+  }
+
+  // Re-orders / removes saved pages. `order` lists the existing page numbers in their new sequence.
+  const rewritePages = async (order, label) => {
+    if (!value?.key || !order.length) return
+    setError('')
+    setProgress(true)
+    try {
+      const moves = order.map((from, index) => ({ from, to: index + 1 })).filter((move) => move.from !== move.to)
+      const blobs = new Map()
+      for (const move of moves) {
+        setBusyLabel(`${label} (reading page ${move.from})…`)
+        blobs.set(move.from, await bookStore.getPageBlob(value.key, move.from))
+      }
+      for (const move of moves) {
+        setBusyLabel(`${label} (saving page ${move.to})…`)
+        await bookStore.updatePage(value.key, move.to, blobs.get(move.from))
+      }
+      await bookStore.updateManifest(value.key, { pageCount: order.length, ratio: value.ratio || 1 / 1.4142, name: value.name || 'Book preview', sourceAvailable: false })
+      const revision = Date.now()
+      onChange({ ...value, pageCount: order.length, sourceAvailable: false, revision })
+      setPreviewRevision(revision)
+      setViewing((current) => (current === null ? null : Math.min(current, order.length - 1)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change the pages.')
+    } finally {
+      setProgress(false)
+      setBusyLabel('')
+    }
+  }
+  const removeSavedPage = (pageNumber) => {
+    if (pageCount <= 1) { setError('A book needs at least one page. Use Remove to delete the whole preview.'); return }
+    if (!window.confirm(`Remove page ${pageNumber} from this book? The pages after it move up.`)) return
+    void rewritePages(Array.from({ length: pageCount }, (_, i) => i + 1).filter((n) => n !== pageNumber), `Removing page ${pageNumber}`)
+  }
+  const moveSavedPage = (pageNumber, delta) => {
+    const target = pageNumber + delta
+    if (target < 1 || target > pageCount) return
+    const order = Array.from({ length: pageCount }, (_, i) => i + 1)
+    ;[order[pageNumber - 1], order[target - 1]] = [order[target - 1], order[pageNumber - 1]]
+    void rewritePages(order, `Moving page ${pageNumber}`)
   }
 
   const appendPages = async (files) => {
@@ -207,8 +250,9 @@ export default function PdfField({ value, onChange }) {
         name: value.name || 'Book preview',
         sourceAvailable: false,
       })
-      onChange({ ...value, pageCount, sourceAvailable: false })
-      setPreviewRevision(Date.now())
+      const revision = Date.now()
+      onChange({ ...value, pageCount, sourceAvailable: false, revision })
+      setPreviewRevision(revision)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add these pages.')
     } finally {
@@ -240,7 +284,7 @@ export default function PdfField({ value, onChange }) {
             </label>
             <label className={`${softButton} cursor-pointer ${working ? 'pointer-events-none opacity-60' : ''}`}>
               <Images size={16} /> Upload page images
-              <input type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={pickImages} disabled={working} />
+              <input type="file" accept={IMAGE_ACCEPT} multiple className="hidden" onChange={pickImages} disabled={working} />
             </label>
           </div>
           <p className="mt-4 text-xs text-ink/50">Every page is prepared at 1200px wide: sharp on any phone and quick to open.</p>
@@ -254,7 +298,7 @@ export default function PdfField({ value, onChange }) {
         <div className="overflow-hidden rounded-2xl border border-sand bg-white">
           <div className="flex flex-col gap-4 bg-cream/50 p-4 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <img src={`${bookPageUrl(value.key, 1)}?v=${previewRevision}`} alt="Cover" className="h-20 w-14 shrink-0 rounded-lg border border-sand bg-white object-cover shadow-sm" />
+              <img src={`${bookPageUrl(value.key, 1, previewRevision)}`} alt="Cover" className="h-20 w-14 shrink-0 rounded-lg border border-sand bg-white object-cover shadow-sm" />
               <div className="min-w-0">
                 <p className="truncate font-semibold">{value.name || 'Book preview'}</p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] font-medium">
@@ -284,7 +328,7 @@ export default function PdfField({ value, onChange }) {
           <div className="p-3 sm:p-4">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <h4 className="font-serif text-lg">Pages</h4>
-              <p className="text-xs text-ink/55">Tap a page to see it bigger or replace it.</p>
+              <p className="text-xs text-ink/55">Tap a page to see it bigger. Use the buttons on each page to move, remove or replace it.</p>
             </div>
             <ol className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
               {Array.from({ length: pageCount }, (_, index) => {
@@ -293,14 +337,18 @@ export default function PdfField({ value, onChange }) {
                 return (
                   <li key={`${value.key}-${pageNumber}`} className="group relative">
                     <button type="button" onClick={() => setViewing(index)} aria-label={`View page ${pageNumber}`} className="block w-full overflow-hidden rounded-xl border border-sand bg-cream shadow-sm transition hover:border-brand hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
-                      <img src={`${bookPageUrl(value.key, pageNumber)}?v=${previewRevision}`} alt={`Preview page ${pageNumber}`} loading="lazy" className="aspect-[3/4] w-full bg-white object-cover" />
+                      <img src={`${bookPageUrl(value.key, pageNumber, previewRevision)}`} alt={`Preview page ${pageNumber}`} loading="lazy" className="aspect-[3/4] w-full bg-white object-cover" />
                     </button>
                     <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-semibold text-white">{tag ?? pageNumber}</span>
-                    <span className="pointer-events-none absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-white/90 text-ink opacity-0 shadow-sm transition group-hover:opacity-100"><Maximize2 size={12} /></span>
-                    <label className={`absolute bottom-1.5 right-1.5 grid size-8 cursor-pointer place-items-center rounded-full bg-white text-brand shadow-md transition hover:bg-cream ${working ? 'pointer-events-none opacity-50' : ''}`} title={`Replace page ${pageNumber}`}>
+                    <button type="button" onClick={() => removeSavedPage(pageNumber)} disabled={working} aria-label={`Remove page ${pageNumber}`} title={`Remove page ${pageNumber}`} className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white text-red-600 shadow-md transition hover:bg-red-50 disabled:opacity-50"><Trash2 size={13} /></button>
+                    <div className={`absolute bottom-1.5 left-1.5 flex gap-1 ${working ? 'pointer-events-none opacity-50' : ''}`}>
+                      <button type="button" onClick={() => moveSavedPage(pageNumber, -1)} disabled={pageNumber === 1} aria-label={`Move page ${pageNumber} earlier`} className="grid size-7 place-items-center rounded-full bg-white text-ink shadow-md transition hover:bg-cream disabled:opacity-30"><ArrowLeft size={14} /></button>
+                      <button type="button" onClick={() => moveSavedPage(pageNumber, 1)} disabled={pageNumber === pageCount} aria-label={`Move page ${pageNumber} later`} className="grid size-7 place-items-center rounded-full bg-white text-ink shadow-md transition hover:bg-cream disabled:opacity-30"><ArrowRight size={14} /></button>
+                    </div>
+                    <label className={`absolute bottom-1.5 right-1.5 grid size-7 cursor-pointer place-items-center rounded-full bg-white text-brand shadow-md transition hover:bg-cream ${working ? 'pointer-events-none opacity-50' : ''}`} title={`Replace page ${pageNumber}`}>
                       <RefreshCw size={14} />
                       <span className="sr-only">Replace page {pageNumber}</span>
-                      <input type="file" accept="image/jpeg,image/png" className="hidden" disabled={working} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void replacePage(pageNumber, file) }} />
+                      <input type="file" accept={IMAGE_ACCEPT} className="hidden" disabled={working} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void replacePage(pageNumber, file) }} />
                     </label>
                   </li>
                 )
@@ -308,7 +356,7 @@ export default function PdfField({ value, onChange }) {
               <li>
                 <label className={`flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-sand bg-cream/40 px-2 text-center text-xs font-semibold text-brand transition hover:border-brand hover:bg-cream ${working ? 'pointer-events-none opacity-50' : ''}`}>
                   <Plus size={20} /> Add page images
-                  <input type="file" accept="image/jpeg,image/png" multiple className="hidden" disabled={working} onChange={(event) => { const files = [...(event.target.files || [])].sort(naturalOrder); event.target.value = ''; void appendPages(files) }} />
+                  <input type="file" accept={IMAGE_ACCEPT} multiple className="hidden" disabled={working} onChange={(event) => { const files = [...(event.target.files || [])].sort(naturalOrder); event.target.value = ''; void appendPages(files) }} />
                 </label>
               </li>
             </ol>
@@ -361,11 +409,11 @@ export default function PdfField({ value, onChange }) {
       {hasBook && draft.length === 0 && (
         <label className={`${softButton} w-full cursor-pointer text-xs sm:w-auto ${working ? 'pointer-events-none opacity-50' : ''}`}>
           <Images size={14} /> Start over with new page images
-          <input type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={pickImages} disabled={working} />
+          <input type="file" accept={IMAGE_ACCEPT} multiple className="hidden" onChange={pickImages} disabled={working} />
         </label>
       )}
 
-      {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" ref={(node) => node?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })} className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>}
 
       {uploadedBooks.length > 0 && (
         <details className="group rounded-xl border border-sand bg-cream/30">
@@ -407,6 +455,7 @@ export default function PdfField({ value, onChange }) {
           busy={working}
           onIndex={setViewing}
           onReplace={replacePage}
+          onRemove={removeSavedPage}
           onClose={() => setViewing(null)}
         />
       )}

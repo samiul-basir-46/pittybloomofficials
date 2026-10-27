@@ -71,7 +71,7 @@ export async function readPdfBook(file, onProgress) {
 }
 
 export const naturalOrder = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-const IMAGE_TYPES = ['image/jpeg', 'image/png']
+export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/avif']
 
 // Shrinks big images to PREVIEW_WIDTH in steps (halving keeps text and edges crisp). Small JPEGs are kept as they are.
 async function toPreview(file) {
@@ -121,7 +121,7 @@ export async function readImageBook(files, onProgress) {
   const list = [...files] // keep the order the admin arranged
   if (!list.length) throw new PdfBookError('Choose at least one image.')
   const wrong = list.find((file) => !IMAGE_TYPES.includes(file.type))
-  if (wrong) throw new PdfBookError(`"${wrong.name}" is not a JPG or PNG image.`)
+  if (wrong) throw new PdfBookError(`"${wrong.name}" is not a supported image (use JPG, PNG, WebP, GIF, BMP or AVIF).`)
 
   const pages = []
   let ratio = 1 / 1.4142

@@ -3,7 +3,8 @@ import { adminAuth } from './firebaseClient'
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
 const newKey = () => `book-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 export const originalBookUrl = (key) => MEDIA_API && key ? `${MEDIA_API}/books/${key}/source` : ''
-export const bookPageUrl = (key, page) => MEDIA_API && key ? `${MEDIA_API}/books/${key}/pages/${page}` : ''
+// `revision` changes whenever an admin edits pages of an existing book, so browsers never keep showing an old page.
+export const bookPageUrl = (key, page, revision) => MEDIA_API && key ? `${MEDIA_API}/books/${key}/pages/${page}${revision ? `?v=${revision}` : ''}` : ''
 
 async function ensureMediaApi() {
   if (!MEDIA_API) throw new Error('Cloudflare media storage is not configured. Set VITE_MEDIA_API_URL.')
@@ -15,6 +16,13 @@ async function adminAuthorization() {
 }
 
 export const bookStore = {
+  // Always the current stored page (bypasses every cache); used when pages are re-ordered or removed.
+  async getPageBlob(key, pageNumber) {
+    await ensureMediaApi()
+    const response = await fetch(`${MEDIA_API}/books/${key}/pages/${pageNumber}?fresh=${Date.now()}`, { cache: 'no-store' })
+    if (!response.ok) throw new Error(`Could not read page ${pageNumber} (error ${response.status}).`)
+    return response.blob()
+  },
   async updatePage(key, pageNumber, page) {
     await ensureMediaApi()
     const response = await fetch(`${MEDIA_API}/books/${key}/pages/${pageNumber}`, {

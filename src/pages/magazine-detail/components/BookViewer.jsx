@@ -57,7 +57,7 @@ export default function BookViewer({ book, title, fallback }) {
     holder.appendChild(element)
     mount.appendChild(holder)
 
-    const urls = Array.from({ length: book.pageCount }, (_, index) => bookPageUrl(book.key, index + 1))
+    const urls = Array.from({ length: book.pageCount }, (_, index) => bookPageUrl(book.key, index + 1, book.revision))
     const blank = blankPage()
 
     // Wait only for the cover, then open the book.
