@@ -5,6 +5,7 @@ import useAsync from '../shared/hooks/useAsync'
 import { inputClass } from './classes'
 import { adminAuth } from '../shared/services/firebaseClient'
 import { getManualOrderCatalog, manualOrderCatalogApi, productsApi, sizesApi } from '../shared/services/contentService'
+import { Link } from 'react-router-dom'
 import { mergeManualOrderCatalog } from '../pages/manual-order/catalog'
 import { parseOptions } from '../shared/utils/options'
 import { compressImage } from '../shared/utils/compressImage'
@@ -104,7 +105,6 @@ export default function ManualOrderCatalogPage() {
   const [initial, setInitial] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
-  const [frameDraft, setFrameDraft] = useState({ label: '', price: '' })
   const formRef = useRef(null)
 
   useEffect(() => {
@@ -135,8 +135,6 @@ export default function ManualOrderCatalogPage() {
 
   const updateCard = (id, values) => { setMessage(''); setCatalog((rows) => ({ ...rows, [id]: { ...rows[id], ...values } })) }
   const updateSize = (id, values) => { setMessage(''); setSizes((rows) => rows.map((size) => size.id === id ? { ...size, ...values } : size)) }
-  const frameOptions = parseOptions(frameProduct.options)
-  const setFrameOptions = (options) => { setMessage(''); setFrameProduct((product) => ({ ...product, options: options.map((row) => `${row.label} | ${Number(row.price) || 0}${row.mrp ? ` | ${row.mrp}` : ''}${row.tag ? ` | ${row.tag}` : ''}`).join('\n') })) }
 
   const save = async (event) => {
     event.preventDefault()
@@ -154,13 +152,12 @@ export default function ManualOrderCatalogPage() {
       setMessage('Maximum frame quantity must be from 1 to 80.')
       return
     }
-    if (parseOptions(frameProduct.options).length < 1) { setMessage('Add at least one frame size with a price.'); return }
+    if (parseOptions(frameProduct.options).length < 1) { setMessage('Add at least one frame size in Frame settings.'); return }
     setBusy(true)
     setMessage('')
     try {
       await Promise.all([
         manualOrderCatalogApi.save(catalog),
-        productsApi.save(frameProduct),
         sizesApi.saveAll(sizes),
       ])
       setInitial(JSON.stringify({ catalog, frame: frameProduct.options, sizes }))
@@ -168,14 +165,6 @@ export default function ManualOrderCatalogPage() {
     } catch (cause) {
       setMessage(cause.message || 'Could not save all manual order settings. Try again.')
     } finally { setBusy(false) }
-  }
-
-  const addFrameSize = () => {
-    const label = frameDraft.label.trim()
-    const price = Number(frameDraft.price)
-    if (!label || !Number.isFinite(price) || price < 1 || frameOptions.some((option) => option.label.toLowerCase() === label.toLowerCase())) return
-    setFrameOptions([...frameOptions, { label, price }])
-    setFrameDraft({ label: '', price: '' })
   }
 
   return <form ref={formRef} onSubmit={save} className="space-y-6 pb-24">
@@ -207,19 +196,7 @@ export default function ManualOrderCatalogPage() {
         </div>
       </div>
       {card.id === 'polaroids' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Minimum quantity remains 9 Polaroids. Customers see the updated per-piece price and subtotal.</p>}
-      {card.id === 'frames' && <div className="mt-6 border-t border-sand pt-5">
-        <div className="mb-3"><h3 className="font-semibold">Frame sizes and prices</h3><p className="mt-1 text-xs text-ink/55">Add, remove, or change the available frame choices.</p></div>
-        <div className="space-y-2">{frameOptions.map((option, index) => <div key={`${option.id}-${index}`} className="grid gap-2 sm:grid-cols-[1fr_180px_auto]">
-          <input aria-label={`Frame size ${index + 1}`} className={inputClass} value={option.label} onChange={(event) => setFrameOptions(frameOptions.map((row, rowIndex) => rowIndex === index ? { ...row, label: event.target.value } : row))} />
-          <input aria-label={`Frame price ${index + 1}`} type="number" min="1" className={inputClass} value={option.price} onChange={(event) => setFrameOptions(frameOptions.map((row, rowIndex) => rowIndex === index ? { ...row, price: Number(event.target.value) } : row))} />
-          <button type="button" aria-label={`Remove ${option.label}`} onClick={() => setFrameOptions(frameOptions.filter((_, rowIndex) => rowIndex !== index))} className="grid min-h-11 place-items-center rounded-xl border border-red-100 px-3 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button>
-        </div>)}</div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_180px_auto]">
-          <input aria-label="New frame size name" className={inputClass} placeholder="New size name" value={frameDraft.label} onChange={(event) => setFrameDraft({ ...frameDraft, label: event.target.value })} />
-          <input aria-label="New frame size price" type="number" min="1" className={inputClass} placeholder="Price ৳" value={frameDraft.price} onChange={(event) => setFrameDraft({ ...frameDraft, price: event.target.value })} />
-          <button type="button" onClick={addFrameSize} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-brand/25 px-3 text-sm font-semibold text-brand hover:bg-cream"><Plus size={16} /> Add size</button>
-        </div>
-      </div>}
+      {card.id === 'frames' && <div className="mt-6 border-t border-sand pt-5"><h3 className="font-semibold">Frame sizes and prices</h3><p className="mt-1 text-xs text-ink/55">Sizes, prices and designs come from Frame settings, so you only add them once.</p><Link to="/admin/frame-settings" className="mt-2 inline-block text-sm font-semibold text-brand underline">Edit in Frame settings</Link></div>}
       {card.id === 'magazines' && <div className="mt-6 border-t border-sand pt-5">
         <div className="mb-3"><h3 className="font-semibold">Magazine page prices</h3><p className="mt-1 text-xs text-ink/55">Set a price for each supported page count. Set a price to 0 to hide that option.</p></div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{[...sizes].sort((a, b) => a.format.localeCompare(b.format) || a.pages - b.pages).map((size) => <label key={size.id} className="rounded-xl border border-sand p-3 text-sm">
