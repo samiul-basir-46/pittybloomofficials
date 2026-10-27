@@ -428,6 +428,9 @@ export const getFrameDesigns = async () => {
   }
   return [...seen.values()]
 }
+export const miniMagazinesApi = collection('miniMagazines', [], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
+export const getMiniMagazines = async () => (await miniMagazinesApi.list()).filter((item) => item.status !== 'Inactive')
+export const getMiniMagazine = async (id) => (await getMiniMagazines()).find((item) => item.id === id) ?? null
 export const getFrameProducts = async () => (await frameProductsApi.list()).filter((item) => item.status !== 'Inactive')
 export const getFrameProduct = async (id) => (await getFrameProducts()).find((item) => item.id === id) ?? null
 export const getActiveAddons = async () => (await addonsApi.list()).filter((a) => a.status !== 'Inactive')

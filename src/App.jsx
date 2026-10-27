@@ -7,6 +7,9 @@ import MagazineDetailPage from './pages/magazine-detail/MagazineDetailPage'
 import FaqPage from './pages/faq/FaqPage'
 import PolicyPage from './pages/policy/PolicyPage'
 import FramePage from './pages/frame/FramePage'
+import MiniMagazinePage from './pages/mini-magazine/MiniMagazinePage'
+import MiniMagazineDetailPage from './pages/mini-magazine/MiniMagazineDetailPage'
+import MiniMagazineOrderPage from './pages/mini-magazine/MiniMagazineOrderPage'
 import FrameOrderPage from './pages/frame/FrameOrderPage'
 import FrameDetailPage from './pages/frame/FrameDetailPage'
 import PolaroidsPage from './pages/polaroids/PolaroidsPage'
@@ -36,6 +39,7 @@ import SongBookPage from './pages/song-book/SongBookPage'
 import SongBookDetailPage from './pages/song-book/SongBookDetailPage'
 import SongBookOrderPage from './pages/song-book/SongBookOrderPage'
 import FrameSettingsPage from './admin/FrameSettingsPage'
+import MiniMagazineSettingsPage from './admin/MiniMagazineSettingsPage'
 import { AdminAuthProvider } from './admin/AdminAuthContext'
 
 export default function App() {
@@ -62,6 +66,9 @@ export default function App() {
           <Route path="frame" element={<FramePage />} />
           <Route path="frame/:id" element={<FrameDetailPage />} />
           <Route path="frame/order" element={<RequireCustomer><FrameOrderPage /></RequireCustomer>} />
+          <Route path="mini-magazines" element={<MiniMagazinePage />} />
+          <Route path="mini-magazines/order" element={<RequireCustomer><MiniMagazineOrderPage /></RequireCustomer>} />
+          <Route path="mini-magazines/:id" element={<MiniMagazineDetailPage />} />
           <Route path="polaroids" element={<PolaroidsPage />} />
           <Route path="polaroids/order" element={<RequireCustomer><PolaroidsOrderPage /></RequireCustomer>} />
           <Route path="sticker" element={<StickerPage />} />
@@ -88,6 +95,7 @@ export default function App() {
           <Route path="order-settings" element={<OrderSettingsPage />} />
           <Route path="manual-order" element={<ManualOrderCatalogPage />} />
           <Route path="frame-settings" element={<FrameSettingsPage />} />
+          <Route path="mini-magazine-settings" element={<MiniMagazineSettingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

@@ -199,6 +199,10 @@ export default function ManualOrderCatalogPage() {
           <Input label="Short description" value={card.description} onChange={(description) => updateCard(card.id, { description })} />
           <Input label="Maximum separate items per order" type="number" min="1" max="80" value={card.maxItems} onChange={(maxItems) => updateCard(card.id, { maxItems })} hint="For repeated items such as magazines and song books." />
           {['polaroids', 'miniMagazines', 'songBooks'].includes(card.id) && <Input label={card.id === 'polaroids' ? 'Price per Polaroid' : 'Price per item'} type="number" min="1" value={card.unitPrice} onChange={(unitPrice) => updateCard(card.id, { unitPrice })} />}
+          {card.id === 'miniMagazines' && <>
+            <Input label="Minimum photos per magazine" type="number" min="2" value={card.minPhotos} onChange={(minPhotos) => updateCard(card.id, { minPhotos })} hint="At least 2 (front and back cover)." />
+            <Input label="Maximum photos per magazine" type="number" min="0" value={card.maxPhotos} onChange={(maxPhotos) => updateCard(card.id, { maxPhotos })} hint="Leave 0 for no upper limit." />
+          </>}
           {card.id === 'frames' && <Input label="Maximum quantity per frame size" type="number" min="1" max="80" value={card.maxQuantity} onChange={(maxQuantity) => updateCard(card.id, { maxQuantity })} />}
         </div>
       </div>
@@ -223,7 +227,7 @@ export default function ManualOrderCatalogPage() {
           <span className="relative"><span className="absolute left-3 top-2.5 text-ink/45">৳</span><input type="number" min="0" aria-label={`${size.format} ${size.pages} pages price`} value={size.price} onChange={(event) => updateSize(size.id, { price: Number(event.target.value) })} className={`${inputClass} pl-8`} /></span>
         </label>)}</div>
       </div>}
-      {card.id === 'miniMagazines' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Each Mini Pocket Magazine still allows up to 8 photos. The price above is applied once to every separate magazine.</p>}
+      {card.id === 'miniMagazines' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">The photo limits above apply to every separate Mini Pocket Magazine. The price is applied once to each magazine.</p>}
       {card.id === 'songBooks' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Each Song Book remains 12 pages. The price above is applied once to every separate book.</p>}
     </section>)}
 

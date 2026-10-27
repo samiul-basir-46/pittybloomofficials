@@ -1,7 +1,7 @@
 const FIRESTORE = 'https://firestore.googleapis.com/v1/projects'
 import { dateOffsetFromDhaka, expeditedSurcharge, minimumDeliveryOffset, ORDER_IMAGE_TYPES } from '../../../src/shared/utils/manualOrderRules.js'
 import { frameSizeIdFor } from '../../../src/shared/utils/frameSizeMapping.js'
-import { MANUAL_ORDER_CATALOG_DEFAULTS, MANUAL_ORDER_TYPE_TO_CARD, mergeManualOrderCatalog } from '../../../src/pages/manual-order/catalog.js'
+import { MANUAL_ORDER_CATALOG_DEFAULTS, MANUAL_ORDER_TYPE_TO_CARD, mergeManualOrderCatalog, miniPhotoLimits } from '../../../src/pages/manual-order/catalog.js'
 
 const IMAGE_TYPES = ORDER_IMAGE_TYPES
 // Customer photos are stored exactly as sent (no resizing), streamed straight into R2. 100 MB is the Workers request-body ceiling.
@@ -192,7 +192,8 @@ function buildItem(input, config, photos, referenceFile) {
   if (input.type === 'mini-magazine') {
     const unitPrice = Number(card.unitPrice)
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('Mini Magazine pricing is not available. Please contact us.')
-    if (quantity !== 1 || photos.length < 2 || photos.length > 8) throw new Error('Each Mini Pocket Magazine needs 2 to 8 photos.')
+    const limits = miniPhotoLimits(card)
+    if (quantity !== 1 || photos.length < limits.min || (limits.max && photos.length > limits.max)) throw new Error(`Each Mini Pocket Magazine needs ${limits.max ? (limits.max === limits.min ? limits.min : `${limits.min} to ${limits.max}`) : `at least ${limits.min}`} photos.`)
     assertCovers(photos, input)
     return { kind: 'mini-magazine', id: 'mini-pocket-magazine', name: card.title, optionLabel: `${photos.length} photos`, qty: 1, price: unitPrice, note: notes, details: notes ? [{ label: 'Notes', value: notes }] : [], meta: { pages: 8 }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
   }

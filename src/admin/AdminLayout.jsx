@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation, useMatch } from 'react-router-dom'
-import { Check, CircleCheck, CircleX, ClipboardList, ExternalLink, Image as ImageIcon, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
+import { BookOpen, Check, CircleCheck, CircleX, ClipboardList, ExternalLink, Image as ImageIcon, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
 import { SECTIONS } from './sections'
 import { dismissBookUpload, getBookUploads, subscribeBookUploads } from '../shared/services/bookUploadQueue'
 import { useAdminAuth } from './AdminAuthContext'
@@ -16,6 +16,7 @@ const NAV_GROUPS = [
   { title: 'Catalog', links: [
     ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'song-books', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
     { to: '/admin/frame-settings', label: 'Frame settings', icon: ImageIcon },
+    { to: '/admin/mini-magazine-settings', label: 'Mini pocket magazines', icon: BookOpen },
   ] },
   { title: 'Store setup', links: [
     { to: '/admin/order-settings', label: 'Order Settings', icon: SlidersHorizontal },

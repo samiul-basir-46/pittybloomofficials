@@ -9,7 +9,7 @@ export const MANUAL_ORDER_CATALOG_DEFAULTS = {
   },
   miniMagazines: {
     id: 'miniMagazines', title: 'Mini Pocket Magazine', description: 'A little story you can carry anywhere.',
-    enabled: true, order: 3, imageUpdatedAt: 0, unitPrice: 150, maxItems: 20,
+    enabled: true, order: 3, imageUpdatedAt: 0, unitPrice: 150, maxItems: 20, minPhotos: 2, maxPhotos: 8,
   },
   magazines: {
     id: 'magazines', title: 'Magazine', description: 'A custom magazine made around your story.',
@@ -32,3 +32,11 @@ export const MANUAL_ORDER_TYPE_TO_CARD = {
 export const mergeManualOrderCatalog = (value = {}) => Object.fromEntries(
   Object.entries(MANUAL_ORDER_CATALOG_DEFAULTS).map(([id, defaults]) => [id, { ...defaults, ...(value?.[id] ?? {}) }]),
 )
+
+// Photo limits for one Mini Pocket Magazine, set in Admin > Manual order. At least 2 photos are always needed (front and back
+// covers); a maximum of 0 / empty means no upper limit.
+export const miniPhotoLimits = (card) => {
+  const min = Math.max(2, Math.floor(Number(card?.minPhotos)) || 2)
+  const rawMax = Math.floor(Number(card?.maxPhotos)) || 0
+  return { min, max: rawMax >= min ? rawMax : 0 }
+}

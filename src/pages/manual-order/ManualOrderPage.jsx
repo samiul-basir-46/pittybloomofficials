@@ -9,7 +9,7 @@ import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { deliveryFee, detectOrderImageType, dhakaToday, expeditedSurcharge, minimumDeliveryDate, orderImageType, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
-import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog } from './catalog'
+import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog, miniPhotoLimits } from './catalog'
 import MagazineSizePreview from './MagazineSizePreview'
 
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
@@ -344,7 +344,8 @@ export default function ManualOrderPage() {
       if (!configuration.photos.length) next[`frame-${key}-photos`] = `Add at least one print photo for Frame #${index + 1}.`
     })
     selected.miniMagazines && miniBooks.forEach((item, index) => {
-      if (item.photos.length < 2 || item.photos.length > 8) next[`mini-${item.key}-photos`] = `Mini Magazine #${index + 1} needs 2–8 photos so you can choose both covers.`
+      const limits = miniPhotoLimits(manualCatalog.miniMagazines)
+      if (item.photos.length < limits.min || (limits.max && item.photos.length > limits.max)) next[`mini-${item.key}-photos`] = `Mini Magazine #${index + 1} needs ${limits.max ? (limits.max === limits.min ? `${limits.min}` : `${limits.min}–${limits.max}`) : `at least ${limits.min}`} photos.`
       if (!item.photos.some((photo) => photo.id === item.frontId)) next[`mini-${item.key}-front`] = 'Choose a front cover photo.'
       if (!item.photos.some((photo) => photo.id === item.backId)) next[`mini-${item.key}-back`] = 'Choose a back cover photo.'
     })
@@ -665,7 +666,7 @@ export default function ManualOrderPage() {
             const photoErrors = galleryErrors('mini', item)
             return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-4 sm:p-5">
               <ItemHeader title={`Mini Magazine #${index + 1}`} onRemove={() => removeProductItem(setMiniBooks, miniBooks, 'miniMagazines', item.key)} />
-              <UploadPicker title="Photos for this mini magazine" files={item.photos} onChange={(photos) => setMiniBooks((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} max={8} help="Choose front and back directly under each photo." error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setMiniBooks, item.key, key, value)} />
+              <UploadPicker title="Photos for this mini magazine" files={item.photos} onChange={(photos) => setMiniBooks((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} max={miniPhotoLimits(manualCatalog.miniMagazines).max || Infinity} help={`Choose front and back directly under each photo. ${miniPhotoLimits(manualCatalog.miniMagazines).max ? `Add ${miniPhotoLimits(manualCatalog.miniMagazines).min} to ${miniPhotoLimits(manualCatalog.miniMagazines).max} photos.` : `Add at least ${miniPhotoLimits(manualCatalog.miniMagazines).min} photos, no upper limit.`}`} error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setMiniBooks, item.key, key, value)} />
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setMiniBooks, item.key, 'notes', event.target.value)} className={inputClass} /></label>
             </div>
           })}</div>
