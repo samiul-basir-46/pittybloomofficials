@@ -37,7 +37,7 @@ export const photoStore = {
     Array.from(files ?? []).forEach((file) => {
       const type = orderImageType(file)
       if (!type) return void result.rejected++
-      if (file.size > 20 * 1024 * 1024) return void result.tooLarge++
+      if (file.size > 100 * 1024 * 1024) return void result.tooLarge++
       if (!allowDuplicates && current.some((p) => p.name === file.name && p.size === file.size)) return void result.skipped++
       const id = newId()
       const url = URL.createObjectURL?.(file) ?? ''

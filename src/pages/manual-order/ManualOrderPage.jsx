@@ -50,7 +50,7 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
     const analyzed = await Promise.all(list.map(async (file) => ({ file, type: await detectOrderImageType(file) })))
     const invalid = analyzed.some(({ file, type }) => !validUpload(file) || !type)
     const fresh = analyzed.filter(({ file, type }) => validUpload(file) && type).map(({ file, type }) => ({ id: newId(), file, type }))
-    setUploadError(invalid ? 'Choose a supported image format up to 20 MB.' : '')
+    setUploadError(invalid ? 'Choose a supported image format up to 100 MB.' : '')
     if (!fresh.length) return
     const next = multiple ? [...files, ...fresh].slice(0, max) : fresh.slice(0, 1)
     if (multiple && Number.isFinite(max) && files.length + fresh.length > max) setUploadError(`You can add up to ${max} images here.`)

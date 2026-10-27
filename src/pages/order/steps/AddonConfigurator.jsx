@@ -38,7 +38,7 @@ export default function AddonConfigurator({ addon, product, details, onChange, e
     const result = photoStore.add(details.photoKey, files, { allowDuplicates: true })
     setPhotos(photoStore.list(details.photoKey))
     onChange({ files: photoMetadata(details.photoKey) })
-    if (result.rejected || result.tooLarge) onChange({ uploadMessage: `${result.rejected + result.tooLarge} file${result.rejected + result.tooLarge === 1 ? '' : 's'} skipped. Use image files under 20 MB.` })
+    if (result.rejected || result.tooLarge) onChange({ uploadMessage: `${result.rejected + result.tooLarge} file${result.rejected + result.tooLarge === 1 ? '' : 's'} skipped. Use image files under 100 MB.` })
     else onChange({ uploadMessage: '' })
   }
   const addReference = (event) => {
@@ -48,7 +48,7 @@ export default function AddonConfigurator({ addon, product, details, onChange, e
     const previous = photoStore.list(details.referenceKey)[0]
     if (previous) photoStore.remove(details.referenceKey, previous.id)
     const result = photoStore.add(details.referenceKey, [file], { allowDuplicates: true })
-    if (!result.added.length) { onChange({ uploadMessage: 'Choose an image under 20 MB for the reference.' }); return }
+    if (!result.added.length) { onChange({ uploadMessage: 'Choose an image under 100 MB for the reference.' }); return }
     setReference(result.added[0])
     onChange({ referenceFile: photoMetadata(details.referenceKey)[0] })
     onChange({ uploadMessage: '' })

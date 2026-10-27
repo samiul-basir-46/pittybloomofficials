@@ -10,6 +10,7 @@ const json = (body, status, cors = {}) => new Response(JSON.stringify(body), {
 const decode = (value) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))))
 const bytes = (value) => Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+const MAX_ORDER_PHOTO_BYTES = 100 * 1024 * 1024 // customer order photos are stored exactly as uploaded
 
 async function readLimitedBody(stream) {
   if (!stream) return new Uint8Array(0)
@@ -401,26 +402,28 @@ export default {
       const contentType = request.headers.get('Content-Type') || ''
       const length = Number(request.headers.get('Content-Length') || 0)
       if (!contentType.startsWith('image/')) return json({ error: 'Only image uploads are accepted.' }, 415, cors)
-      if (length > MAX_IMAGE_BYTES) return json({ error: 'Images must be 20 MB or smaller.' }, 413, cors)
+      if (length > MAX_ORDER_PHOTO_BYTES) return json({ error: 'Images must be 100 MB or smaller.' }, 413, cors)
       const id = url.pathname.split('/').pop()
       const key = claims ? `users/${claims.sub}/images/${id}` : `admin/images/${id}`
-      let image
-      try { image = await readLimitedBody(request.body) } catch (error) {
-        console.error('Could not read uploaded image body', error)
-        return json({ error: 'Could not read the uploaded image. Please retry.' }, 400, cors)
-      }
-      if (image === null) return json({ error: 'Images must be 20 MB or smaller.' }, 413, cors)
-      if (!image.byteLength) return json({ error: 'The uploaded image is empty.' }, 400, cors)
       const encodedName = request.headers.get('X-File-Name') || ''
       let fileName = 'image'
       try { fileName = decodeURIComponent(encodedName).slice(0, 180) || fileName } catch { /* ignore malformed names */ }
+      const options = {
+        httpMetadata: { contentType, cacheControl: 'private, no-store' },
+        customMetadata: { ownerUid: claims?.sub || 'admin', fileName },
+      }
       try {
-        // A Uint8Array carries its exact length. Browsers do not expose a way to
-        // set Content-Length on fetch requests, which can make streamed R2 puts fail.
-        await env.MEDIA_BUCKET.put(key, image, {
-          httpMetadata: { contentType, cacheControl: 'private, no-store' },
-          customMetadata: { ownerUid: claims?.sub || 'admin', fileName },
-        })
+        if (length > 0) {
+          // Original bytes streamed straight into R2: no resizing, recompression or in-memory copy.
+          await env.MEDIA_BUCKET.put(key, request.body, options)
+          const stored = await env.MEDIA_BUCKET.head(key)
+          if (!stored || stored.size !== length) { await env.MEDIA_BUCKET.delete(key); return json({ error: 'The upload was cut off. Please retry.' }, 502, cors) }
+        } else {
+          const image = await readLimitedBody(request.body)
+          if (image === null) return json({ error: 'This upload could not be sized, so it must be 20 MB or smaller. Please retry.' }, 413, cors)
+          if (!image.byteLength) return json({ error: 'The uploaded image is empty.' }, 400, cors)
+          await env.MEDIA_BUCKET.put(key, image, options)
+        }
       } catch (error) {
         console.error('Cloudflare R2 image upload failed', error)
         return json({ error: 'Cloudflare R2 could not store the uploaded image.' }, 502, cors)

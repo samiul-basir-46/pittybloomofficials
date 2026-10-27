@@ -77,5 +77,5 @@ export const detectOrderImageType = async (file) => {
   }
   return orderImageType(file)
 }
-export const validUpload = (file, maxSize = 20 * 1024 * 1024) =>
+export const validUpload = (file, maxSize = 100 * 1024 * 1024) =>
   Boolean(orderImageType(file)) && file.size > 0 && file.size <= maxSize

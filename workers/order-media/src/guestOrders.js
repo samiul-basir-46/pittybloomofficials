@@ -4,7 +4,9 @@ import { frameSizeIdFor } from '../../../src/shared/utils/frameSizeMapping.js'
 import { MANUAL_ORDER_CATALOG_DEFAULTS, MANUAL_ORDER_TYPE_TO_CARD, mergeManualOrderCatalog } from '../../../src/pages/manual-order/catalog.js'
 
 const IMAGE_TYPES = ORDER_IMAGE_TYPES
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+// Customer photos are stored exactly as sent (no resizing), streamed straight into R2. 100 MB is the Workers request-body ceiling.
+const MAX_ORDER_PHOTO_BYTES = 100 * 1024 * 1024
+const MAX_BUFFERED_BYTES = 20 * 1024 * 1024 // only for the rare upload that arrives without a Content-Length
 const MAX_PHOTOS_PER_ITEM = 1000
 const SAFE_ID = /^[a-f0-9]{32}$/i
 const CATEGORIES = ['Birthday', 'Couple', 'Anniversary', 'Personal', 'Parents', 'Marriage', 'Special Day', 'Farewell', 'Best Friends', 'Other']
@@ -38,7 +40,7 @@ async function readLimitedBody(stream) {
     const { done, value } = await reader.read()
     if (done) break
     size += value.byteLength
-    if (size > MAX_IMAGE_BYTES) { await reader.cancel(); return null }
+    if (size > MAX_BUFFERED_BYTES) { await reader.cancel(); return null }
     chunks.push(value)
   }
   const body = new Uint8Array(size)
@@ -136,7 +138,7 @@ async function verifyOne(env, sessionKey, file) {
   const key = String(file?.storageKey ?? '')
   const size = Number(file?.size)
   const type = String(file?.type ?? '')
-  if (!SAFE_ID.test(id) || key !== `manual-orders/${sessionKey}/${id}` || !IMAGE_TYPES.has(type) || !Number.isInteger(size) || size < 1 || size > MAX_IMAGE_BYTES) {
+  if (!SAFE_ID.test(id) || key !== `manual-orders/${sessionKey}/${id}` || !IMAGE_TYPES.has(type) || !Number.isInteger(size) || size < 1 || size > MAX_ORDER_PHOTO_BYTES) {
     throw new Error('An uploaded photo is invalid. Please remove it and add it again.')
   }
   const object = await env.MEDIA_BUCKET.head(key)
@@ -326,6 +328,19 @@ export async function handleGuestOrder(request, env, cors) {
   }
 }
 
+function validSignature(type, body) {
+  const ascii = (start, end) => new TextDecoder().decode(body.slice(start, end))
+  const brand = ascii(8, 12)
+  return type === 'image/jpeg' ? body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff
+    : type === 'image/png' ? body[0] === 0x89 && ascii(1, 4) === 'PNG'
+      : type === 'image/webp' ? ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP'
+        : type === 'image/gif' ? ascii(0, 3) === 'GIF'
+          : type === 'image/bmp' ? ascii(0, 2) === 'BM'
+            : type === 'image/tiff' ? (ascii(0, 2) === 'II' && body[2] === 42 && body[3] === 0) || (ascii(0, 2) === 'MM' && body[2] === 0 && body[3] === 42)
+              : ['image/heic', 'image/heif', 'image/avif'].includes(type) && body.length >= 12 && ascii(4, 8) === 'ftyp'
+                && ['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1', 'avif', 'avis'].includes(brand)
+}
+
 export async function handleGuestMedia(request, env, url, cors) {
   const route = url.pathname.match(/^\/guest-media\/([a-f0-9]{32})\/([a-f0-9]{32})$/i)
   if (request.method === 'PUT' && route) {
@@ -335,22 +350,28 @@ export async function handleGuestMedia(request, env, url, cors) {
     let name = 'order-photo'
     try { name = decodeURIComponent(rawName).slice(0, 180).replace(/[\u0000-\u001f]/g, '') || name } catch { return json({ error: 'The file name is invalid.' }, 400, cors) }
     if (!IMAGE_TYPES.has(type)) return json({ error: 'Use a supported image format.' }, 415, cors)
-    const body = await readLimitedBody(request.body)
-    if (!body) return json({ error: 'Each image must be 20 MB or smaller.' }, 413, cors)
-    const ascii = (start, end) => new TextDecoder().decode(body.slice(start, end))
-    const brand = ascii(8, 12)
-    const signatureOk = type === 'image/jpeg' ? body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff
-      : type === 'image/png' ? body[0] === 0x89 && ascii(1, 4) === 'PNG'
-        : type === 'image/webp' ? ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP'
-          : type === 'image/gif' ? ascii(0, 3) === 'GIF'
-            : type === 'image/bmp' ? ascii(0, 2) === 'BM'
-              : type === 'image/tiff' ? (ascii(0, 2) === 'II' && body[2] === 42 && body[3] === 0) || (ascii(0, 2) === 'MM' && body[2] === 0 && body[3] === 42)
-                : ['image/heic', 'image/heif', 'image/avif'].includes(type) && body.length >= 12 && ascii(4, 8) === 'ftyp'
-                  && ['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1', 'avif', 'avis'].includes(brand)
-    if (!signatureOk) return json({ error: 'This file does not appear to be a valid image.' }, 415, cors)
     const key = `manual-orders/${sessionKey}/${fileId}`
-    await env.MEDIA_BUCKET.put(key, body, { httpMetadata: { contentType: type }, customMetadata: { originalName: name } })
-    return json({ key, size: body.length, type }, 201, cors)
+    const length = Number(request.headers.get('Content-Length') || 0)
+    if (length > MAX_ORDER_PHOTO_BYTES) return json({ error: 'Each image must be 100 MB or smaller.' }, 413, cors)
+    let size
+    if (length > 0) {
+      // Stream the original bytes straight into R2: nothing is resized, recompressed or held in memory.
+      try { await env.MEDIA_BUCKET.put(key, request.body, { httpMetadata: { contentType: type }, customMetadata: { originalName: name } }) }
+      catch (error) { console.error('Guest photo upload failed', error); return json({ error: 'Could not store this photo. Please retry.' }, 502, cors) }
+      const stored = await env.MEDIA_BUCKET.head(key)
+      if (!stored || stored.size !== length) { await env.MEDIA_BUCKET.delete(key); return json({ error: 'The upload was cut off. Please retry.' }, 502, cors) }
+      const head = await env.MEDIA_BUCKET.get(key, { range: { offset: 0, length: 32 } })
+      const headBytes = head ? new Uint8Array(await head.arrayBuffer()) : new Uint8Array(0)
+      if (!validSignature(type, headBytes)) { await env.MEDIA_BUCKET.delete(key); return json({ error: 'This file does not appear to be a valid image.' }, 415, cors) }
+      size = length
+    } else {
+      const body = await readLimitedBody(request.body)
+      if (!body) return json({ error: 'This upload could not be sized, so it must be 20 MB or smaller. Please retry.' }, 413, cors)
+      if (!validSignature(type, body)) return json({ error: 'This file does not appear to be a valid image.' }, 415, cors)
+      await env.MEDIA_BUCKET.put(key, body, { httpMetadata: { contentType: type }, customMetadata: { originalName: name } })
+      size = body.length
+    }
+    return json({ key, size, type }, 201, cors)
   }
   if (request.method === 'GET') {
     const key = url.searchParams.get('key') || ''

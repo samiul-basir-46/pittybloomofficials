@@ -55,19 +55,19 @@ export default function PolaroidsOrderPage() {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
     if (!files.length) return
-    const valid = files.filter((file) => orderImageType(file) && file.size <= 20 * 1024 * 1024)
+    const valid = files.filter((file) => orderImageType(file) && file.size <= 100 * 1024 * 1024)
     const remaining = Math.max(0, qty - photoStore.list(photoKey.current).length)
     const result = photoStore.add(photoKey.current, valid.slice(0, remaining), { allowDuplicates: true })
     setPhotos(photoStore.list(photoKey.current))
     const rejected = files.length - valid.length
     const overLimit = Math.max(0, valid.length - remaining)
-    setError(rejected || overLimit ? `${result.added.length} photo${result.added.length === 1 ? '' : 's'} added. ${[rejected ? `${rejected} invalid or over 20 MB` : '', overLimit ? `${overLimit} skipped because you selected ${qty} Polaroids` : ''].filter(Boolean).join('; ')}.` : '')
+    setError(rejected || overLimit ? `${result.added.length} photo${result.added.length === 1 ? '' : 's'} added. ${[rejected ? `${rejected} invalid or over 100 MB` : '', overLimit ? `${overLimit} skipped because you selected ${qty} Polaroids` : ''].filter(Boolean).join('; ')}.` : '')
   }
   const addReference = (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!orderImageType(file) || file.size > 20 * 1024 * 1024) { setError('Choose an image under 20 MB for the reference.'); return }
+    if (!orderImageType(file) || file.size > 100 * 1024 * 1024) { setError('Choose an image under 100 MB for the reference.'); return }
     const previous = photoStore.list(referenceKey.current)[0]
     if (previous) photoStore.remove(referenceKey.current, previous.id)
     const added = photoStore.add(referenceKey.current, [file]).added[0]
@@ -139,7 +139,7 @@ export default function PolaroidsOrderPage() {
                 </div>)}
               </div>}
               <button type="button" onClick={() => inputRef.current?.click()} className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={18} /> {photos.length ? 'Add more photos' : 'Upload photos'}</button>
-              <p className="mt-2 text-xs text-ink/50">Selected: {photos.length} / {qty} photos. Each image can be up to 20 MB.</p>
+              <p className="mt-2 text-xs text-ink/50">Selected: {photos.length} / {qty} photos. Each image can be up to 100 MB.</p>
             </div>
             <div className="border-t border-sand pt-6"><h2 className="font-serif text-2xl">Reference picture <span className="font-sans text-sm font-normal text-ink/50">(optional)</span></h2><p className="mt-1 text-sm text-ink/60">Add a sample style or design reference.</p><input ref={referenceInputRef} type="file" accept="image/*" className="sr-only" onChange={addReference} />{reference ? <div className="mt-3 flex items-center gap-3 rounded-xl border border-sand bg-cream p-3">{reference.url && <img src={reference.url} alt="Polaroid reference" className="size-16 rounded-lg object-cover" />}<span className="min-w-0 flex-1 truncate text-sm">{reference.name}</span><button type="button" onClick={() => { photoStore.remove(referenceKey.current, reference.id); setReference(null) }} className="text-sm text-red-600">Remove</button></div> : <button type="button" onClick={() => referenceInputRef.current?.click()} className="mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={18} /> Upload reference picture</button>}</div>
             {!cartMode && <div className="border-t border-sand pt-6"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mb-4 mt-1 text-sm text-ink/60">We’ll contact you to confirm delivery.</p><div className="space-y-3">

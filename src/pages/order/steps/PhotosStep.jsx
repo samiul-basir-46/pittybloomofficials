@@ -32,7 +32,7 @@ function PhotoPanel({ copy, ctx, refresh }) {
     e.target.value = ''
     const notes = []
     if (result.rejected) notes.push(`${result.rejected} file${result.rejected > 1 ? 's were' : ' was'} not a picture and ${result.rejected > 1 ? 'were' : 'was'} skipped.`)
-    if (result.tooLarge) notes.push(`${result.tooLarge} image${result.tooLarge > 1 ? 's are' : ' is'} larger than 20 MB and ${result.tooLarge > 1 ? 'were' : 'was'} skipped.`)
+    if (result.tooLarge) notes.push(`${result.tooLarge} image${result.tooLarge > 1 ? 's are' : ' is'} larger than 100 MB and ${result.tooLarge > 1 ? 'were' : 'was'} skipped.`)
     if (result.skipped) notes.push(`${result.skipped} photo${result.skipped > 1 ? 's were' : ' was'} already added.`)
     setMessage(notes.join(' '))
     syncFiles()

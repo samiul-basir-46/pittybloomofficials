@@ -75,7 +75,7 @@ function FramePiece({ pieceKey, index, total, designs, designId, photos, error, 
         </div>)}
       </div>}
       <button type="button" onClick={() => input.current?.click()} className="mt-3 flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-3 text-center text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={17} /> {photos.length ? 'Add more photos' : 'Upload your photos'}</button>
-      <p className="mt-1.5 text-xs text-ink/50">{photos.length} photo{photos.length === 1 ? '' : 's'} selected. Each image can be up to 20 MB.</p>
+      <p className="mt-1.5 text-xs text-ink/50">{photos.length} photo{photos.length === 1 ? '' : 's'} selected. Each image can be up to 100 MB.</p>
     </div>
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
   </section>
@@ -145,12 +145,12 @@ export default function FrameOrderPage() {
   }
   const addPhotos = (piece, files) => {
     if (!files.length) return
-    const valid = files.filter((file) => orderImageType(file) && file.size <= 20 * 1024 * 1024)
+    const valid = files.filter((file) => orderImageType(file) && file.size <= 100 * 1024 * 1024)
     const result = photoStore.add(photoKeyOf(piece), valid, { allowDuplicates: true })
     refresh()
     setPieceErrors((current) => ({ ...current, [piece.key]: '' }))
     const rejected = files.length - valid.length
-    setError(rejected ? `${result.added.length} photo${result.added.length === 1 ? '' : 's'} added. ${rejected} file${rejected === 1 ? ' was' : 's were'} skipped because it was not an image or was over 20 MB.` : '')
+    setError(rejected ? `${result.added.length} photo${result.added.length === 1 ? '' : 's'} added. ${rejected} file${rejected === 1 ? ' was' : 's were'} skipped because it was not an image or was over 100 MB.` : '')
   }
   const removePhoto = (piece, id) => {
     photoStore.remove(photoKeyOf(piece), id)
