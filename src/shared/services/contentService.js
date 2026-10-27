@@ -12,7 +12,7 @@ import { ORDER_DEFAULTS, OCCASIONS } from '../../pages/order/data'
 import { faqs } from '../../pages/faq/data'
 import { policies } from '../../pages/policy/data'
 import { navLinks } from '../layout/navLinks'
-import { SITE } from '../config/site'
+import { ABOUT_LAYOUT, SITE } from '../config/site'
 import { frameSizeIdFor } from '../utils/frameSizeMapping'
 import { parseOptions } from '../utils/options'
 import { MANUAL_ORDER_CATALOG_DEFAULTS } from '../../pages/manual-order/catalog'
@@ -377,7 +377,8 @@ export const settingsApi = {
       ...SITE,
       ...saved,
       heroImages: (Array.isArray(saved.heroImages) ? saved.heroImages : SITE.heroImages).map(removeMissingLocalImage).filter(Boolean),
-      aboutImages: (Array.isArray(saved.aboutImages) ? saved.aboutImages : SITE.aboutImages).map(removeMissingLocalImage).filter(Boolean),
+      // The About photos are positional (Magazine, Frame, Gift box), so keep a fixed number of slots and never shift empty ones away.
+      aboutImages: ABOUT_LAYOUT.map((_, index) => removeMissingLocalImage((Array.isArray(saved.aboutImages) ? saved.aboutImages : SITE.aboutImages)[index]) || ''),
       // The checked-in logo asset is the current brand logo. Ignore any older
       // logo URL that may still be saved in the site's settings.
       logo: SITE.logo,

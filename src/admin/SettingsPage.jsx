@@ -3,6 +3,7 @@ import { Check, Plus, Trash2 } from 'lucide-react'
 import Button from '../shared/ui/Button'
 import Field from './Field'
 import { useSettings } from '../shared/context/SettingsContext'
+import { ABOUT_LAYOUT } from '../shared/config/site'
 import { uploadCatalogImage } from '../shared/services/catalogImageStore'
 
 async function uploadImages(images = []) {
@@ -49,7 +50,8 @@ export default function SettingsPage() {
   }
   const setAt = (key, i) => (value) => {
     setStatus('')
-    setForm({ ...form, [key]: form[key].map((v, n) => (n === i ? value : v)) })
+    const list = key === 'aboutImages' ? ABOUT_LAYOUT.map((_, n) => form.aboutImages?.[n] || '') : form[key]
+    setForm({ ...form, [key]: list.map((v, n) => (n === i ? value : v)) })
   }
   const setInfo = (key) => (value) => {
     setStatus('')
@@ -71,7 +73,7 @@ export default function SettingsPage() {
     try {
       const [heroImages, aboutImages] = await Promise.all([
         uploadImages(form.heroImages),
-        uploadImages(form.aboutImages),
+        uploadImages(ABOUT_LAYOUT.map((_, n) => form.aboutImages?.[n] || '')),
       ])
       await save({ ...form, heroImages: heroImages.filter((s, i) => i === 0 || s), aboutImages })
       setStatus('saved')
@@ -146,8 +148,8 @@ export default function SettingsPage() {
           value={form.about.join('\n\n')}
           onChange={(v) => set('about')(v.split(/\n{2,}/))}
         />
-        {form.aboutImages.map((src, i) => (
-          <Field key={i} label={`About image ${i + 1}`} type="image" value={src} onChange={setAt('aboutImages', i)} />
+        {ABOUT_LAYOUT.map((slot, i) => (
+          <Field key={slot.alt} label={`About photo ${i + 1} · ${slot.alt}`} type="image" value={form.aboutImages?.[i] || ''} onChange={setAt('aboutImages', i)} />
         ))}
       </Group>
 

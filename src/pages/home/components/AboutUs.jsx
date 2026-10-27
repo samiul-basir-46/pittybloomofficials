@@ -24,7 +24,7 @@ export default function AboutUs() {
             </div>
           </div>
           <div className="relative min-h-[340px] sm:min-h-[440px] lg:h-[560px]">
-            {ABOUT_LAYOUT.map((item, i) => (
+            {ABOUT_LAYOUT.map((item, i) => settings.aboutImages?.[i] && (
               <div
                 key={item.alt}
                 className={`absolute overflow-hidden rounded-lg border-4 border-white shadow-2xl ${item.className}`}
