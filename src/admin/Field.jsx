@@ -1,6 +1,7 @@
 import ImageField from './ImageField'
 import PdfField from './PdfField'
 import GalleryField from './GalleryField'
+import PacksField from './PacksField'
 import { inputClass } from './classes'
 
 export default function Field({ label, type = 'text', value, onChange, options = [], rows = 5, required }) {
@@ -11,6 +12,8 @@ export default function Field({ label, type = 'text', value, onChange, options =
     control = <ImageField value={value} onChange={onChange} />
   } else if (type === 'gallery') {
     control = <GalleryField value={value} onChange={onChange} />
+  } else if (type === 'packs') {
+    control = <PacksField value={value} onChange={onChange} />
   } else if (type === 'pdf') {
     control = <PdfField value={value} onChange={onChange} />
   } else if (type === 'textarea') {

@@ -14,6 +14,7 @@ import { formatPrice } from '../../shared/utils/format'
 import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
+import { validPacks } from './packs'
 
 const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
 const deliveryAreaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
@@ -28,12 +29,17 @@ export default function PolaroidsOrderPage() {
   const { data: product, loading } = useAsync(async () => {
     if (!itemId) return getProduct('polaroids')
     const chosen = await getPolaroidProduct(itemId)
-    return chosen ? { id: chosen.id, name: chosen.title, image: chosen.image, unitPrice: chosen.unitPrice, minQuantity: chosen.minQuantity } : null
+    return chosen ? { id: chosen.id, name: chosen.title, image: chosen.image, unitPrice: chosen.unitPrice, minQuantity: chosen.minQuantity, packs: validPacks(chosen) } : null
   }, [itemId])
   const unitPrice = Number(product?.unitPrice) || 8
   const minimumQty = Math.max(1, Number(product?.minQuantity) || 9)
   const initialQty = Number(params.get('qty'))
-  const [qty, setQty] = useState(Number.isInteger(initialQty) ? Math.min(9999, Math.max(1, initialQty)) : 9)
+  const [qtyState, setQty] = useState(Number.isInteger(initialQty) ? Math.min(9999, Math.max(1, initialQty)) : 9)
+  const pack = (product?.packs ?? []).find((row) => String(row.pieces) === params.get('pack')) ?? null
+  // With an offer pack the piece count and the total price are fixed by the pack.
+  const qty = pack ? pack.pieces : qtyState
+  const lineUnit = pack ? pack.price : unitPrice
+  const lineQty = pack ? 1 : qty
   const cartMode = params.get('mode') === 'cart'
   const [photos, setPhotos] = useState([])
   const [reference, setReference] = useState(null)
@@ -85,7 +91,7 @@ export default function PolaroidsOrderPage() {
     event.preventDefault()
     if (placing) return
     const selectedPhotos = photoStore.list(photoKey.current)
-    if (qty < minimumQty) { setError(`The minimum Polaroid order is ${minimumQty} pieces.`); return }
+    if (!pack && qty < minimumQty) { setError(`The minimum Polaroid order is ${minimumQty} pieces.`); return }
     if (selectedPhotos.length !== qty) {
       setError(`Choose exactly ${qty} photo${qty === 1 ? '' : 's'} for ${qty} Polaroid${qty === 1 ? '' : 's'}.`)
       return
@@ -100,8 +106,8 @@ export default function PolaroidsOrderPage() {
       const item = {
         kind: 'product', id: product.id, name: product.name, image: product.image,
         optionId: 'polaroid-piece',
-        optionLabel: `${qty} piece${qty === 1 ? '' : 's'} · ৳${unitPrice} each`,
-        price: unitPrice, qty,
+        optionLabel: pack ? `${pack.pieces} pieces offer pack` : `${qty} piece${qty === 1 ? '' : 's'} · ৳${unitPrice} each`,
+        price: lineUnit, qty: lineQty,
         meta: { cartConfigId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}` },
         photos: { count: uploaded.length, files: uploaded.map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })), ...(savedReference ? { reference: { id: savedReference.id, name: savedReference.name, size: savedReference.size, type: savedReference.type, storageKey: savedReference.storageKey } } : {}) },
       }
@@ -131,7 +137,7 @@ export default function PolaroidsOrderPage() {
         <p className="mt-2 text-sm text-ink/60">Order ID: <strong className="text-ink">{placedOrder.id}</strong>. We’ll contact you to confirm delivery and payment.</p>
         <Button className="mt-6" onClick={() => navigate('/account')}>View my orders</Button>
       </section> : <>
-        <div className="mt-5"><p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Polaroid order</p><h1 className="mt-1 font-serif text-4xl">Choose your photos</h1><p className="mt-2 text-sm text-ink/60">One uploaded photo makes one Polaroid. Each piece is ৳{unitPrice}.</p></div>
+        <div className="mt-5"><p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Polaroid order</p><h1 className="mt-1 font-serif text-4xl">Choose your photos</h1><p className="mt-2 text-sm text-ink/60">One uploaded photo makes one Polaroid. {pack ? `Offer: ${pack.pieces} pieces for ৳${pack.price}.` : `Each piece is ৳${unitPrice}.`}</p></div>
         <form onSubmit={placeOrder} className="mt-7 grid w-full min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
           <section className="min-w-0 max-w-full space-y-6 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-7">
             <div>
@@ -159,9 +165,9 @@ export default function PolaroidsOrderPage() {
           </section>
           <aside className="min-w-0 max-w-full rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-6">
             <h2 className="font-serif text-2xl">Order summary</h2>
-            <div className="mt-5 flex items-center gap-3 border-b border-sand pb-5"><div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={product.image} alt={product.name} className="size-full object-cover" /></div><div className="min-w-0 flex-1"><p className="font-semibold">Polaroids</p><p className="mt-1 text-sm text-ink/60">{qty} piece{qty === 1 ? '' : 's'} · ৳{unitPrice} each</p></div><p className="font-semibold">{formatPrice(qty * unitPrice)}</p></div>
+            <div className="mt-5 flex items-center gap-3 border-b border-sand pb-5"><div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={product.image} alt={product.name} className="size-full object-cover" /></div><div className="min-w-0 flex-1"><p className="font-semibold">Polaroids</p><p className="mt-1 text-sm text-ink/60">{qty} piece{qty === 1 ? '' : 's'}{pack ? ' · offer pack' : ` · ৳${unitPrice} each`}</p></div><p className="font-semibold">{formatPrice(lineUnit * lineQty)}</p></div>
             <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery {deliveryArea ? `(${deliveryAreaLabel(deliveryArea)})` : ''}</span><span>{cartMode ? 'Set at cart checkout' : deliveryArea ? formatPrice(deliveryFee(deliveryArea)) : 'Select an area'}</span></div>
-            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(qty * unitPrice + (cartMode ? 0 : deliveryFee(deliveryArea)))}</span></div>
+            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(lineUnit * lineQty + (cartMode ? 0 : deliveryFee(deliveryArea)))}</span></div>
             <p className="mt-4 text-xs leading-5 text-ink/50">{cartMode ? 'Add delivery information when you place the full cart order.' : 'No delivery date selection is needed. We’ll confirm delivery after you place the order.'}</p>
           </aside>
         </form>
