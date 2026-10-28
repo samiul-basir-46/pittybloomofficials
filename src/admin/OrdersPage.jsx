@@ -38,6 +38,7 @@ const localDate = (value) => {
 }
 const orderDate = (order) => new Date(order.createdAt)
 const phoneOf = (order) => order.customer?.phone || order.customer?.whatsapp || order.deliveryInfo?.phone || '—'
+const instagramOf = (order) => String(order.customer?.instagram || '').trim().replace(/^@+/, '')
 const categoryOf = (item) => {
   const category = CATEGORY_TABS.find((tab) => tab.matches(item))
   return category?.label || item.name || 'Other'
@@ -183,7 +184,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
         <section className="min-w-0 overflow-hidden rounded-2xl border border-[#E6E2D8] bg-[#FDFCF9]" aria-label="Orders">
           <div className="grid grid-cols-[minmax(105px,1fr)_minmax(76px,.72fr)_minmax(78px,.72fr)] gap-1.5 border-b border-[#EEEAE0] bg-[#FBFAF7] px-2.5 py-2.5 sm:grid-cols-[minmax(0,1fr)_168px_148px] sm:items-center sm:gap-3 sm:px-5 sm:py-3.5">
             <label className="relative block min-w-0">
-              <span className="sr-only">Search by order number, name or WhatsApp</span>
+              <span className="sr-only">Search by order number, customer name, WhatsApp or Instagram username</span>
               <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#817B70] sm:left-3.5 sm:size-[17px]" />
               <input type="search" className={`${inputClass} min-h-10 w-full rounded-lg border-[#E4DED2] bg-white pl-8 pr-1.5 text-[11px] shadow-[0_1px_2px_rgba(42,40,36,0.03)] transition focus:border-[#9A8870] focus:ring-2 focus:ring-[#9A8870]/15 sm:min-h-11 sm:rounded-xl sm:pl-10 sm:pr-3 sm:text-sm`} placeholder="Search orders…" value={query} onChange={(event) => set('q', event.target.value, '')} />
             </label>
@@ -197,7 +198,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
                 <thead><tr className="bg-[#F7F4ED] text-left text-xs font-semibold uppercase tracking-[.06em] text-[#6B665C]"><th className="px-5 py-3">Order</th><th className="px-5 py-3">Customer</th><th className="px-5 py-3">Items</th><th className="px-5 py-3">Priority</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Total</th><th className="px-5 py-3" /></tr></thead>
                 <tbody>{pageRows.map(({ order, urgency }) => <tr key={order.id} className="border-t border-[#EEEAE0] hover:bg-[#FAF8F3]">
                   <td className="px-5 py-4"><Link className="font-semibold text-[#2F3A33] hover:underline" to={`/admin/orders/${encodeURIComponent(order.id)}`}>#{order.id}</Link><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{displayDate(order.createdAt)}</div></td>
-                  <td className="px-5 py-4"><div className="max-w-48 truncate font-medium">{order.customer?.name || '—'}</div><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{phoneOf(order)}</div></td>
+                  <td className="px-5 py-4"><div className="max-w-48 truncate font-medium">{order.customer?.name || '—'}</div><div className="mt-0.5 whitespace-nowrap text-xs text-[#6B665C]">{phoneOf(order)}</div>{instagramOf(order) && <div className="max-w-48 truncate text-xs text-[#8A665F]">@{instagramOf(order)}</div>}</td>
                   <td className="max-w-[300px] px-5 py-4">{itemTags(order.items).map((tag) => <span key={tag.label} className="mr-1 inline-block whitespace-nowrap rounded-full bg-[#EFEBE1] px-2.5 py-0.5 text-xs font-medium text-[#4A463E]">{tag.label}{tag.qty > 1 ? ` × ${tag.qty}` : ''}</span>)}</td>
                   <td className="px-5 py-4">{urgency.level === 'urgent' || urgency.level === 'overdue' ? <span className="inline-block whitespace-nowrap rounded-full bg-[#F6E3DF] px-3 py-1 text-xs font-semibold text-[#8F3A31]">{urgency.level === 'overdue' ? 'Overdue' : 'Urgent'}</span> : <span className="whitespace-nowrap text-[13px] text-[#6B665C]">{PENDING.includes(order.status) ? 'Standard' : '—'}</span>}</td>
                   <td className="px-5 py-4"><StatusPill status={order.status} /></td><td className="whitespace-nowrap px-5 py-4 text-right font-medium">{formatPrice(order.total)}</td><td className="px-5 py-4 text-right"><Link className="inline-flex min-h-10 items-center justify-center rounded-[10px] border border-[#D9D4C7] bg-[#FDFCF9] px-3.5 text-[13px] font-medium text-[#2A2824] hover:bg-[#F1EEE6]" to={`/admin/orders/${encodeURIComponent(order.id)}`}>View</Link></td>

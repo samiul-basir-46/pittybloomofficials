@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eye, Frame, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
@@ -202,6 +202,19 @@ function ProductThumbnail({ Icon, tint }) {
 
 function priceLabel(value) { return Number.isFinite(value) && value > 0 ? formatPrice(value) : 'Price not set' }
 
+const ProductChoiceCard = memo(function ProductChoiceCard({ id, title, description, Icon, tint, active, startingPrice, image }) {
+  return <button data-product-id={id} type="button" aria-pressed={active} className={`group relative overflow-hidden rounded-2xl border text-left ${active ? 'border-brand bg-[#FFFAF8]' : 'border-sand bg-white sm:hover:border-brand/35'} transition-[border-color,background-color] duration-150 sm:hover:-translate-y-0.5 sm:hover:shadow-lg`}>
+    <span className="relative block aspect-[1.55/1] overflow-hidden bg-cream">
+      {image ? <img src={image} alt="" loading="lazy" decoding="async" fetchPriority="low" className="size-full object-cover sm:transition-transform sm:duration-300 sm:group-hover:scale-[1.03]" /> : <span className={`grid h-full place-items-center ${tint} text-brand`}><Icon size={30} strokeWidth={1.7} /></span>}
+      <span className={`absolute right-2.5 top-2.5 grid size-6 place-items-center rounded-full shadow-sm sm:right-3 sm:top-3 sm:size-7 ${active ? 'bg-brand text-white' : 'border border-sand/80 bg-white/95 text-transparent'}`}><Check size={13} /></span>
+    </span>
+    <span className="block p-3 sm:p-4"><span className="block text-sm font-semibold leading-5 sm:text-base">{title}</span>
+      {description && <span className="mt-1 block line-clamp-2 text-[10px] leading-4 text-ink/55 sm:text-xs">{description}</span>}
+      <span className="mt-1 block text-[10px] leading-4 text-ink/55 sm:text-xs">Starting from <strong className="text-xs text-brand sm:text-sm">{Number.isFinite(startingPrice) ? priceLabel(startingPrice) : 'Price not set'}</strong></span>
+    </span>
+  </button>
+})
+
 export default function ManualOrderPage() {
   const productsData = useAsync(getProducts)
   const sizesData = useAsync(getSizes)
@@ -242,6 +255,10 @@ export default function ManualOrderPage() {
   const productCatalog = productsData.data ?? []
   const frameProduct = productCatalog.find((product) => product.id === 'frame')
   const frameOptions = useMemo(() => parseOptions(frameProduct?.options), [frameProduct?.options])
+  const designsBySize = useMemo(() => frameDesigns.reduce((groups, design) => {
+    if (design?.sizeId && design?.image) (groups[design.sizeId] ??= []).push(design)
+    return groups
+  }, {}), [frameDesigns])
   const sizes = sizesData.data ?? []
   const manualCatalog = mergeManualOrderCatalog(manualCatalogData.data ?? MANUAL_ORDER_CATALOG_DEFAULTS)
   const manualCards = PRODUCT_META.map((meta) => ({ ...manualCatalog[meta.id], ...meta })).filter((card) => card.enabled).sort((a, b) => Number(a.order) - Number(b.order))
@@ -585,21 +602,11 @@ export default function ManualOrderPage() {
 
       {step === 0 && <div className="space-y-7">
         <SectionCard title="Pick your products" subtitle="Select one or more gift types. You can add multiple sizes and personalised items to the same order.">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-5">
-            {manualCards.map(({ id, title, icon: Icon, tint, ...card }) => {
-              const active = Boolean(selected[id]); const start = cardStartingPrice(id)
-              const image = cardImageUrl({ id, ...card })
-              return <button key={id} type="button" aria-pressed={active} onClick={() => toggleProduct(id)} className={`group relative overflow-hidden rounded-2xl border text-left transition hover:-translate-y-0.5 hover:shadow-lg ${active ? 'border-brand bg-[#FFFAF8] ring-2 ring-brand/15' : 'border-sand bg-white hover:border-brand/35'}`}>
-                <span className="relative block aspect-[1.55/1] overflow-hidden bg-cream">
-                  {image ? <img src={image} alt="" loading="lazy" decoding="async" fetchPriority="low" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className={`grid h-full place-items-center ${tint} text-brand`}><Icon size={30} strokeWidth={1.7} /></span>}
-                  <span className={`absolute right-2.5 top-2.5 grid size-6 place-items-center rounded-full shadow-sm sm:right-3 sm:top-3 sm:size-7 ${active ? 'bg-brand text-white' : 'border border-sand/80 bg-white/95 text-transparent'}`}><Check size={13} /></span>
-                </span>
-                <span className="block p-3 sm:p-4"><span className="block text-sm font-semibold leading-5 sm:text-base">{title}</span>
-                  {card.description && <span className="mt-1 block line-clamp-2 text-[10px] leading-4 text-ink/55 sm:text-xs">{card.description}</span>}
-                  <span className="mt-1 block text-[10px] leading-4 text-ink/55 sm:text-xs">Starting from <strong className="text-xs text-brand sm:text-sm">{Number.isFinite(start) ? priceLabel(start) : 'Price not set'}</strong></span>
-                </span>
-              </button>
-            })}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-5" onClick={(event) => {
+            const card = event.target.closest('[data-product-id]')
+            if (card) toggleProduct(card.dataset.productId)
+          }}>
+            {manualCards.map(({ id, title, icon: Icon, tint, ...card }) => <ProductChoiceCard key={id} id={id} title={title} description={card.description} Icon={Icon} tint={tint} active={Boolean(selected[id])} startingPrice={cardStartingPrice(id)} image={cardImageUrl({ id, ...card })} />)}
           </div>
           {errors.products && <p className="mt-3 text-sm text-red-700">{errors.products}</p>}
         </SectionCard>
@@ -623,7 +630,7 @@ export default function ManualOrderPage() {
         {selected.frames && <ProductSectionCard id="frames" title={manualCatalog.frames.title} subtitle="Set a size and quantity, then choose a separate design and photos for each frame" expanded={expandedProduct === 'frames'} onToggle={() => setExpandedProduct((current) => current === 'frames' ? null : 'frames')}>
           <div className="space-y-4">{frames.flatMap((group) => group.configurations.map((item, configurationIndex) => ({ group, item, configurationIndex }))).map(({ group, item, configurationIndex }, index) => {
             const option = frameOptions.find((row) => row.id === group.optionId)
-            const matchingDesigns = frameDesigns.filter((design) => design.sizeId === group.optionId)
+            const matchingDesigns = designsBySize[group.optionId] ?? []
             const selectedDesign = matchingDesigns.find((design) => design.id === item.designId)
             const hasFrameErrors = Object.keys(errors).some((key) => key.startsWith(`frame-${item.key}-`))
             return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-3 sm:p-4">
@@ -646,7 +653,7 @@ export default function ManualOrderPage() {
                 {!option ? <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-sm text-ink/65">Choose a frame size to see its designs.</p> : matchingDesigns.length ? <div role="radiogroup" aria-label={`Design for Frame #${index + 1}`} className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-2">{matchingDesigns.map((design) => {
                   const active = item.designId === design.id
                   return <div key={design.id} className={`relative w-[84px] shrink-0 overflow-hidden rounded-lg border-2 bg-white ${active ? 'border-brand shadow-sm' : 'border-sand'}`}>
-                    <button type="button" role="radio" aria-checked={active} aria-label={design.name || 'Design'} onClick={() => updateFrameConfiguration(group.key, item.key, 'designId', design.id)} className="block w-full text-left"><img src={design.image} alt={design.name || 'Frame design'} loading="lazy" className="size-[80px] object-cover" />{design.name && <span className="block truncate px-1 py-1 text-[10px] font-medium">{design.name}</span>}{active && <span className="absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}</button>
+                    <button type="button" role="radio" aria-checked={active} aria-label={design.name || 'Design'} onClick={() => updateFrameConfiguration(group.key, item.key, 'designId', design.id)} className="block w-full text-left"><img src={design.image} alt={design.name || 'Frame design'} loading="lazy" decoding="async" fetchPriority="low" className="size-[80px] object-cover" />{design.name && <span className="block truncate px-1 py-1 text-[10px] font-medium">{design.name}</span>}{active && <span className="absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}</button>
                     <button type="button" aria-label={`View ${design.name || 'design'} larger`} onClick={() => setPreviewDesign(design)} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-ink shadow"><Eye size={13} /></button>
                   </div>
                 })}</div> : <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-sm text-ink/65">No designs are currently available for this size.</p>}

@@ -51,7 +51,8 @@ export function buildMagazineOrder({ id, draft, copies, occasions, addons, magaz
     const reference = photoStore.list(a.referenceKey)[0]
     cartItems.push({
       kind: 'addon', id: a.id, name: a.name, image: a.image,
-      optionLabel: a.optionLabel || 'Add-on', qty: a.qty || 1, price: a.price,
+      optionLabel: [a.optionLabel, a.design?.name].filter(Boolean).join(' · ') || 'Add-on', qty: a.qty || 1, price: a.price,
+      ...(a.design ? { design: { id: a.design.id, name: a.design.name || '', image: a.design.image } } : {}),
       photos: {
         count: photos.length,
         files: photos.map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })),

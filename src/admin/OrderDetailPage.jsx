@@ -176,7 +176,7 @@ export default function OrderDetailPage() {
       await orders.reload()
       if (status === 'In production') {
         setNotice({ type: 'ok', text: 'Order marked as preparing. Customer tracking has been updated.' })
-        return
+        return true
       }
       const destination = status === 'Delivered'
         ? '/admin/completed-orders?date=all'
@@ -186,8 +186,9 @@ export default function OrderDetailPage() {
             ? '/admin/orders?status=dispatched&date=all'
             : '/admin/orders?date=all'
       navigate(destination)
+      return true
     }
-    catch { setNotice({ type: 'error', text: 'The status could not be saved. Please try again.' }) }
+    catch { setNotice({ type: 'error', text: 'The status could not be saved. Please try again.' }); return false }
   }
   const saveNote = async () => {
     const text = noteText.trim()
@@ -306,7 +307,12 @@ export default function OrderDetailPage() {
         ...photo, folder,
         getBlob: () => photoStore.getBlob(photo.id, photo.storageKey, adminAuth),
       }))), filename)
-      setNotice({ type: 'ok', text: 'Photo ZIP downloaded.' })
+      if (['New', 'Confirmed'].includes(order.status)) {
+        const updated = await changeStatus('In production')
+        if (updated) setNotice({ type: 'ok', text: 'Photo ZIP downloaded. Order marked as preparing; customer tracking has been updated.' })
+      } else {
+        setNotice({ type: 'ok', text: 'Photo ZIP downloaded.' })
+      }
     } catch (error) {
       setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Could not create the photo ZIP.' })
     } finally { setZipLoading('') }

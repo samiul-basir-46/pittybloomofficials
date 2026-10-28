@@ -11,7 +11,7 @@ import AddonConfigurator, { createAddonDetails } from './AddonConfigurator'
 const QUICK = [1, 2, 3, 4]
 
 export default function MagazineStep({ ctx }) {
-  const { magazine, sizes, addons, products, addonsFailed, formats, draft, update, errors, clear, settings } = ctx
+  const { magazine, sizes, addons, products, frameDesigns, addonsFailed, formats, draft, update, errors, clear, settings } = ctx
   const maxCopies = Math.max(1, Number(settings.maxCopies) || 1)
 
   const toggleFormat = (format) => {
@@ -224,7 +224,13 @@ export default function MagazineStep({ ctx }) {
               )
             })}
           </ul>
-          {addons.filter((addon) => draft.addons.includes(addon.id)).map((addon) => <AddonConfigurator key={addon.id} addon={addon} product={products.find((product) => product.id === addon.id)} details={draft.addonDetails?.[addon.id] ?? createAddonDetails(addon, products.find((product) => product.id === addon.id))} onChange={(patch) => updateAddon(addon.id, patch)} error={errors[`addon.${addon.id}`]} />)}
+          {addons.filter((addon) => draft.addons.includes(addon.id)).map((addon) => {
+            const product = products.find((item) => item.id === addon.id)
+            const details = draft.addonDetails?.[addon.id] ?? createAddonDetails(addon, product)
+            const optionId = parseOptions(product?.options).find((option) => option.id === details.optionId)?.id
+            const designs = addon.id === 'frame' ? frameDesigns.filter((design) => !optionId || design.sizeId === optionId) : []
+            return <AddonConfigurator key={addon.id} addon={addon} product={product} details={details} designs={designs} onChange={(patch) => updateAddon(addon.id, patch)} error={errors[`addon.${addon.id}`]} />
+          })}
         </Card>
       )}
       {addonsFailed && <Notice tone="warn">We could not load the add-on products. You can still continue without them.</Notice>}

@@ -29,7 +29,17 @@ const card = {
 
 export const SECTIONS = [
   { path: 'best-selling', title: 'Best Selling', icon: Star, api: bestSellingApi, ...card },
-  { path: 'more-products', title: 'More Products', icon: LayoutGrid, api: moreProductsApi, ...card },
+  {
+    path: 'more-products', title: 'More Products', icon: LayoutGrid, api: moreProductsApi,
+    note: 'Set each card’s position on the home page. Lower numbers appear first; matching positions keep their current order.',
+    fields: [
+      ...card.fields,
+      { name: 'order', label: 'Position (1 is first)', type: 'number', required: true },
+    ],
+    blank: { name: '', image: '', to: '', order: 10 },
+    label: card.label,
+    columns: [...card.columns, { key: 'order', label: 'Position' }],
+  },
   {
     path: 'magazines',
     title: 'Magazines',

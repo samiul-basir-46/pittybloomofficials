@@ -38,7 +38,7 @@ export default function FrameSizesEditor({ product, onSaved }) {
     finally { setSaving(false) }
   }
 
-  return <section className="mb-6 space-y-3 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-5">
+  return <section className="motion-visible mb-6 space-y-3 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-5">
     <div><h2 className="font-serif text-xl">Frame sizes and prices</h2><p className="mt-1 text-xs leading-5 text-ink/60">Add each size once. The frame order pages, add-ons and manual order form all use this list. Choose one of these sizes for every frame gallery below.</p></div>
     {rows.map((row, index) => <div key={index} className="grid gap-2 rounded-xl border border-sand bg-cream/40 p-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
       <label className="text-xs font-medium text-ink/60">Size name<input aria-label={`Frame size ${index + 1}`} className={`${inputClass} mt-1`} value={row.label} onChange={(event) => change(index, { label: event.target.value })} /></label>

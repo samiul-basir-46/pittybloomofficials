@@ -30,7 +30,10 @@ const collection = (key, seed, sort = (items) => items) => ({
 })
 
 export const bestSellingApi = collection('bestSelling', bestSelling)
-const moreProductsCollection = collection('moreProducts', moreProducts)
+const sortMoreProducts = (items) => items
+  .map((item, index) => ({ ...item, order: Number.isFinite(Number(item.order)) ? Number(item.order) : (index + 1) * 10 }))
+  .sort((a, b) => a.order - b.order)
+const moreProductsCollection = collection('moreProducts', moreProducts, sortMoreProducts)
 const SONG_BOOK_TILE_ID = 'song-books'
 const isSongBookTile = (item) => item.id === SONG_BOOK_TILE_ID || item.to === '/song-books'
 const songBookTile = (book) => ({ id: SONG_BOOK_TILE_ID, name: 'Song Books', image: book.image || '/images/products/song-book.jpg', to: '/song-books' })
@@ -49,7 +52,7 @@ export const moreProductsApi = {
     const tile = songBookTile(book)
     await moreProductsCollection.save(tile)
     await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
-    return [...items, tile]
+    return sortMoreProducts([...items, { ...tile, order: (items.length + 1) * 10 }])
   },
 }
 const magazinesCollection = collection('magazines', magazines)
@@ -405,10 +408,10 @@ export const getManualOrderCatalog = manualOrderCatalogApi.get
 
 export const getBestSelling = bestSellingApi.list
 export const getMoreProducts = async () => {
-  const items = await moreProductsCollection.list()
+  const items = await moreProductsApi.list()
   if (items.some(isSongBookTile) || await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false)) return items
   const book = (await getSongBooks())[0]
-  return book ? [...items, songBookTile(book)] : items
+  return book ? sortMoreProducts([...items, { ...songBookTile(book), order: (items.length + 1) * 10 }]) : items
 }
 export const getMagazines = magazinesApi.list
 // Customers only see sizes that have a price.

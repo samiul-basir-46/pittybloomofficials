@@ -7,7 +7,7 @@ import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
-import { customerProfileApi, getActiveAddons, getMagazine, getOccasions, getOrderSettings, getProducts, getSizes, ordersApi } from '../../shared/services/contentService'
+import { customerProfileApi, getActiveAddons, getFrameDesigns, getMagazine, getOccasions, getOrderSettings, getProducts, getSizes, ordersApi } from '../../shared/services/contentService'
 import { formatPrice } from '../../shared/utils/format'
 import { parseOptions } from '../../shared/utils/options'
 import { STEPS } from './data'
@@ -67,7 +67,7 @@ function reconcile(draft, { sizes, formats, addons, products, settings }) {
   return { ...draft, picks, contact: { ...emptyContact, ...draft.contact }, addons: selectedAddons, addonDetails }
 }
 
-function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, settings, resumeDraft, customerProfile, customerEmail, cartMode }) {
+function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed, occasions, settings, resumeDraft, customerProfile, customerEmail, cartMode }) {
   const navigate = useNavigate()
   const { items: cartItems, add: addToCart, put: putCartItem, replace: replaceCartItem, remove: removeCartItem } = useCart()
   const [params, setParams] = useSearchParams()
@@ -170,8 +170,9 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
     const product = products.find((p) => p.id === a.id)
     const option = parseOptions(product?.options).find((item) => item.id === detail.optionId)
     const price = a.id === 'polaroids' ? Number(product?.unitPrice) || 8 : Number(option?.price ?? a.price) || 0
-    return { ...a, ...detail, qty: Number(detail.qty) || 1, product, price, optionLabel: a.id === 'polaroids' ? 'Per piece' : option?.label || 'Add-on' }
-  }), [addons, draft.addons, draft.addonDetails, products])
+    const design = a.id === 'frame' ? frameDesigns.find((item) => item.id === detail.designId && (!option?.id || item.sizeId === option.id)) : null
+    return { ...a, ...detail, qty: Number(detail.qty) || 1, product, price, design, optionLabel: a.id === 'polaroids' ? 'Per piece' : option?.label || 'Add-on' }
+  }), [addons, draft.addons, draft.addonDetails, products, frameDesigns])
   const totals = calcTotals({ copies, addons: chosenAddons, location: draft.delivery.location, date: draft.delivery.date, settings, now })
 
   // Save to Cart: keeps whatever is filled in so far (nothing is required) and lists it in the cart as a draft.
@@ -270,6 +271,8 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
         else if (photos.length !== addon.qty) next[`addon.${addon.id}`] = `Upload exactly ${addon.qty} print photos for the Polaroids.`
       } else if (addon.id === 'frame' && !photos.length) {
         next[`addon.${addon.id}`] = 'Upload at least one print photo for your frame. There is no photo count limit.'
+      } else if (addon.id === 'frame' && frameDesigns.some((design) => design.sizeId === addon.optionId) && !addon.design) {
+        next[`addon.${addon.id}`] = 'Choose a frame design.'
       } else if (parseOptions(addon.product?.options).length && !parseOptions(addon.product?.options).some((option) => option.id === addon.optionId)) {
         next[`addon.${addon.id}`] = 'Choose an option for this add-on.'
       } else if (!photos.length) next[`addon.${addon.id}`] = `Add at least one photo for ${addon.name}.`
@@ -406,7 +409,7 @@ function Wizard({ magazine, sizes, addons, products, addonsFailed, occasions, se
 
   if (!photosReady) return <p className="py-32 text-center text-ink/60">Restoring your saved photos…</p>
 
-  const ctx = { magazine, sizes, addons, products, chosenAddons, addonsFailed, occasions, settings, formats, copies, draft, update, errors, clear, totals, now, goTo, editFromReview, submitError, cartMode }
+  const ctx = { magazine, sizes, addons, products, frameDesigns, chosenAddons, addonsFailed, occasions, settings, formats, copies, draft, update, errors, clear, totals, now, goTo, editFromReview, submitError, cartMode }
   const StepView = flowComponents[step - 1]
   const heading = flowHeadings[step - 1]
   const last = step === flowSteps.length
@@ -517,6 +520,7 @@ export default function OrderPage() {
   const sizes = useAsync(getSizes)
   const addons = useAsync(getActiveAddons)
   const products = useAsync(getProducts)
+  const frameDesigns = useAsync(getFrameDesigns)
   const occasions = useAsync(getOccasions)
   const settings = useAsync(getOrderSettings)
   const profile = useAsync(() => customerProfileApi.get(user?.uid), [user?.uid])
@@ -548,6 +552,7 @@ export default function OrderPage() {
       sizes={sizes.data}
       addons={addons.data ?? []}
       products={products.data ?? []}
+      frameDesigns={frameDesigns.data ?? []}
       addonsFailed={Boolean(addons.error)}
       occasions={occasions.data.map(withFields)}
       settings={settings.data}

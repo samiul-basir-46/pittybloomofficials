@@ -1,5 +1,5 @@
-import { ImagePlus, Trash2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { Eye, ImagePlus, Trash2, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import QtyStepper from '../../../shared/ui/QtyStepper'
 import { formatPrice } from '../../../shared/utils/format'
 import { parseOptions } from '../../../shared/utils/options'
@@ -13,14 +13,16 @@ export function createAddonDetails(addon, product) {
   return {
     qty: minQuantity,
     optionId: options[0]?.id ?? '',
+    designId: '',
     photoKey: newKey(`magazine-addon-${addon.id}-photos`),
     referenceKey: newKey(`magazine-addon-${addon.id}-reference`),
   }
 }
 
-export default function AddonConfigurator({ addon, product, details, onChange, error }) {
+export default function AddonConfigurator({ addon, product, details, designs = [], onChange, error }) {
   const [photos, setPhotos] = useState(() => photoStore.list(details.photoKey))
   const [reference, setReference] = useState(() => photoStore.list(details.referenceKey)[0] ?? null)
+  const [previewDesign, setPreviewDesign] = useState(null)
   const photosInput = useRef(null)
   const referenceInput = useRef(null)
   const options = parseOptions(product?.options)
@@ -31,6 +33,13 @@ export default function AddonConfigurator({ addon, product, details, onChange, e
   const minimumQty = isPolaroids ? Math.max(1, Number(product?.minQuantity) || 9) : 1
   const price = isPolaroids ? Number(product?.unitPrice) || 8 : (selectedOption?.price ?? Number(addon.price)) || 0
   const photoMetadata = (key) => photoStore.list(key).map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey }))
+
+  useEffect(() => {
+    if (!previewDesign) return undefined
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setPreviewDesign(null) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [previewDesign])
 
   const addPhotos = (event) => {
     const files = Array.from(event.target.files ?? [])
@@ -59,7 +68,8 @@ export default function AddonConfigurator({ addon, product, details, onChange, e
       <div className="min-w-0"><h3 className="font-semibold">{addon.name} details</h3><p className="mt-1 text-sm text-ink/60">{formatPrice(price)}{isPolaroids ? ' per Polaroid' : selectedOption ? ` · ${selectedOption.label}` : ''}</p></div>
       <div className="flex shrink-0 items-center gap-2"><span className="text-sm font-medium">Qty</span><QtyStepper value={Math.max(Number(details.qty) || minimumQty, minimumQty)} min={minimumQty} max={999} onChange={(qty) => onChange({ qty })} /></div>
     </div>
-    {options.length > 0 && !isPolaroids && <label className="mt-4 block text-sm font-medium">{addon.id === 'frame' ? 'Frame size' : 'Choose option'}<select className="mt-1 w-full rounded-lg border border-sand bg-white px-3 py-2 text-sm" value={selectedOption?.id ?? ''} onChange={(event) => onChange({ optionId: event.target.value })}>{options.map((option) => <option key={option.id} value={option.id}>{option.label} · {formatPrice(option.price)}</option>)}</select></label>}
+    {options.length > 0 && !isPolaroids && <label className="mt-4 block text-sm font-medium">{addon.id === 'frame' ? 'Frame size' : 'Choose option'}<select className="mt-1 w-full rounded-lg border border-sand bg-white px-3 py-2 text-sm" value={selectedOption?.id ?? ''} onChange={(event) => onChange({ optionId: event.target.value, ...(isFrame ? { designId: '' } : {}) })}>{options.map((option) => <option key={option.id} value={option.id}>{option.label} · {formatPrice(option.price)}</option>)}</select></label>}
+    {isFrame && designs.length > 0 && <fieldset className="mt-4 min-w-0"><legend className="text-sm font-semibold">Choose a frame design <span className="text-red-600">*</span></legend><div role="radiogroup" aria-label="Frame designs" className="mt-2 flex min-w-0 gap-2 overflow-x-auto pb-2">{designs.map((design, index) => <div key={design.id} className={`relative w-[4.5rem] shrink-0 overflow-hidden rounded-lg border-2 bg-white sm:w-20 ${details.designId === design.id ? 'border-brand shadow-sm' : 'border-sand'}`}><button type="button" role="radio" aria-checked={details.designId === design.id} aria-label={design.name || `Frame design ${index + 1}`} onClick={() => onChange({ designId: design.id })} className="block w-full text-left"><img src={design.image} alt={design.name || `Frame design ${index + 1}`} loading="lazy" className="aspect-square w-full object-cover" /><span className="block truncate px-1.5 py-1 text-[10px] font-medium">{design.name || `${index + 1}`}</span></button><button type="button" aria-label={`View ${design.name || `design ${index + 1}`} larger`} onClick={() => setPreviewDesign(design)} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-ink shadow-sm hover:bg-white"><Eye size={13} /></button></div>)}</div></fieldset>}
     <input ref={photosInput} type="file" accept="image/*" multiple className="sr-only" onChange={addPhotos} />
     <section className="mt-4 rounded-xl bg-cream/70 p-3 sm:p-4" aria-label={`${addon.name} print photos`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -71,11 +81,12 @@ export default function AddonConfigurator({ addon, product, details, onChange, e
       {photos.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{photos.map((photo, index) => <div key={photo.id} className="relative w-24 shrink-0 overflow-hidden rounded-lg border border-sand bg-white sm:w-28"><div className="aspect-square bg-sand">{photo.url ? <img src={photo.url} alt={photo.name} className="size-full object-cover" /> : <div className="grid size-full place-items-center p-2 text-center text-[10px] text-ink/50">{photo.name}</div>}</div><span className="block truncate px-2 py-1 text-[10px] text-ink/65">{index + 1}. {photo.name}</span><button type="button" aria-label={`Remove ${photo.name}`} onClick={() => { photoStore.remove(details.photoKey, photo.id); setPhotos(photoStore.list(details.photoKey)); onChange({ files: photoMetadata(details.photoKey) }) }} className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-white/95 text-red-600 shadow"><Trash2 size={13} /></button></div>)}</div>}
       <button type="button" onClick={() => photosInput.current?.click()} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-brand/35 bg-white px-3 text-sm font-semibold text-brand transition hover:border-brand hover:bg-cream"><ImagePlus size={16} /> {photos.length ? 'Add more print photos' : 'Choose print photos'}</button>
     </section>
-    <input ref={referenceInput} type="file" accept="image/*" className="sr-only" onChange={addReference} />
-    <section className="mt-3 flex flex-col gap-3 rounded-xl border border-sand p-3 sm:flex-row sm:items-center sm:p-4" aria-label={`${addon.name} reference picture`}>
-      {reference ? <div className="flex min-w-0 flex-1 items-center gap-3"><div className="size-16 shrink-0 overflow-hidden rounded-lg bg-sand">{reference.url && <img src={reference.url} alt={reference.name} className="size-full object-cover" />}</div><div className="min-w-0"><p className="text-sm font-semibold">Reference picture</p><p className="truncate text-xs text-ink/55">{reference.name}</p></div><button type="button" onClick={() => { photoStore.remove(details.referenceKey, reference.id); setReference(null); onChange({ referenceFile: null }) }} className="ml-auto rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Remove</button></div> : <><div className="min-w-0 flex-1"><p className="text-sm font-semibold">Reference picture <span className="font-normal text-ink/50">(optional)</span></p><p className="mt-1 text-xs text-ink/55">Share an example for the frame style, layout, or print finish.</p></div><button type="button" onClick={() => referenceInput.current?.click()} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-sand bg-white px-3 text-sm font-semibold text-brand hover:bg-cream"><ImagePlus size={15} /> Add reference</button></>}
-    </section>
+    {!isFrame && <><input ref={referenceInput} type="file" accept="image/*" className="sr-only" onChange={addReference} />
+      <section className="mt-3 flex flex-col gap-3 rounded-xl border border-sand p-3 sm:flex-row sm:items-center sm:p-4" aria-label={`${addon.name} reference picture`}>
+        {reference ? <div className="flex min-w-0 flex-1 items-center gap-3"><div className="size-16 shrink-0 overflow-hidden rounded-lg bg-sand">{reference.url && <img src={reference.url} alt={reference.name} className="size-full object-cover" />}</div><div className="min-w-0"><p className="text-sm font-semibold">Reference picture</p><p className="truncate text-xs text-ink/55">{reference.name}</p></div><button type="button" onClick={() => { photoStore.remove(details.referenceKey, reference.id); setReference(null); onChange({ referenceFile: null }) }} className="ml-auto rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Remove</button></div> : <><div className="min-w-0 flex-1"><p className="text-sm font-semibold">Reference picture <span className="font-normal text-ink/50">(optional)</span></p><p className="mt-1 text-xs text-ink/55">Share an example for the style, layout, or finish.</p></div><button type="button" onClick={() => referenceInput.current?.click()} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-sand bg-white px-3 text-sm font-semibold text-brand hover:bg-cream"><ImagePlus size={15} /> Add reference</button></>}
+      </section></>}
     {details.uploadMessage && <p className="mt-2 text-xs text-red-600">{details.uploadMessage}</p>}
     {error && <p role="alert" className="mt-2 text-sm text-red-600">{error}</p>}
+    {previewDesign && <div role="dialog" aria-modal="true" aria-label={previewDesign.name || 'Frame design'} onClick={() => setPreviewDesign(null)} className="fixed inset-0 z-[90] grid place-items-center bg-black/75 p-4"><figure className="relative max-h-full max-w-lg" onClick={(event) => event.stopPropagation()}><img src={previewDesign.image} alt={previewDesign.name || 'Frame design'} className="max-h-[80vh] w-full rounded-2xl bg-white object-contain" />{previewDesign.name && <figcaption className="mt-2 text-center text-sm font-medium text-white">{previewDesign.name}</figcaption>}<button type="button" aria-label="Close preview" onClick={() => setPreviewDesign(null)} className="absolute -right-2 -top-2 grid size-9 place-items-center rounded-full bg-white text-ink shadow"><X size={18} /></button></figure></div>}
   </div>
 }

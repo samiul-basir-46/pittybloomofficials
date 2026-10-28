@@ -147,7 +147,12 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
                 className="grid size-9 place-items-center rounded-lg hover:bg-sand/70"
                 onClick={() => {
                   setProblem('')
-                  setForm({ isNew: false, item })
+                  setForm({
+                    isNew: false,
+                    item: item.id === 'polaroids'
+                      ? { ...item, unitPrice: item.unitPrice ?? 8, minQuantity: item.minQuantity ?? 9 }
+                      : item,
+                  })
                 }}
               >
                 <Pencil size={17} />
