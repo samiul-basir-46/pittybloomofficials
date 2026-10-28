@@ -14,6 +14,7 @@ import FrameOrderPage from './pages/frame/FrameOrderPage'
 import FrameDetailPage from './pages/frame/FrameDetailPage'
 import PolaroidsPage from './pages/polaroids/PolaroidsPage'
 import PolaroidsOrderPage from './pages/polaroids/PolaroidsOrderPage'
+import PolaroidDetailPage from './pages/polaroids/PolaroidDetailPage'
 import StickerPage from './pages/sticker/StickerPage'
 import PhotoStripPage from './pages/photo-strip/PhotoStripPage'
 import CartPage from './pages/cart/CartPage'
@@ -40,6 +41,7 @@ import SongBookDetailPage from './pages/song-book/SongBookDetailPage'
 import SongBookOrderPage from './pages/song-book/SongBookOrderPage'
 import FrameSettingsPage from './admin/FrameSettingsPage'
 import MiniMagazineSettingsPage from './admin/MiniMagazineSettingsPage'
+import PolaroidSettingsPage from './admin/PolaroidSettingsPage'
 import { AdminAuthProvider } from './admin/AdminAuthContext'
 
 export default function App() {
@@ -71,6 +73,7 @@ export default function App() {
           <Route path="mini-magazines/:id" element={<MiniMagazineDetailPage />} />
           <Route path="polaroids" element={<PolaroidsPage />} />
           <Route path="polaroids/order" element={<RequireCustomer><PolaroidsOrderPage /></RequireCustomer>} />
+          <Route path="polaroids/:id" element={<PolaroidDetailPage />} />
           <Route path="sticker" element={<StickerPage />} />
           <Route path="photo-strip" element={<PhotoStripPage />} />
           <Route path="products/:id" element={<ProductPage />} />
@@ -96,6 +99,7 @@ export default function App() {
           <Route path="manual-order" element={<ManualOrderCatalogPage />} />
           <Route path="frame-settings" element={<FrameSettingsPage />} />
           <Route path="mini-magazine-settings" element={<MiniMagazineSettingsPage />} />
+          <Route path="polaroid-settings" element={<PolaroidSettingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

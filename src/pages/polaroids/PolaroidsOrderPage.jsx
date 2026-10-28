@@ -6,7 +6,7 @@ import Button from '../../shared/ui/Button'
 import PageNav from '../../shared/ui/PageNav'
 import QtyStepper from '../../shared/ui/QtyStepper'
 import useAsync from '../../shared/hooks/useAsync'
-import { getProduct, ordersApi } from '../../shared/services/contentService'
+import { getPolaroidProduct, getProduct, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
@@ -23,7 +23,13 @@ export default function PolaroidsOrderPage() {
   const navigate = useNavigate()
   const { add: addToCart } = useCart()
   const { user } = useAuth()
-  const { data: product, loading } = useAsync(() => getProduct('polaroids'))
+  const itemId = params.get('item') || ''
+  // A Polaroid chosen from the list (Admin > Polaroid settings) or, when none exist, the single legacy Polaroid product.
+  const { data: product, loading } = useAsync(async () => {
+    if (!itemId) return getProduct('polaroids')
+    const chosen = await getPolaroidProduct(itemId)
+    return chosen ? { id: chosen.id, name: chosen.title, image: chosen.image, unitPrice: chosen.unitPrice, minQuantity: chosen.minQuantity } : null
+  }, [itemId])
   const unitPrice = Number(product?.unitPrice) || 8
   const minimumQty = Math.max(1, Number(product?.minQuantity) || 9)
   const initialQty = Number(params.get('qty'))

@@ -16,6 +16,7 @@ const NAV_GROUPS = [
   { title: 'Catalog', links: [
     ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'song-books', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
     { to: '/admin/frame-settings', label: 'Frame settings', icon: ImageIcon },
+    { to: '/admin/polaroid-settings', label: 'Polaroid settings', icon: ImageIcon },
     { to: '/admin/mini-magazine-settings', label: 'Mini pocket magazines', icon: BookOpen },
   ] },
   { title: 'Store setup', links: [
