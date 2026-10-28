@@ -26,13 +26,13 @@ export default function PolaroidDetailPage() {
   const priced = polaroidPricing(item, amount)
   const go = (cart) => navigate(`/polaroids/order?item=${encodeURIComponent(item.id)}&qty=${amount}${cart ? '&mode=cart' : ''}`)
   return <Container className="pb-20 pt-4"><Link to="/polaroids" className="inline-flex items-center gap-2 rounded-full border border-sand bg-white px-4 py-2 text-sm"><ArrowLeft size={16} /> Back to Polaroids</Link>
-    <div className="mt-8 grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-16">
-      <div className="mx-auto aspect-[4/5] w-full min-w-0 max-w-sm overflow-hidden rounded-2xl bg-cream sm:max-w-md"><SmartImage src={item.image} alt={item.title} className="size-full object-cover" /></div>
+    <div className="mt-5 grid min-w-0 grid-cols-1 gap-5 sm:mt-8 sm:gap-8 lg:grid-cols-2 lg:gap-16">
+      <div className="mx-auto aspect-[4/5] w-full min-w-0 max-w-[190px] overflow-hidden rounded-xl bg-cream sm:max-w-md sm:rounded-2xl"><SmartImage src={item.image} alt={item.title} className="size-full object-cover" /></div>
       <div className="min-w-0 self-center">
         <p className="text-xs font-semibold uppercase tracking-[.18em] text-brand">Polaroid</p>
-        <h1 className="mt-3 font-serif text-4xl sm:text-5xl">{item.title}</h1>
-        <p className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="text-3xl font-extrabold">{formatPrice(priced.total)}</span><span className="text-base font-medium text-ink/60">for {amount} piece{amount === 1 ? '' : 's'}</span>{priced.saving > 0 && <span className="text-base text-ink/45 line-through">{formatPrice(priced.regular)}</span>}</p>
-        {item.description && <ExpandableText text={item.description} className="mt-5 leading-7 text-ink/70" />}
+        <h1 className="mt-2 font-serif text-2xl sm:text-5xl">{item.title}</h1>
+        <p className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="text-2xl font-extrabold sm:text-3xl">{formatPrice(priced.total)}</span><span className="text-base font-medium text-ink/60">for {amount} piece{amount === 1 ? '' : 's'}</span>{priced.saving > 0 && <span className="text-base text-ink/45 line-through">{formatPrice(priced.regular)}</span>}</p>
+        {item.description && <ExpandableText text={item.description} className="mt-3 text-sm leading-6 text-ink/70 sm:mt-5 sm:text-base sm:leading-7" />}
         <p className="mt-5 font-medium text-ink/65">Minimum {minimum}. Upload one photo for each piece after selecting Buy now.</p>
         <div className="mt-6 flex items-center gap-4"><span className="font-semibold">Quantity</span><QtyStepper value={amount} min={minimum} max={9999} onChange={setQty} editable /></div>
         <p className="mt-3 text-sm text-ink/60">Total: <strong className="text-ink">{formatPrice(priced.total)}</strong>{priced.saving > 0 && <span className="ml-2 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">Offer applied · you save {formatPrice(priced.saving)}</span>}</p>
@@ -45,7 +45,7 @@ export default function PolaroidDetailPage() {
             </button>
           })}</div>
           <p className="mt-2 text-xs text-ink/55">Order any quantity. Reach an offer's pieces and every piece gets that offer's price.</p></div>}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2"><Button variant="outline" className="h-14 gap-2" onClick={() => go(true)}><ShoppingCart size={18} /> Add to Cart</Button><Button className="h-14 gap-2 shadow-lg" onClick={() => go(false)}>Buy now <ArrowRight size={18} /></Button></div>
+        <div className="mt-6 grid gap-3 sm:mt-8 sm:gap-4 sm:grid-cols-2"><Button variant="outline" className="h-12 gap-2 sm:h-14" onClick={() => go(true)}><ShoppingCart size={18} /> Add to Cart</Button><Button className="h-12 gap-2 sm:h-14 shadow-lg" onClick={() => go(false)}>Buy now <ArrowRight size={18} /></Button></div>
       </div>
     </div>
   </Container>
