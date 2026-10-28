@@ -35,7 +35,7 @@ export default function PolaroidDetailPage() {
         <p className="mt-1 text-sm text-ink/60">{formatPrice(Math.round((priced.total / amount) * 100) / 100)} per piece{priced.saving > 0 ? ' with the offer' : ''}</p>
         {item.description && <ExpandableText text={item.description} className="mt-5 leading-7 text-ink/70" />}
         <p className="mt-5 font-medium text-ink/65">Minimum {minimum}. Upload one photo for each piece after selecting Buy now.</p>
-        <div className="mt-6 flex items-center gap-4"><span className="font-semibold">Quantity</span><QtyStepper value={amount} min={minimum} max={9999} onChange={setQty} /></div>
+        <div className="mt-6 flex items-center gap-4"><span className="font-semibold">Quantity</span><QtyStepper value={amount} min={minimum} max={9999} onChange={setQty} editable /></div>
         <p className="mt-3 text-sm text-ink/60">Total: <strong className="text-ink">{formatPrice(priced.total)}</strong>{priced.saving > 0 && <span className="ml-2 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">Offer applied · you save {formatPrice(priced.saving)}</span>}</p>
         {packs.length > 0 && <div className="mt-6"><p className="mb-2 text-sm font-semibold">Offers</p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{packs.map((row) => {

@@ -64,7 +64,7 @@ function Detail({ product, options }) {
             </button>)}
           </div>}
           {isPolaroids && <p className="mt-5 font-medium text-ink/65">৳{Number(product.unitPrice) || 8} per Polaroid · Minimum {minimumQty}. Upload one photo for each piece after selecting Buy now.</p>}
-          <div className="mt-6 flex items-center gap-4"><span className="font-semibold">Quantity</span><QtyStepper value={Math.max(qty, minimumQty)} min={minimumQty} max={isPolaroids ? 9999 : 99} onChange={setQty} /></div>
+          <div className="mt-6 flex items-center gap-4"><span className="font-semibold">Quantity</span><QtyStepper value={Math.max(qty, minimumQty)} min={minimumQty} max={isPolaroids ? 9999 : 99} onChange={setQty} editable={isPolaroids} /></div>
           {!isFrame && !isPolaroids && <label className="mt-6 block"><span className="mb-1 block text-sm font-medium">Special instructions (optional)</span><textarea rows={3} className={inputClass} placeholder="Theme, caption, colours, anything we should know" value={note} onChange={(e) => setNote(e.target.value)} /></label>}
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <Button variant="outline" className="h-14 gap-2" onClick={() => {
