@@ -32,7 +32,6 @@ export default function PolaroidDetailPage() {
         <p className="text-xs font-semibold uppercase tracking-[.18em] text-brand">Polaroid</p>
         <h1 className="mt-3 font-serif text-4xl sm:text-5xl">{item.title}</h1>
         <p className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="text-3xl font-extrabold">{formatPrice(priced.total)}</span><span className="text-base font-medium text-ink/60">for {amount} piece{amount === 1 ? '' : 's'}</span>{priced.saving > 0 && <span className="text-base text-ink/45 line-through">{formatPrice(priced.regular)}</span>}</p>
-        <p className="mt-1 text-sm text-ink/60">{formatPrice(Math.round((priced.total / amount) * 100) / 100)} per piece{priced.saving > 0 ? ' with the offer' : ''}</p>
         {item.description && <ExpandableText text={item.description} className="mt-5 leading-7 text-ink/70" />}
         <p className="mt-5 font-medium text-ink/65">Minimum {minimum}. Upload one photo for each piece after selecting Buy now.</p>
         <div className="mt-6 flex items-center gap-4"><span className="font-semibold">Quantity</span><QtyStepper value={amount} min={minimum} max={9999} onChange={setQty} /></div>
@@ -43,7 +42,6 @@ export default function PolaroidDetailPage() {
             return <button key={row.id} type="button" onClick={() => setQty(Math.max(minimum, row.pieces))} aria-label={`Set quantity to ${row.pieces} pieces`} className={`relative rounded-xl border bg-white px-3 py-3 text-center transition ${active ? 'border-2 border-brand bg-cream' : 'border-sand hover:border-brand/40'}`}>
               {row.tag && <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-brand">✦ {row.tag} ✦</span>}
               <p className="text-sm font-semibold">{row.pieces} pieces</p><p className="mt-1 font-bold text-warm">{formatPrice(row.price)}</p>
-              <p className="mt-0.5 text-[11px] text-ink/55">{formatPrice(Math.round((row.price / row.pieces) * 10) / 10)} each</p>
             </button>
           })}</div>
           <p className="mt-2 text-xs text-ink/55">Order any quantity. Reach an offer's pieces and every piece gets that offer's price.</p></div>}
