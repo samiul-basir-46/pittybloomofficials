@@ -38,21 +38,38 @@ const SONG_BOOK_TILE_ID = 'song-books'
 const isSongBookTile = (item) => item.id === SONG_BOOK_TILE_ID || item.to === '/song-books'
 const songBookTile = (book) => ({ id: SONG_BOOK_TILE_ID, name: 'Song Books', image: book.image || '/images/products/song-book.jpg', to: '/song-books' })
 const SONG_BOOK_TILE_MIGRATION_KEY = 'moreProductsSongBookSeeded'
+const MINI_TILE_ID = 'mini-magazines'
+const MINI_TILE_MIGRATION_KEY = 'moreProductsMiniMagazineSeeded'
+const isMiniTile = (item) => item.id === MINI_TILE_ID || item.to === '/mini-magazines'
 export const moreProductsApi = {
   ...moreProductsCollection,
   list: async () => {
-    const items = await moreProductsCollection.list()
-    if (await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false)) return items
-    if (items.some(isSongBookTile)) {
-      await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
-      return items
+    let items = await moreProductsCollection.list()
+    if (!(await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false))) {
+      if (items.some(isSongBookTile)) await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
+      else {
+        const book = (await getSongBooks())[0]
+        if (book) {
+          const tile = songBookTile(book)
+          await moreProductsCollection.save(tile)
+          await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
+          items = sortMoreProducts([...items, { ...tile, order: (items.length + 1) * 10 }])
+        }
+      }
     }
-    const book = (await getSongBooks())[0]
-    if (!book) return items
-    const tile = songBookTile(book)
-    await moreProductsCollection.save(tile)
-    await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
-    return sortMoreProducts([...items, { ...tile, order: (items.length + 1) * 10 }])
+    // One-time: add a "Mini Pocket Magazine" tile once an item exists. The admin can reorder or delete it afterwards.
+    if (!(await store.get(MINI_TILE_MIGRATION_KEY, false))) {
+      if (items.some(isMiniTile)) await store.set(MINI_TILE_MIGRATION_KEY, true)
+      else {
+        const mini = (await getMiniMagazines())[0]
+        if (mini) {
+          const tile = { id: MINI_TILE_ID, name: 'Mini Pocket Magazine', image: mini.image || '', to: '/mini-magazines' }
+          try { await moreProductsCollection.save(tile); await store.set(MINI_TILE_MIGRATION_KEY, true) } catch { /* visitors cannot write; show the tile anyway */ }
+          items = sortMoreProducts([...items, { ...tile, order: (items.length + 1) * 10 }])
+        }
+      }
+    }
+    return items
   },
 }
 const magazinesCollection = collection('magazines', magazines)
