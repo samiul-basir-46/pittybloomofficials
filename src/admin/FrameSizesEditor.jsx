@@ -38,17 +38,19 @@ export default function FrameSizesEditor({ product, onSaved }) {
     finally { setSaving(false) }
   }
 
-  return <section className="motion-visible mb-6 space-y-3 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-5">
-    <div><h2 className="font-serif text-xl">Frame sizes and prices</h2><p className="mt-1 text-xs leading-5 text-ink/60">Add each size once. The frame order pages, add-ons and manual order form all use this list. Choose one of these sizes for every frame gallery below.</p></div>
-    {rows.map((row, index) => <div key={index} className="grid gap-2 rounded-xl border border-sand bg-cream/40 p-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
-      <label className="text-xs font-medium text-ink/60">Size name<input aria-label={`Frame size ${index + 1}`} className={`${inputClass} mt-1`} value={row.label} onChange={(event) => change(index, { label: event.target.value })} /></label>
-      <label className="text-xs font-medium text-ink/60">Price (BDT)<input aria-label={`Frame price ${index + 1}`} type="number" min="1" className={`${inputClass} mt-1`} value={row.price} onChange={(event) => change(index, { price: event.target.value })} /></label>
-      <label className="text-xs font-medium text-ink/60">Original price<input aria-label={`Frame original price ${index + 1}`} type="number" min="0" className={`${inputClass} mt-1`} value={row.mrp} onChange={(event) => change(index, { mrp: event.target.value })} /></label>
-      <label className="text-xs font-medium text-ink/60">Badge<input aria-label={`Frame badge ${index + 1}`} className={`${inputClass} mt-1`} value={row.tag} onChange={(event) => change(index, { tag: event.target.value })} /></label>
-      <div className="flex items-end"><button type="button" aria-label={`Remove ${row.label || 'size'}`} onClick={() => { setStatus(''); setRows((current) => current.filter((_, i) => i !== index)) }} className="grid min-h-11 place-items-center rounded-xl border border-red-100 px-3 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button></div>
+  const head = 'hidden px-1 text-[11px] font-medium uppercase tracking-wide text-ink/50 sm:block'
+  return <section className="motion-visible space-y-2 rounded-2xl border border-sand bg-white p-3 shadow-sm sm:p-4">
+    <p className="text-xs leading-5 text-ink/60">Add each size once. Frame order pages, add-ons and the manual order form all use this list.</p>
+    <div className="hidden gap-2 sm:grid sm:grid-cols-[1.6fr_1fr_1fr_1fr_2.25rem]"><span className={head}>Size name</span><span className={head}>Price (BDT)</span><span className={head}>Original</span><span className={head}>Badge</span><span /></div>
+    {rows.map((row, index) => <div key={index} className="grid grid-cols-2 gap-2 border-t border-sand/70 pt-2 first:border-0 first:pt-0 sm:grid-cols-[1.6fr_1fr_1fr_1fr_2.25rem] sm:border-0 sm:pt-0">
+      <input aria-label={`Frame size ${index + 1}`} placeholder="Size name" className={`${inputClass} col-span-2 !min-h-9 !py-1.5 !text-sm sm:col-span-1`} value={row.label} onChange={(event) => change(index, { label: event.target.value })} />
+      <input aria-label={`Frame price ${index + 1}`} placeholder="Price" type="number" min="1" className={`${inputClass} !min-h-9 !py-1.5 !text-sm`} value={row.price} onChange={(event) => change(index, { price: event.target.value })} />
+      <input aria-label={`Frame original price ${index + 1}`} placeholder="Original" type="number" min="0" className={`${inputClass} !min-h-9 !py-1.5 !text-sm`} value={row.mrp} onChange={(event) => change(index, { mrp: event.target.value })} />
+      <input aria-label={`Frame badge ${index + 1}`} placeholder="Badge" className={`${inputClass} !min-h-9 !py-1.5 !text-sm`} value={row.tag} onChange={(event) => change(index, { tag: event.target.value })} />
+      <button type="button" aria-label={`Remove ${row.label || 'size'}`} onClick={() => { setStatus(''); setRows((current) => current.filter((_, i) => i !== index)) }} className="grid min-h-9 place-items-center rounded-lg border border-red-100 text-red-600 hover:bg-red-50"><Trash2 size={15} /></button>
     </div>)}
-    <div className="flex flex-wrap items-center gap-3">
-      <button type="button" onClick={() => { setStatus(''); setRows((current) => [...current, { label: '', price: '', mrp: '', tag: '' }]) }} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream"><Plus size={16} /> Add frame size</button>
+    <div className="flex flex-wrap items-center gap-3 pt-1">
+      <button type="button" onClick={() => { setStatus(''); setRows((current) => [...current, { label: '', price: '', mrp: '', tag: '' }]) }} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-brand/25 px-3 text-sm font-semibold text-brand hover:bg-cream"><Plus size={16} /> Add size</button>
       <Button type="button" size="sm" disabled={saving || !dirty} onClick={save}>{saving ? 'Saving…' : 'Save sizes'}</Button>
       {status && <p role="status" className={`text-sm ${status.startsWith('Saved') ? 'text-green-700' : 'text-red-700'}`}>{status}</p>}
     </div>
