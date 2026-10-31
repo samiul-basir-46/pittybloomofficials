@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowDownToLine, ArrowLeft, Check, Copy, ExternalLink, Instagram, Mail, MapPin, MessageCircle, Package, Pencil, Send, Trash2, UserRound } from 'lucide-react'
 import SmartImage from '../shared/ui/SmartImage'
 import useAsync from '../shared/hooks/useAsync'
@@ -145,6 +145,9 @@ function OrderItem({ item, index, image, onDownloadPhotos, zipLoading }) {
 export default function OrderDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { state: locationState } = useLocation()
+  // Return to the exact list (filters, page) the admin came from.
+  const listPath = typeof locationState?.from === 'string' && /^\/admin\/(orders|completed-orders|cancelled-orders)(\?|$)/.test(locationState.from) ? locationState.from : '/admin/orders'
   const orders = useAsync(ordersApi.list)
   const addons = useAsync(addonsApi.list)
   const magazines = useAsync(getMagazines)
@@ -158,7 +161,7 @@ export default function OrderDetailPage() {
   const [dispatchForm, setDispatchForm] = useState(null)
   const [dispatching, setDispatching] = useState(false)
   const order = orders.data?.find((o) => o.id === id)
-  const back = <Link to="/admin/orders" className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"><ArrowLeft size={16} /> All orders</Link>
+  const back = <Link to={listPath} className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"><ArrowLeft size={16} /> All orders</Link>
   if (orders.loading && !orders.data) return <p className="py-10 text-center text-ink/60">Loading…</p>
   if (orders.error || !order) return <div>{back}<div className="rounded-2xl border border-dashed border-sand bg-white py-16 text-center"><p className="font-semibold">{orders.error ? 'The order could not be loaded.' : 'Order not found.'}</p><p className="mt-1 text-sm text-ink/60">{orders.error ? 'Please refresh the page.' : 'It may have been deleted.'}</p></div></div>
 
@@ -295,7 +298,7 @@ export default function OrderDetailPage() {
   }
   const remove = async () => {
     if (!window.confirm(`Delete order ${order.id}? This cannot be undone.`)) return
-    try { await ordersApi.remove(order.id); navigate('/admin/orders') }
+    try { await ordersApi.remove(order.id); navigate(listPath) }
     catch { setNotice({ type: 'error', text: 'The order could not be deleted. Please try again.' }) }
   }
   const addonImage = (item) => addons.data?.find((a) => a.id === item.id)?.image ?? ''
