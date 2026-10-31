@@ -10,6 +10,7 @@ import { useCart } from '../../shared/context/CartContext'
 import { customerProfileApi, getActiveAddons, getFrameDesigns, getMagazine, getOccasions, getOrderSettings, getProducts, getSizes, ordersApi } from '../../shared/services/contentService'
 import { formatPrice } from '../../shared/utils/format'
 import { parseOptions } from '../../shared/utils/options'
+import { polaroidPricing, validPacks } from '../polaroids/packs'
 import { STEPS } from './data'
 import { buildCopies, defaultSizeFor, getFormats, sizesFor, withFields } from './lib/copies'
 import { calcTotals, orderingDay } from './lib/pricing'
@@ -169,9 +170,17 @@ function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed,
     const detail = draft.addonDetails?.[a.id] ?? {}
     const product = products.find((p) => p.id === a.id)
     const option = parseOptions(product?.options).find((item) => item.id === detail.optionId)
-    const price = a.id === 'polaroids' ? Number(product?.unitPrice) || 8 : Number(option?.price ?? a.price) || 0
-    const design = a.id === 'frame' ? frameDesigns.find((item) => item.id === detail.designId && (!option?.id || item.sizeId === option.id)) : null
-    return { ...a, ...detail, qty: Number(detail.qty) || 1, product, price, design, optionLabel: a.id === 'polaroids' ? 'Per piece' : option?.label || 'Add-on' }
+    const quantity = Math.max(1, Number(detail.qty) || 1)
+    const hasQuantityPricing = ['polaroids', 'photo-strip'].includes(a.id)
+    const unitPrice = hasQuantityPricing ? Number(product?.unitPrice) || 0 : Number(option?.price ?? a.price) || 0
+    const packs = hasQuantityPricing ? validPacks(product) : []
+    const pricing = hasQuantityPricing ? polaroidPricing({ ...product, unitPrice }, quantity) : null
+    const price = hasQuantityPricing && packs.length ? pricing.total : unitPrice
+    const qty = hasQuantityPricing && packs.length ? 1 : quantity
+    const designList = a.id === 'frame' ? frameDesigns : a.id === 'photo-strip' ? (product?.designs ?? []) : []
+    const design = designList.find((item) => item.id === detail.designId && (a.id !== 'frame' || !option?.id || item.sizeId === option.id))
+    const optionLabel = hasQuantityPricing ? `${quantity} ${a.id === 'photo-strip' ? 'strip' : 'piece'}${quantity === 1 ? '' : 's'}${pricing.applied ? ` · offer ${pricing.applied.pieces}+` : ` · ${formatPrice(unitPrice)} each`}` : option?.label || 'Add-on'
+    return { ...a, ...detail, qty, requestedQty: quantity, product, price, design, optionLabel }
   }), [addons, draft.addons, draft.addonDetails, products, frameDesigns])
   const totals = calcTotals({ copies, addons: chosenAddons, location: draft.delivery.location, date: draft.delivery.date, settings, now })
 
@@ -267,8 +276,10 @@ function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed,
       const photos = photoStore.list(addon.photoKey)
       if (addon.id === 'polaroids') {
         const minimum = Math.max(1, Number(addon.product?.minQuantity) || 9)
-        if (addon.qty < minimum) next[`addon.${addon.id}`] = `Minimum order is ${minimum} Polaroids.`
-        else if (photos.length !== addon.qty) next[`addon.${addon.id}`] = `Upload exactly ${addon.qty} print photos for the Polaroids.`
+        if (addon.requestedQty < minimum) next[`addon.${addon.id}`] = `Minimum order is ${minimum} Polaroids.`
+        else if (photos.length !== addon.requestedQty) next[`addon.${addon.id}`] = `Upload exactly ${addon.requestedQty} print photos for the Polaroids.`
+      } else if (addon.id === 'photo-strip' && !addon.design) {
+        next[`addon.${addon.id}`] = 'Choose a Photo Strip design.'
       } else if (addon.id === 'frame' && !photos.length) {
         next[`addon.${addon.id}`] = 'Upload at least one print photo for your frame. There is no photo count limit.'
       } else if (addon.id === 'frame' && frameDesigns.some((design) => design.sizeId === addon.optionId) && !addon.design) {

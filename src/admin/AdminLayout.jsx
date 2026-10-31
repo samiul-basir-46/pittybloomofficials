@@ -14,10 +14,11 @@ const NAV_GROUPS = [
     { to: '/admin/cancelled-orders', label: 'Cancelled orders', icon: CircleX },
   ] },
   { title: 'Catalog', links: [
-    ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'song-books', 'products', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
+    ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'song-books', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
+    { to: '/admin/sticker-settings', label: 'Sticker', icon: PackagePlus, iconSrc: '/images/sticker.png' },
     { to: '/admin/frame-settings', label: 'Frame settings', icon: ImageIcon },
-    { to: '/admin/polaroid-settings', label: 'Polaroid settings', icon: ImageIcon },
-    { to: '/admin/photo-strip-designs', label: 'Photo Strip designs', icon: ImageIcon },
+    { to: '/admin/polaroid-settings', label: 'Polaroid settings', icon: ImageIcon, iconSrc: '/images/polaroid.png' },
+    { to: '/admin/photo-strip-designs', label: 'Photo Strip', icon: ImageIcon, iconSrc: '/images/film-strip.png' },
     { to: '/admin/mini-magazine-settings', label: 'Mini pocket magazines', icon: BookOpen },
   ] },
   { title: 'Store setup', links: [
@@ -127,9 +128,12 @@ export default function AdminLayout() {
             <div key={group.title ?? 'primary'} className={index ? 'mt-5' : ''}>
               {group.title && <p className="mb-2 px-3 text-xs font-medium tracking-wide text-ink/55">{group.title}</p>}
               <div className="space-y-1">
-                {group.links.map(({ to, label, icon: Icon, end }) => (
+                {group.links.map(({ to, label, icon: Icon, iconSrc, end }) => (
                   <NavLink key={to} to={to} end={end} className={linkClass}>
-                    <Icon size={17} strokeWidth={1.8} className="shrink-0" /> <span>{label}</span>
+                    {({ isActive }) => <>
+                      {iconSrc ? <img src={iconSrc} alt="" aria-hidden="true" className={`size-[17px] shrink-0 object-contain ${isActive ? 'brightness-0 invert' : ''}`} /> : <Icon size={17} strokeWidth={1.8} className="shrink-0" />}
+                      <span>{label}</span>
+                    </>}
                   </NavLink>
                 ))}
               </div>

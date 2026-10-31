@@ -8,6 +8,8 @@ import { getFrameDesigns } from '../../shared/services/contentService'
 vi.mock('../../shared/services/contentService', () => ({
   getFrameDesigns: vi.fn(async () => []),
   getManualOrderCatalog: async () => ({}),
+  getMiniMagazines: async () => [],
+  getSongBooks: async () => [],
   getProducts: async () => [{ id: 'frame', name: 'Frame', options: 'Small (6×8 in) | 699\nMedium (8×10 in) | 999\nLarge (12×16 in) | 1499' }],
   getSizes: async () => [
     { id: 'a4-4', format: 'A4', pages: 4, price: 299 },

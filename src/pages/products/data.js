@@ -22,22 +22,4 @@ export const products = [
     minQuantity: 9,
     options: 'Pack of 10 | 399\nPack of 20 | 699 | 799 | Most Popular\nPack of 30 | 949 | 1199 | Best Value',
   },
-  {
-    id: 'sticker',
-    name: 'Sticker',
-    image: '/images/products/sticker.jpg',
-    status: 'Available',
-    tagline: 'Stick your memories anywhere.',
-    description: 'Custom stickers cut from your photos and designs. Great for laptops, journals and gifts.',
-    options: 'Sheet of 12 | 299\nSheet of 24 | 499 | 599 | Most Popular\nSheet of 36 | 699 | 899 | Best Value',
-  },
-  {
-    id: 'photo-strip',
-    name: 'Photo Strip',
-    image: '/images/products/photo-strip.jpg',
-    status: 'Available',
-    tagline: 'Photo booth vibes, made by you.',
-    description: 'Photo booth style strips printed from your pictures. Perfect for sharing with the people in them.',
-    options: '3 Strips | 249\n6 Strips | 449 | 499 | Most Popular\n10 Strips | 699 | 799 | Best Value',
-  },
 ]

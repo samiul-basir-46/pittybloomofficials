@@ -1,4 +1,4 @@
-import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, Music2, PackagePlus, PartyPopper, ShoppingBag, Star, Tag } from 'lucide-react'
+import { BookOpen, CircleHelp, FileText, LayoutGrid, Menu, Music2, PackagePlus, PartyPopper, Star, Tag } from 'lucide-react'
 import {
   bestSellingApi,
   faqsApi,
@@ -8,8 +8,8 @@ import {
   occasionsApi,
   orderSettingsApi,
   policiesApi,
-  productsApi,
   addonsApi,
+  getAddonCatalog,
   sizesApi,
   songBooksApi,
 } from '../shared/services/contentService'
@@ -27,13 +27,15 @@ const card = {
   columns: [{ key: 'to', label: 'Link' }],
 }
 
+const addonsCatalogApi = { ...addonsApi, list: getAddonCatalog }
+
 export const SECTIONS = [
   { path: 'best-selling', title: 'Best Selling', icon: Star, api: bestSellingApi, ...card },
   {
-    path: 'more-products', title: 'More Products', icon: LayoutGrid, api: moreProductsApi,
-    note: 'Set each card’s position on the home page. Lower numbers appear first. Cards linking to /frame, /polaroids, /sticker or /photo-strip automatically use the name and image from Shop Products, so edit those there.',
+    path: 'more-products', title: 'Home page products', icon: LayoutGrid, api: moreProductsApi,
+    note: 'This controls only which product cards appear on the home page and their order. Product names, images and prices come from each product’s own catalog section.',
     fields: [
-      ...card.fields,
+      { name: 'to', label: 'Product page link', required: true },
       { name: 'order', label: 'Position (1 is first)', type: 'number', required: true },
     ],
     blank: { name: '', image: '', to: '', order: 10 },
@@ -61,28 +63,6 @@ export const SECTIONS = [
       { key: 'badge', label: 'Badge' },
       { key: 'book', label: 'Book', format: (b) => `${b.pageCount} pages` },
     ],
-  },
-  {
-    path: 'products',
-    title: 'Shop Products',
-    icon: ShoppingBag,
-    api: productsApi,
-    fields: [
-      { name: 'name', label: 'Name', required: true },
-      { name: 'image', label: 'Image', type: 'image' },
-      { name: 'status', label: 'Status', type: 'select', options: ['Available', 'Coming soon'] },
-      { name: 'tagline', label: 'Short line under the name' },
-      { name: 'description', label: 'Description', type: 'textarea', rows: 4 },
-      {
-        name: 'options',
-        label: 'Options & prices (one per line: Name | Price | MRP (optional) | Tag (optional))',
-        type: 'textarea',
-        rows: 6,
-      },
-    ],
-    blank: { name: '', image: '', status: 'Available', tagline: '', description: '', options: 'Option name | 499' },
-    label: (i) => i.name,
-    columns: [{ key: 'status', label: 'Status' }],
   },
   {
     path: 'song-books',
@@ -116,13 +96,9 @@ export const SECTIONS = [
     path: 'addons',
     title: 'Add-on Products',
     icon: PackagePlus,
-    api: addonsApi,
-    fields: [
-      { name: 'name', label: 'Name', required: true },
-      { name: 'image', label: 'Image', type: 'image' },
-      { name: 'price', label: 'Price (BDT)', type: 'number' },
-      { name: 'status', label: 'Show in Buy Now popup?', type: 'select', options: ['Active', 'Inactive'] },
-    ],
+    api: addonsCatalogApi,
+    note: 'Choose which products appear as add-ons during checkout. Names, images and prices come from each product’s catalog section.',
+    fields: [{ name: 'status', label: 'Show in Buy Now popup?', type: 'select', options: ['Active', 'Inactive'] }],
     blank: { name: '', image: '', price: 0, status: 'Active' },
     label: (i) => i.name,
     columns: [

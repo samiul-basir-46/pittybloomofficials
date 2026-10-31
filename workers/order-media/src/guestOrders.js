@@ -82,8 +82,8 @@ async function getFirestoreDoc(project, path) {
 
 function parseProductOptions(value = '') {
   return String(value).split('\n').map((line) => {
-    const [label = '', rawPrice = ''] = line.split('|').map((part) => part.trim())
-    return { id: label, label, price: Number(rawPrice) }
+    const [label = '', rawPrice = '', rawMrp = '', tag = ''] = line.split('|').map((part) => part.trim())
+    return { id: label, label, price: Number(rawPrice), mrp: Number(rawMrp) || 0, tag }
   }).filter((option) => option.label && Number.isFinite(option.price) && option.price > 0)
 }
 
@@ -109,14 +109,46 @@ async function loadFrameDesigns(project, frameOptions) {
   } catch { return [] }
 }
 
+async function loadCatalogGroup(project, group) {
+  try {
+    const response = await fetch(`${docsBase(project)}:runQuery`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'contentData' }], where: { fieldFilter: { field: { fieldPath: 'group' }, op: 'EQUAL', value: { stringValue: group } } } } }),
+    })
+    if (!response.ok) return []
+    const rows = await response.json()
+    return (Array.isArray(rows) ? rows : []).map((row) => row?.document ? decodeFields(row.document.fields ?? {}).value : null)
+      .filter((item) => item?.id && item.status !== 'Inactive')
+      .sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99))
+  } catch { return [] }
+}
+
 async function trustedCatalog(project) {
   const frameDoc = await getFirestoreDoc(project, 'contentData/products--frame')
+  const photoStripDoc = await getFirestoreDoc(project, 'contentData/products--photo-strip')
+  const polaroidCatalogDoc = await getFirestoreDoc(project, 'contentData/polaroidProducts--polaroids')
+  const legacyPolaroidDoc = polaroidCatalogDoc ? null : await getFirestoreDoc(project, 'contentData/products--polaroids')
+  const [miniMagazines, songBooks, polaroidCatalogItems] = await Promise.all([loadCatalogGroup(project, 'miniMagazines'), loadCatalogGroup(project, 'songBooks'), loadCatalogGroup(project, 'polaroidProducts')])
   const sizeDocs = await Promise.all(DEFAULT_SIZES.map((size) => getFirestoreDoc(project, `contentData/printSizes--${encodeURIComponent(size.id)}`)))
   const settingsDoc = await getFirestoreDoc(project, 'contentData/orderSettings--singleton')
   const manualOrderDoc = await getFirestoreDoc(project, 'contentData/manualOrderCatalog--singleton')
   const frameProduct = frameDoc?.value
   const frameOptions = frameProduct ? parseProductOptions(frameProduct.options) : DEFAULT_FRAME_OPTIONS
   const frameDesigns = await loadFrameDesigns(project, frameOptions)
+  const legacyStripOptions = parseProductOptions(photoStripDoc?.value?.options)
+  const stripQuantities = legacyStripOptions.map((option) => Number(option.label.match(/\d+/)?.[0]) || 1)
+  const photoStripProduct = photoStripDoc?.value ? {
+    ...photoStripDoc.value,
+    unitPrice: Number(photoStripDoc.value.unitPrice) || (legacyStripOptions[0] ? Math.max(1, Math.round(legacyStripOptions[0].price / stripQuantities[0])) : 0),
+    packs: Array.isArray(photoStripDoc.value.packs) ? photoStripDoc.value.packs : legacyStripOptions.slice(1).map((option, index) => ({ id: `legacy-${stripQuantities[index + 1]}`, pieces: stripQuantities[index + 1], price: option.price, tag: option.tag || '' })),
+  } : null
+  let polaroidProduct = polaroidCatalogItems[0] ?? polaroidCatalogDoc?.value ?? legacyPolaroidDoc?.value ?? null
+  if (polaroidProduct && !Array.isArray(polaroidProduct.packs) && polaroidProduct.options) {
+    polaroidProduct = { ...polaroidProduct, packs: parseProductOptions(polaroidProduct.options).flatMap((option) => {
+      const pieces = Number(option.label.match(/\d+/)?.[0])
+      return Number.isInteger(pieces) && pieces > 0 ? [{ pieces, price: option.price, tag: option.tag || '' }] : []
+    }) }
+  }
   const configuredSizes = DEFAULT_SIZES.map((fallback, index) => {
     const saved = sizeDocs[index]?.value
     return saved ? { ...fallback, ...saved, id: fallback.id } : fallback
@@ -124,6 +156,10 @@ async function trustedCatalog(project) {
   return {
     frameDesigns,
     frameOptions,
+    photoStripProduct,
+    polaroidProduct,
+    miniMagazines,
+    songBooks,
     sizes: configuredSizes,
     deliverySettings: settingsDoc?.value ?? {},
     manualOrderCatalog: mergeManualOrderCatalog(manualOrderDoc?.value ?? MANUAL_ORDER_CATALOG_DEFAULTS),
@@ -172,11 +208,30 @@ function buildItem(input, config, photos, referenceFile) {
   const card = cardId ? config.manualOrderCatalog[cardId] : null
   if (!card?.enabled) throw new Error('One of the selected products is no longer available. Remove it and try again.')
   if (input.type === 'polaroids') {
-    const unitPrice = Number(card.unitPrice)
+    const product = config.polaroidProduct
+    if (!product || product.status === 'Inactive' || product.status === 'Coming soon') throw new Error('Polaroids are not currently available.')
+    const unitPrice = Number(product.unitPrice)
+    const minimum = Math.max(1, Number(product.minQuantity) || 9)
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('Polaroid pricing is not available. Please contact us.')
-    if (quantity < Number(card.minQuantity || 9)) throw new Error(`Polaroids must be ordered in quantities of ${Number(card.minQuantity || 9)} or more.`)
-    if (!photos.length) throw new Error('Add at least one photo for the Polaroids.')
-    return { kind: 'polaroids', id: 'polaroids', name: card.title, optionLabel: `${quantity} pieces`, qty: quantity, price: unitPrice, note: notes, photos: { count: photos.length, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } }
+    if (quantity < minimum) throw new Error(`Polaroids must be ordered in quantities of ${minimum} or more.`)
+    if (photos.length !== quantity) throw new Error(`Upload exactly ${quantity} photos, one for each Polaroid.`)
+    const packs = (Array.isArray(product?.packs) ? product.packs : []).map((pack) => ({ pieces: Number(pack.pieces), price: Number(pack.price) })).filter((pack) => Number.isInteger(pack.pieces) && pack.pieces > 0 && Number.isFinite(pack.price) && pack.price > 0).sort((a, b) => a.pieces - b.pieces)
+    const priced = priceWithOffers(unitPrice, packs, quantity)
+    return { kind: 'polaroids', id: 'polaroids', name: product?.title || product?.name || card.title, optionLabel: `${quantity} pieces${priced.applied ? ` · offer ${priced.applied.pieces}+` : ''}`, qty: packs.length ? 1 : quantity, price: packs.length ? priced.total : unitPrice, note: notes, photos: { count: photos.length, files: photos, reference: referenceFile, names: photos.map((file) => file.name) } }
+  }
+  if (input.type === 'photo-strip') {
+    const product = config.photoStripProduct
+    const designs = (Array.isArray(product?.designs) ? product.designs : []).filter((design) => design?.id && design.image)
+    if (!product || product.status !== 'Available' || !designs.length) throw new Error('Photo Strip is not currently available.')
+    const unitPrice = Number(product.unitPrice)
+    if (!Number.isFinite(unitPrice) || unitPrice < 1) throw new Error('Photo Strip pricing is not available. Please contact us.')
+    if (quantity > 9999) throw new Error('Photo Strip quantity cannot be greater than 9999.')
+    if (!photos.length) throw new Error('Add at least one photo for your Photo Strip.')
+    const design = designs.find((row) => row.id === String(input.designId))
+    if (!design) throw new Error('Choose an available Photo Strip design.')
+    const packs = (Array.isArray(product.packs) ? product.packs : []).map((pack) => ({ pieces: Number(pack.pieces), price: Number(pack.price) })).filter((pack) => Number.isInteger(pack.pieces) && pack.pieces > 0 && Number.isFinite(pack.price) && pack.price > 0).sort((a, b) => a.pieces - b.pieces)
+    const priced = priceWithOffers(unitPrice, packs, quantity)
+    return { kind: 'product', id: 'photo-strip', name: product.name || 'Photo Strip', image: design.image, optionLabel: `${quantity} strip${quantity === 1 ? '' : 's'}${priced.applied ? ` · offer ${priced.applied.pieces}+` : ''}${design.name ? ` · ${design.name}` : ''}`, design: { id: design.id, name: text(design.name, 100), image: design.image }, qty: packs.length ? 1 : quantity, price: packs.length ? priced.total : unitPrice, note: notes, meta: { photoStripDesignId: design.id }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'frame') {
     if (!photos.length) throw new Error('Add at least one print photo for this frame.')
@@ -190,12 +245,14 @@ function buildItem(input, config, photos, referenceFile) {
     return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}`, design: { id: design.id, name: design.name, image: design.image }, qty: 1, price: Number(design.price) > 0 ? Number(design.price) : option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'mini-magazine') {
-    const unitPrice = Number(card.unitPrice)
+    const product = config.miniMagazines?.find((row) => row.id === String(input.productId)) ?? config.miniMagazines?.[0]
+    if (!product) throw new Error('Mini Magazine is not currently available.')
+    const unitPrice = Number(product.price)
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('Mini Magazine pricing is not available. Please contact us.')
-    const limits = miniPhotoLimits(card)
+    const limits = miniPhotoLimits(product ?? card)
     if (quantity !== 1 || photos.length < limits.min || (limits.max && photos.length > limits.max)) throw new Error(`Each Mini Pocket Magazine needs ${limits.max ? (limits.max === limits.min ? limits.min : `${limits.min} to ${limits.max}`) : `at least ${limits.min}`} photos.`)
     assertCovers(photos, input)
-    return { kind: 'mini-magazine', id: 'mini-pocket-magazine', name: card.title, optionLabel: `${photos.length} photos`, qty: 1, price: unitPrice, note: notes, details: notes ? [{ label: 'Notes', value: notes }] : [], meta: { pages: 8 }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
+    return { kind: 'mini-magazine', id: product?.id || 'mini-pocket-magazine', name: product?.title || card.title, image: product?.image || '', optionLabel: `${photos.length} photos`, qty: 1, price: unitPrice, note: notes, details: notes ? [{ label: 'Notes', value: notes }] : [], meta: { pages: 8 }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
   }
   if (input.type === 'magazine') {
     const size = config.sizes.find((row) => row.id === input.sizeId && Number(row.price) > 0)
@@ -209,15 +266,28 @@ function buildItem(input, config, photos, referenceFile) {
     return { kind: 'magazine', id: 'custom-magazine', name: card.title, optionLabel: `${size.format} · ${size.pages} Pages`, qty: 1, price: Number(size.price), meta: { pages: size.pages, photos: size.photos || '', format: size.format }, details, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
   }
   if (input.type === 'song-book') {
-    const unitPrice = Number(card.unitPrice)
+    const book = config.songBooks?.find((row) => row.id === String(input.productId)) ?? config.songBooks?.[0]
+    if (!book) throw new Error('Song Book is not currently available.')
+    const unitPrice = Number(book.price12)
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('Song Book pricing is not available. Please contact us.')
     if (quantity !== 1 || !text(input.songName, 200) || !text(input.lyrics, 20000)) throw new Error('Enter a song name and lyrics for each Song Book.')
     assertCovers(photos, input)
     const details = [{ label: 'Song name', value: text(input.songName, 200) }, { label: 'Lyrics', value: text(input.lyrics, 20000) }]
     if (notes) details.push({ label: 'Additional notes', value: notes })
-    return { kind: 'song-book', id: 'song-book', name: card.title, optionLabel: '12 pages', qty: 1, price: unitPrice, meta: { pages: 12 }, details, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
+    return { kind: 'song-book', id: book?.id || 'song-book', name: book?.title || card.title, image: book?.image || '', optionLabel: '12 pages', qty: 1, price: unitPrice, meta: { pages: 12 }, details, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
   }
   throw new Error('This product is not available in the manual order form.')
+}
+
+function priceWithOffers(unitPrice, packs, quantity) {
+  const regular = Math.round(unitPrice * quantity)
+  const reached = [...packs].reverse().find((pack) => pack.pieces <= quantity) ?? null
+  const covering = packs.find((pack) => pack.pieces >= quantity) ?? null
+  let total = regular
+  let applied = null
+  if (reached && Math.round((reached.price / reached.pieces) * quantity) < total) { total = Math.round((reached.price / reached.pieces) * quantity); applied = reached }
+  if (covering && covering.price < total) { total = covering.price; applied = covering }
+  return { total, applied }
 }
 
 function labelArea(area) { return area === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka' }

@@ -193,7 +193,7 @@ export default function MagazineStep({ ctx }) {
               const on = draft.addons.includes(a.id)
               const product = products.find((item) => item.id === a.id)
               const selectedOption = parseOptions(product?.options).find((option) => option.id === draft.addonDetails?.[a.id]?.optionId)
-              const tilePrice = a.id === 'polaroids' ? Number(product?.unitPrice) || a.price : selectedOption?.price ?? a.price
+              const tilePrice = ['polaroids', 'photo-strip'].includes(a.id) ? Number(product?.unitPrice) || a.price : selectedOption?.price ?? a.price
               return (
                 <li key={a.id}>
                   <button
@@ -228,7 +228,7 @@ export default function MagazineStep({ ctx }) {
             const product = products.find((item) => item.id === addon.id)
             const details = draft.addonDetails?.[addon.id] ?? createAddonDetails(addon, product)
             const optionId = parseOptions(product?.options).find((option) => option.id === details.optionId)?.id
-            const designs = addon.id === 'frame' ? frameDesigns.filter((design) => !optionId || design.sizeId === optionId) : []
+            const designs = addon.id === 'frame' ? frameDesigns.filter((design) => !optionId || design.sizeId === optionId) : addon.id === 'photo-strip' ? (product?.designs ?? []).filter((design) => design?.id && design.image) : []
             return <AddonConfigurator key={addon.id} addon={addon} product={product} details={details} designs={designs} onChange={(patch) => updateAddon(addon.id, patch)} error={errors[`addon.${addon.id}`]} />
           })}
         </Card>

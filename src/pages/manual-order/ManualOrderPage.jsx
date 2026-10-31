@@ -1,16 +1,17 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eye, Frame, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eye, Film, Frame, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
-import { getFrameDesigns, getManualOrderCatalog, getOrderSettings, getProducts, getSizes } from '../../shared/services/contentService'
+import { getFrameDesigns, getManualOrderCatalog, getMiniMagazines, getOrderSettings, getProducts, getSizes, getSongBooks } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { deliveryFee, detectOrderImageType, dhakaToday, expeditedSurcharge, minimumDeliveryDate, orderImageType, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog, miniPhotoLimits } from './catalog'
 import MagazineSizePreview from './MagazineSizePreview'
+import { polaroidPricing } from '../polaroids/packs'
 
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
 const CATEGORIES = ['Birthday', 'Couple', 'Anniversary', 'Personal', 'Parents', 'Marriage', 'Special Day', 'Farewell', 'Best Friends', 'Other']
@@ -20,6 +21,7 @@ const PRODUCT_META = [
   { id: 'miniMagazines', icon: BookOpen, tint: 'bg-[#EDE8F5]' },
   { id: 'magazines', icon: BookOpen, tint: 'bg-[#E6EDF5]' },
   { id: 'songBooks', icon: Music2, tint: 'bg-[#F8EED9]' },
+  { id: 'photoStrip', icon: Film, tint: 'bg-[#F3E9EC]' },
 ]
 const newId = () => {
   const cryptoApi = globalThis.crypto
@@ -217,6 +219,8 @@ const ProductChoiceCard = memo(function ProductChoiceCard({ id, title, descripti
 
 export default function ManualOrderPage() {
   const productsData = useAsync(getProducts)
+  const miniCatalogData = useAsync(getMiniMagazines)
+  const songCatalogData = useAsync(getSongBooks)
   const sizesData = useAsync(getSizes)
   const settingsData = useAsync(getOrderSettings)
   const manualCatalogData = useAsync(getManualOrderCatalog)
@@ -225,6 +229,7 @@ export default function ManualOrderPage() {
   const [previewDesign, setPreviewDesign] = useState(null)
   const [selected, setSelected] = useState({})
   const [polaroid, setPolaroid] = useState({ quantity: 9, photos: [], reference: null })
+  const [photoStrip, setPhotoStrip] = useState({ quantity: 1, designId: '', photos: [], notes: '' })
   const [frames, setFrames] = useState([])
   const [expandedFrameKey, setExpandedFrameKey] = useState('')
   const [frameQuantityDrafts, setFrameQuantityDrafts] = useState({})
@@ -253,6 +258,17 @@ export default function ManualOrderPage() {
   }, [submitting])
 
   const productCatalog = productsData.data ?? []
+  const polaroidProduct = productCatalog.find((product) => product.id === 'polaroids')
+  const photoStripProduct = productCatalog.find((product) => product.id === 'photo-strip')
+  const miniProducts = miniCatalogData.data ?? []
+  const songProducts = songCatalogData.data ?? []
+  const polaroidUnitPrice = Number(polaroidProduct?.unitPrice) || 0
+  const polaroidMinimum = Math.max(1, Number(polaroidProduct?.minQuantity) || 9)
+  const photoStripPrice = Number(photoStripProduct?.unitPrice) || 0
+  const photoStripDesigns = (Array.isArray(photoStripProduct?.designs) ? photoStripProduct.designs : []).filter((design) => design?.id && design.image)
+  const pricedPolaroids = polaroidPricing({ ...polaroidProduct, unitPrice: polaroidUnitPrice }, Number(polaroid.quantity) || polaroidMinimum)
+  const pricedPhotoStrip = polaroidPricing(photoStripProduct, Number(photoStrip.quantity) || 1)
+  useEffect(() => { setPolaroid((current) => Number(current.quantity) < polaroidMinimum ? { ...current, quantity: polaroidMinimum } : current) }, [polaroidMinimum])
   const frameProduct = productCatalog.find((product) => product.id === 'frame')
   const frameOptions = useMemo(() => parseOptions(frameProduct?.options), [frameProduct?.options])
   const designsBySize = useMemo(() => frameDesigns.reduce((groups, design) => {
@@ -261,20 +277,37 @@ export default function ManualOrderPage() {
   }, {}), [frameDesigns])
   const sizes = sizesData.data ?? []
   const manualCatalog = mergeManualOrderCatalog(manualCatalogData.data ?? MANUAL_ORDER_CATALOG_DEFAULTS)
-  const manualCards = PRODUCT_META.map((meta) => ({ ...manualCatalog[meta.id], ...meta })).filter((card) => card.enabled).sort((a, b) => Number(a.order) - Number(b.order))
+  const manualCards = PRODUCT_META.map((meta) => {
+    const card = { ...manualCatalog[meta.id], ...meta }
+    if (meta.id === 'polaroids') {
+      card.enabled = Boolean(manualCatalog.polaroids.enabled && polaroidProduct && polaroidProduct.status !== 'Coming soon' && polaroidProduct.status !== 'Inactive' && polaroidUnitPrice > 0)
+      if (polaroidProduct) Object.assign(card, { title: polaroidProduct.name || card.title, description: polaroidProduct.description || card.description, image: polaroidProduct.image || '', imageUpdatedAt: 0 })
+    }
+    if (meta.id === 'miniMagazines') { card.enabled = Boolean(manualCatalog.miniMagazines.enabled && miniProducts.length); if (miniProducts[0]) Object.assign(card, { title: miniProducts[0].title || card.title, description: miniProducts[0].description || card.description, image: miniProducts[0].image || '', imageUpdatedAt: 0 }) }
+    if (meta.id === 'songBooks') { card.enabled = Boolean(manualCatalog.songBooks.enabled && songProducts.length); if (songProducts[0]) Object.assign(card, { title: songProducts[0].title || card.title, description: songProducts[0].description || card.description, image: songProducts[0].image || '', imageUpdatedAt: 0 }) }
+    if (meta.id === 'photoStrip') {
+      card.enabled = Boolean(photoStripProduct && manualCatalog.photoStrip.enabled && photoStripProduct.status === 'Available' && photoStripDesigns.length > 0 && photoStripPrice > 0)
+      if (photoStripProduct) Object.assign(card, { title: photoStripProduct.name || card.title, description: photoStripProduct.description || card.description, image: photoStripProduct.image || '', imageUpdatedAt: 0 })
+    }
+    return card
+  }).filter((card) => card.enabled).sort((a, b) => Number(a.order) - Number(b.order))
+  const miniProductFor = (item) => miniProducts.find((row) => row.id === item?.productId) ?? miniProducts[0]
+  const miniLimitsFor = (item) => miniPhotoLimits(miniProductFor(item) ?? manualCatalog.miniMagazines)
+  const songProductFor = (item) => songProducts.find((row) => row.id === item?.productId) ?? songProducts[0]
   const a4Sizes = sizes.filter((size) => size.format === 'A4' && size.price > 0 && size.pages >= 4 && size.pages <= 40 && size.pages % 4 === 0).sort((a, b) => a.pages - b.pages)
   const a5Sizes = sizes.filter((size) => size.format === 'A5' && [4, 8].includes(size.pages) && size.price > 0).sort((a, b) => a.pages - b.pages)
   const magazineOptions = [...a4Sizes, ...a5Sizes]
-  const loading = productsData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading || designsData.loading
-  const loadError = productsData.error || sizesData.error || settingsData.error || manualCatalogData.error || designsData.error
+  const loading = productsData.loading || miniCatalogData.loading || songCatalogData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading || designsData.loading
+  const loadError = productsData.error || miniCatalogData.error || songCatalogData.error || sizesData.error || settingsData.error || manualCatalogData.error || designsData.error
   const items = [
-    ...(selected.polaroids ? [{ key: 'polaroids', type: 'polaroids', qty: Number(polaroid.quantity) || 0, price: Number(manualCatalog.polaroids.unitPrice), photos: polaroid.photos, reference: polaroid.reference }] : []),
+    ...(selected.polaroids ? [{ key: 'polaroids', type: 'polaroids', qty: Number(polaroid.quantity) || 0, price: polaroidUnitPrice, lineTotal: pricedPolaroids.total, photos: polaroid.photos, reference: polaroid.reference }] : []),
     ...(selected.frames ? frames.flatMap((group) => (group.configurations ?? []).map((configuration) => { const basePrice = frameOptions.find((option) => option.id === group.optionId)?.price || 0; const designPrice = frameDesigns.find((design) => design.id === configuration.designId)?.price; return { ...configuration, type: 'frame', optionId: group.optionId, quantity: 1, price: designPrice > 0 ? designPrice : basePrice } })) : []),
-    ...(selected.miniMagazines ? miniBooks.map((item) => ({ ...item, type: 'mini-magazine', price: Number(manualCatalog.miniMagazines.unitPrice) })) : []),
+    ...(selected.miniMagazines ? miniBooks.map((item) => { const product = miniProducts.find((row) => row.id === item.productId) ?? miniProducts[0]; return { ...item, type: 'mini-magazine', price: Number(product?.price) || 0, product } }) : []),
     ...(selected.magazines ? magazines.map((item) => ({ ...item, type: 'magazine', price: magazineOptions.find((option) => option.id === item.sizeId)?.price || 0 })) : []),
-    ...(selected.songBooks ? songBooks.map((item) => ({ ...item, type: 'song-book', price: Number(manualCatalog.songBooks.unitPrice) })) : []),
+    ...(selected.songBooks ? songBooks.map((item) => { const book = songProducts.find((row) => row.id === item.productId) ?? songProducts[0]; return { ...item, type: 'song-book', price: Number(book?.price12) || 0, product: book } }) : []),
+    ...(selected.photoStrip ? [{ ...photoStrip, type: 'photo-strip', qty: 1, quantity: Number(photoStrip.quantity) || 1, price: pricedPhotoStrip.total, lineTotal: pricedPhotoStrip.total, design: photoStripDesigns.find((design) => design.id === photoStrip.designId) }] : []),
   ]
-  const productSubtotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.qty ?? item.quantity) || 0), 0)
+  const productSubtotal = items.reduce((sum, item) => sum + (Number(item.lineTotal) || (Number(item.price) || 0) * (Number(item.qty ?? item.quantity) || 0)), 0)
   const hasPolaroids = Boolean(selected.polaroids)
   const hasRushProducts = Boolean(selected.magazines || selected.songBooks)
   const earliest = delivery.area ? minimumDeliveryDate({ area: delivery.area, hasPolaroids }) : ''
@@ -306,9 +339,9 @@ export default function ManualOrderPage() {
         setFrames([group])
         setExpandedFrameKey(group.configurations[0].key)
       } else if (id === 'frames') setExpandedFrameKey(frames[0]?.configurations[0]?.key || '')
-      if (id === 'miniMagazines' && !miniBooks.length) setMiniBooks([makeItem('mini-magazine')])
+      if (id === 'miniMagazines' && !miniBooks.length) setMiniBooks([{ ...makeItem('mini-magazine'), productId: miniProducts[0]?.id || '' }])
       if (id === 'magazines' && !magazines.length) setMagazines([makeItem('magazine')])
-      if (id === 'songBooks' && !songBooks.length) setSongBooks([makeItem('song-book')])
+      if (id === 'songBooks' && !songBooks.length) setSongBooks([{ ...makeItem('song-book'), productId: songProducts[0]?.id || '' }])
     } else if (expandedProduct === id) setExpandedProduct(null)
     setSelected((current) => ({ ...current, [id]: !current[id] }))
   }
@@ -331,11 +364,13 @@ export default function ManualOrderPage() {
     return () => window.cancelAnimationFrame(frame)
   }, [errors, step])
   const cardStartingPrice = (id) => {
-    if (id === 'polaroids') return Number(manualCatalog.polaroids.unitPrice) * Number(manualCatalog.polaroids.minQuantity || 9)
+    if (id === 'polaroids') return polaroidPricing({ ...polaroidProduct, unitPrice: polaroidUnitPrice }, polaroidMinimum).total
     if (id === 'frames') return Math.min(...frameOptions.map((option) => option.price).filter((price) => price > 0), Infinity)
-    if (id === 'miniMagazines') return Number(manualCatalog.miniMagazines.unitPrice)
+    if (id === 'miniMagazines') return Number(miniProducts[0]?.price)
     if (id === 'magazines') return Math.min(...magazineOptions.map((option) => option.price).filter((price) => price > 0), Infinity)
-    return Number(manualCatalog.songBooks.unitPrice)
+    if (id === 'photoStrip') return photoStripPrice ? polaroidPricing(photoStripProduct, 1).total : Infinity
+    if (id === 'songBooks') return Number(songProducts[0]?.price12)
+    return Infinity
   }
   const cardImageUrl = (card) => MEDIA_API && card.imageUpdatedAt ? `${MEDIA_API}/manual-order-cards/${encodeURIComponent(card.id)}?v=${card.imageUpdatedAt}` : ''
   const canAddItems = (id, count) => count < Number(manualCatalog[id]?.maxItems || 20)
@@ -349,8 +384,13 @@ export default function ManualOrderPage() {
     if (selected.magazines && !magazines.length) next.magazinesEmpty = 'Add at least one Magazine or unselect it.'
     if (selected.songBooks && !songBooks.length) next.songBooksEmpty = 'Add at least one Song Book or unselect it.'
     if (selected.polaroids) {
-      if (Number(polaroid.quantity) < Number(manualCatalog.polaroids.minQuantity || 9)) next.polaroidQuantity = `The minimum Polaroid order is ${Number(manualCatalog.polaroids.minQuantity || 9)} pieces.`
+      if (Number(polaroid.quantity) < polaroidMinimum) next.polaroidQuantity = `The minimum Polaroid order is ${polaroidMinimum} pieces.`
       if (polaroid.photos.length !== Number(polaroid.quantity)) next.polaroidPhotos = `Upload exactly ${Number(polaroid.quantity) || 0} photos, one for each Polaroid.`
+    }
+    if (selected.photoStrip) {
+      if (!photoStripDesigns.some((design) => design.id === photoStrip.designId)) next.photoStripDesign = 'Choose an available Photo Strip design.'
+      if (!photoStrip.photos.length) next.photoStripPhotos = 'Add at least one photo for your Photo Strip.'
+      if (!Number.isInteger(Number(photoStrip.quantity)) || Number(photoStrip.quantity) < 1 || Number(photoStrip.quantity) > 9999) next.photoStripQuantity = 'Choose a quantity from 1 to 9999.'
     }
     selected.frames && frames.flatMap((group) => group.configurations.map((configuration) => ({ group, configuration }))).forEach(({ group, configuration }, index) => {
       const key = configuration.key
@@ -361,7 +401,8 @@ export default function ManualOrderPage() {
       if (!configuration.photos.length) next[`frame-${key}-photos`] = `Add at least one print photo for Frame #${index + 1}.`
     })
     selected.miniMagazines && miniBooks.forEach((item, index) => {
-      const limits = miniPhotoLimits(manualCatalog.miniMagazines)
+      const limits = miniLimitsFor(item)
+      if (!miniProductFor(item)) next[`mini-${item.key}-product`] = 'Choose an available Mini Magazine.'
       if (item.photos.length < limits.min || (limits.max && item.photos.length > limits.max)) next[`mini-${item.key}-photos`] = `Mini Magazine #${index + 1} needs ${limits.max ? (limits.max === limits.min ? `${limits.min}` : `${limits.min}–${limits.max}`) : `at least ${limits.min}`} photos.`
       if (!item.photos.some((photo) => photo.id === item.frontId)) next[`mini-${item.key}-front`] = 'Choose a front cover photo.'
       if (!item.photos.some((photo) => photo.id === item.backId)) next[`mini-${item.key}-back`] = 'Choose a back cover photo.'
@@ -375,6 +416,7 @@ export default function ManualOrderPage() {
       if (!item.photos.some((photo) => photo.id === item.backId)) next[`mag-${item.key}-back`] = 'Choose a back cover photo.'
     })
     selected.songBooks && songBooks.forEach((item, index) => {
+      if (!songProductFor(item)) next[`song-${item.key}-product`] = 'Choose an available Song Book.'
       if (!item.songName.trim()) next[`song-${item.key}-name`] = `Add the song name for Song Book #${index + 1}.`
       if (!item.lyrics.trim()) next[`song-${item.key}-lyrics`] = `Add the lyrics for Song Book #${index + 1}.`
       if (item.photos.length < 2) next[`song-${item.key}-photos`] = 'Add at least two photos to choose both covers.'
@@ -386,6 +428,7 @@ export default function ManualOrderPage() {
     if (selected.miniMagazines && miniBooks.length > Number(manualCatalog.miniMagazines.maxItems || 20)) next.miniEmpty = `You can add up to ${manualCatalog.miniMagazines.maxItems} Mini Pocket Magazines to one order.`
     if (selected.magazines && magazines.length > Number(manualCatalog.magazines.maxItems || 20)) next.magazinesEmpty = `You can add up to ${manualCatalog.magazines.maxItems} magazines to one order.`
     if (selected.songBooks && songBooks.length > Number(manualCatalog.songBooks.maxItems || 20)) next.songBooksEmpty = `You can add up to ${manualCatalog.songBooks.maxItems} Song Books to one order.`
+    if (selected.photoStrip && Number(manualCatalog.photoStrip.maxItems || 1) < 1) next.photoStripEmpty = 'Photo Strip is unavailable.'
     return next
   }
   const deliveryErrors = () => {
@@ -482,6 +525,7 @@ export default function ManualOrderPage() {
   const prepareItems = async () => {
     const rows = []
     if (selected.polaroids) rows.push({ type: 'polaroids', item: polaroid })
+    if (selected.photoStrip) rows.push({ type: 'photo-strip', item: { ...photoStrip, quantity: Number(photoStrip.quantity) || 1 } })
     if (selected.frames) rows.push(...frames.flatMap((group) => group.configurations.map((configuration) => ({ type: 'frame', item: { ...configuration, optionId: group.optionId, groupKey: group.key, quantity: 1 } }))))
     if (selected.miniMagazines) rows.push(...miniBooks.map((item) => ({ type: 'mini-magazine', item })))
     if (selected.magazines) rows.push(...magazines.map((item) => ({ type: 'magazine', item })))
@@ -512,7 +556,7 @@ export default function ManualOrderPage() {
         body: JSON.stringify({
           submissionKey: requestKey.current,
           items: preparedItems.map((item) => ({
-            type: item.type, key: item.key, groupKey: item.groupKey || '', quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', designId: item.designId || '', sizeId: item.sizeId || '',
+            type: item.type, key: item.key, groupKey: item.groupKey || '', productId: item.productId || '', quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', designId: item.designId || '', sizeId: item.sizeId || '',
             category: item.category || '', custom: item.custom || {}, notes: item.notes || '', songName: item.songName || '', lyrics: item.lyrics || '',
             photos: item.files, referenceFile: item.referenceFile, frontId: item.frontId || '', backId: item.backId || '',
           })),
@@ -530,7 +574,7 @@ export default function ManualOrderPage() {
   }
 
   if (loading) return <Container className="py-24 text-center text-ink/60">Loading your order options…</Container>
-  if (loadError) return <Container className="py-24 text-center"><p>We could not load product options.</p><button type="button" onClick={() => [productsData.reload(), sizesData.reload(), settingsData.reload(), manualCatalogData.reload(), designsData.reload()]} className="mt-3 text-brand underline">Try again</button></Container>
+  if (loadError) return <Container className="py-24 text-center"><p>We could not load product options.</p><button type="button" onClick={() => [productsData.reload(), miniCatalogData.reload(), songCatalogData.reload(), sizesData.reload(), settingsData.reload(), manualCatalogData.reload(), designsData.reload()]} className="mt-3 text-brand underline">Try again</button></Container>
 
   if (success) return <Container className="py-12 sm:py-20">
     <div className="mx-auto max-w-2xl rounded-3xl border border-sand bg-white p-6 text-center shadow-lg sm:p-10">
@@ -606,7 +650,7 @@ export default function ManualOrderPage() {
             const card = event.target.closest('[data-product-id]')
             if (card) toggleProduct(card.dataset.productId)
           }}>
-            {manualCards.map(({ id, title, icon: Icon, tint, ...card }) => <ProductChoiceCard key={id} id={id} title={title} description={card.description} Icon={Icon} tint={tint} active={Boolean(selected[id])} startingPrice={cardStartingPrice(id)} image={cardImageUrl({ id, ...card })} />)}
+            {manualCards.map(({ id, title, icon: Icon, tint, ...card }) => <ProductChoiceCard key={id} id={id} title={title} description={card.description} Icon={Icon} tint={tint} active={Boolean(selected[id])} startingPrice={cardStartingPrice(id)} image={['polaroids', 'photoStrip', 'miniMagazines', 'songBooks'].includes(id) ? card.image : cardImageUrl({ id, ...card })} />)}
           </div>
           {errors.products && <p className="mt-3 text-sm text-red-700">{errors.products}</p>}
         </SectionCard>
@@ -615,16 +659,28 @@ export default function ManualOrderPage() {
       </div>}
 
       {step === 1 && <div className="space-y-7">
-        {selected.polaroids && <ProductSectionCard id="polaroids" title={manualCatalog.polaroids.title} subtitle={`Classic photo prints · ${formatPrice(manualCatalog.polaroids.unitPrice)} each · minimum ${manualCatalog.polaroids.minQuantity || 9}`} expanded={expandedProduct === 'polaroids'} onToggle={() => setExpandedProduct((current) => current === 'polaroids' ? null : 'polaroids')}>
+        {selected.polaroids && <ProductSectionCard id="polaroids" title={polaroidProduct?.name || manualCatalog.polaroids.title} subtitle={`Classic photo prints · ${formatPrice(polaroidUnitPrice)} each · minimum ${polaroidMinimum}`} expanded={expandedProduct === 'polaroids'} onToggle={() => setExpandedProduct((current) => current === 'polaroids' ? null : 'polaroids')}>
           <div className="grid gap-5 sm:grid-cols-[1fr_2fr] sm:items-end">
             {field('How many Polaroids?', polaroid.quantity, (value) => setPolaroid((current) => ({ ...current, quantity: value, photos: Number(value) > 0 ? current.photos.slice(0, Number(value)) : current.photos })), { type: 'number', required: true, error: errors.polaroidQuantity })}
-            <div className="rounded-xl bg-cream px-4 py-3 text-sm">{formatPrice((Number(polaroid.quantity) || 0) * Number(manualCatalog.polaroids.unitPrice))} <span className="text-ink/55">· {Number(polaroid.quantity) || 0} prints Ã— {formatPrice(manualCatalog.polaroids.unitPrice)}</span></div>
+            <div className="rounded-xl bg-cream px-4 py-3 text-sm">{formatPrice(pricedPolaroids.total)} <span className="text-ink/55">· {Number(polaroid.quantity) || 0} prints{pricedPolaroids.saving ? ` · offer saves ${formatPrice(pricedPolaroids.saving)}` : ` × ${formatPrice(polaroidUnitPrice)}`}</span></div>
           </div>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <UploadPicker title="Photos for your Polaroids" files={polaroid.photos} onChange={(photos) => setPolaroid({ ...polaroid, photos })} max={Math.max(1, Number(polaroid.quantity) || 1)} help={`Add exactly one photo for each Polaroid (${Number(polaroid.quantity) || 0} pieces).`} error={errors.polaroidPhotos} />
             <UploadPicker title="Polaroid design reference (optional)" files={polaroid.reference ? [polaroid.reference] : []} onChange={(reference) => setPolaroid({ ...polaroid, reference: reference[0] ?? null })} multiple={false} help="A screenshot or sample style you would like us to follow." />
           </div>
           <label className="mt-5 block"><span className="mb-1.5 block text-sm font-medium">Print notes (optional)</span><textarea rows="2" value={polaroid.notes || ''} onChange={(event) => setPolaroid({ ...polaroid, notes: event.target.value })} className={inputClass} placeholder="Captions, order of photos, or any special request" /></label>
+        </ProductSectionCard>}
+
+        {selected.photoStrip && <ProductSectionCard id="photoStrip" title={photoStripProduct?.name || 'Photo Strip'} subtitle={`${formatPrice(photoStripPrice)} each · choose one catalog design and upload your photos`} expanded={expandedProduct === 'photoStrip'} onToggle={() => setExpandedProduct((current) => current === 'photoStrip' ? null : 'photoStrip')}>
+          <div className="grid gap-5 sm:grid-cols-[1fr_2fr] sm:items-end">
+            {field('Number of strips', photoStrip.quantity, (quantity) => setPhotoStrip((current) => ({ ...current, quantity })), { type: 'number', required: true, error: errors.photoStripQuantity })}
+            <div className="rounded-xl bg-cream px-4 py-3 text-sm">{formatPrice(pricedPhotoStrip.total)}{pricedPhotoStrip.saving > 0 && <span className="ml-2 text-green-700">· combo saves {formatPrice(pricedPhotoStrip.saving)}</span>}</div>
+          </div>
+          <div className="mt-5"><p className="text-sm font-medium">Choose a Photo Strip design <span className="text-brand">*</span></p>
+            {photoStripDesigns.length ? <div role="radiogroup" aria-label="Photo Strip designs" className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-2">{photoStripDesigns.map((design, index) => { const active = photoStrip.designId === design.id; return <div key={design.id} className={`relative w-[76px] shrink-0 overflow-hidden rounded-lg border-2 bg-white sm:w-20 ${active ? 'border-brand shadow-sm' : 'border-sand'}`}><button type="button" role="radio" aria-checked={active} aria-label={design.name || `Photo Strip design ${index + 1}`} onClick={() => setPhotoStrip((current) => ({ ...current, designId: design.id }))} className="block w-full text-left"><img src={design.image} alt={design.name || 'Photo Strip design'} loading="lazy" className="aspect-square w-full object-cover" />{design.name && <span className="block truncate px-1 py-1 text-[10px] font-medium">{design.name}</span>}</button>{active && <span className="absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-brand text-white"><Check size={12} /></span>}<button type="button" aria-label={`View ${design.name || 'Photo Strip design'} larger`} onClick={() => setPreviewDesign(design)} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-ink shadow-sm"><Eye size={13} /></button></div>})}</div> : <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-sm text-ink/65">No Photo Strip designs are currently available.</p>}
+            {errors.photoStripDesign && <p className="mt-1 text-xs text-red-700">{errors.photoStripDesign}</p>}
+          </div>
+          <div className="mt-5 grid gap-5 lg:grid-cols-2"><UploadPicker title="Photos for your Photo Strip" files={photoStrip.photos} onChange={(photos) => setPhotoStrip((current) => ({ ...current, photos }))} help="Upload the pictures you want arranged in the selected design." error={errors.photoStripPhotos} /><label className="block"><span className="mb-1.5 block text-sm font-medium">Notes (optional)</span><textarea rows="3" value={photoStrip.notes} onChange={(event) => setPhotoStrip((current) => ({ ...current, notes: event.target.value }))} className={inputClass} placeholder="Any instructions for the design" /></label></div>
         </ProductSectionCard>}
 
         {selected.frames && <ProductSectionCard id="frames" title={manualCatalog.frames.title} subtitle="Set a size and quantity, then choose a separate design and photos for each frame" expanded={expandedProduct === 'frames'} onToggle={() => setExpandedProduct((current) => current === 'frames' ? null : 'frames')}>
@@ -668,16 +724,19 @@ export default function ManualOrderPage() {
           <button type="button" disabled={!canAddItems('frames', frames.reduce((count, group) => count + group.configurations.length, 0))} onClick={addFrameGroup} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('frames', frames.reduce((count, group) => count + group.configurations.length, 0)) ? 'Add another frame' : 'Frame item limit reached'}</button>
         </ProductSectionCard>}
 
-        {selected.miniMagazines && <ProductSectionCard id="miniMagazines" title={`${manualCatalog.miniMagazines.title}s`} subtitle={`${formatPrice(manualCatalog.miniMagazines.unitPrice)} each · up to 8 photos per item`} expanded={expandedProduct === 'miniMagazines'} onToggle={() => setExpandedProduct((current) => current === 'miniMagazines' ? null : 'miniMagazines')}>
+        {selected.miniMagazines && <ProductSectionCard id="miniMagazines" title="Mini Pocket Magazines" subtitle="Choose from the live Mini Magazine catalog. Prices and photo limits update with each product." expanded={expandedProduct === 'miniMagazines'} onToggle={() => setExpandedProduct((current) => current === 'miniMagazines' ? null : 'miniMagazines')}>
           <div className="space-y-4">{miniBooks.map((item, index) => {
             const photoErrors = galleryErrors('mini', item)
+            const product = miniProductFor(item)
+            const limits = miniLimitsFor(item)
             return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-4 sm:p-5">
-              <ItemHeader title={`Mini Magazine #${index + 1}`} onRemove={() => removeProductItem(setMiniBooks, miniBooks, 'miniMagazines', item.key)} />
-              <UploadPicker title="Photos for this mini magazine" files={item.photos} onChange={(photos) => setMiniBooks((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} max={miniPhotoLimits(manualCatalog.miniMagazines).max || Infinity} help={`Choose front and back directly under each photo. ${miniPhotoLimits(manualCatalog.miniMagazines).max ? `Add ${miniPhotoLimits(manualCatalog.miniMagazines).min} to ${miniPhotoLimits(manualCatalog.miniMagazines).max} photos.` : `Add at least ${miniPhotoLimits(manualCatalog.miniMagazines).min} photos, no upper limit.`}`} error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setMiniBooks, item.key, key, value)} />
+              <ItemHeader title={`${product?.title || 'Mini Magazine'} #${index + 1}`} onRemove={() => removeProductItem(setMiniBooks, miniBooks, 'miniMagazines', item.key)} />
+              <div className="mb-4 grid gap-3 sm:grid-cols-2"><label className="block text-sm font-medium">Mini Magazine<select value={item.productId || ''} onChange={(event) => updateList(setMiniBooks, item.key, 'productId', event.target.value)} className={`${inputClass} mt-1`}><option value="">Choose a product</option>{miniProducts.map((row) => <option key={row.id} value={row.id}>{row.title} · {formatPrice(row.price)}</option>)}</select></label><div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">Current catalog price</span><p className="mt-1 font-semibold text-brand">{formatPrice(product?.price || 0)}</p></div></div>
+              <UploadPicker title="Photos for this mini magazine" files={item.photos} onChange={(photos) => setMiniBooks((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} max={limits.max || Infinity} help={`Choose front and back directly under each photo. ${limits.max ? `Add ${limits.min} to ${limits.max} photos.` : `Add at least ${limits.min} photos, no upper limit.`}`} error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setMiniBooks, item.key, key, value)} />
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setMiniBooks, item.key, 'notes', event.target.value)} className={inputClass} /></label>
             </div>
           })}</div>
-          <button type="button" disabled={!canAddItems('miniMagazines', miniBooks.length)} onClick={() => addItem(setMiniBooks, 'mini-magazine')} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('miniMagazines', miniBooks.length) ? 'Add another Mini Magazine' : 'Mini Magazine item limit reached'}</button>
+          <button type="button" disabled={!canAddItems('miniMagazines', miniBooks.length)} onClick={() => addItem(setMiniBooks, 'mini-magazine', { productId: miniProducts[0]?.id || '' })} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('miniMagazines', miniBooks.length) ? 'Add another Mini Magazine' : 'Mini Magazine item limit reached'}</button>
         </ProductSectionCard>}
 
         {selected.magazines && <ProductSectionCard id="magazines" title={`${manualCatalog.magazines.title}s`} subtitle="A4/A5 · page count, category, and photos per item" expanded={expandedProduct === 'magazines'} onToggle={() => setExpandedProduct((current) => current === 'magazines' ? null : 'magazines')}>
@@ -703,19 +762,20 @@ export default function ManualOrderPage() {
           <button type="button" disabled={!canAddItems('magazines', magazines.length)} onClick={() => addItem(setMagazines, 'magazine', { sizeId: a4Sizes.find((size) => size.pages === 8)?.id || a4Sizes[0]?.id || '' })} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('magazines', magazines.length) ? 'Add another Magazine' : 'Magazine item limit reached'}</button>
         </ProductSectionCard>}
 
-        {selected.songBooks && <ProductSectionCard id="songBooks" title={`${manualCatalog.songBooks.title}s`} subtitle={`12 pages · ${formatPrice(manualCatalog.songBooks.unitPrice)} each · song and photos per book`} expanded={expandedProduct === 'songBooks'} onToggle={() => setExpandedProduct((current) => current === 'songBooks' ? null : 'songBooks')}>
+        {selected.songBooks && <ProductSectionCard id="songBooks" title="Song Books" subtitle="Choose a book design from the catalog. Its current price is shown for each order." expanded={expandedProduct === 'songBooks'} onToggle={() => setExpandedProduct((current) => current === 'songBooks' ? null : 'songBooks')}>
           <div className="space-y-4">{songBooks.map((item, index) => {
             const photoErrors = galleryErrors('song', item)
+            const book = songProductFor(item)
             return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-4 sm:p-5">
-              <ItemHeader title={`Song Book #${index + 1}`} onRemove={() => removeProductItem(setSongBooks, songBooks, 'songBooks', item.key)} />
-              <div className="mb-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-cream px-3 py-1.5">12 pages</span><span className="rounded-full bg-cream px-3 py-1.5">{formatPrice(manualCatalog.songBooks.unitPrice)}</span></div>
+              <ItemHeader title={`${book?.title || 'Song Book'} #${index + 1}`} onRemove={() => removeProductItem(setSongBooks, songBooks, 'songBooks', item.key)} />
+              <div className="mb-4 grid gap-3 sm:grid-cols-2"><label className="block text-sm font-medium">Song Book design<select value={item.productId || ''} onChange={(event) => updateList(setSongBooks, item.key, 'productId', event.target.value)} className={`${inputClass} mt-1`}><option value="">Choose a Song Book</option>{songProducts.map((row) => <option key={row.id} value={row.id}>{row.title} · {formatPrice(row.price12)}</option>)}</select></label><div className="rounded-xl bg-cream px-4 py-3 text-sm"><span className="text-xs text-ink/55">12-page catalog price</span><p className="mt-1 font-semibold text-brand">{formatPrice(book?.price12 || 0)}</p></div></div>
               {field('Song name', item.songName, (value) => updateList(setSongBooks, item.key, 'songName', value), { required: true, error: errors[`song-${item.key}-name`] })}
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Song lyrics <span className="text-brand">*</span></span><textarea rows="6" value={item.lyrics} onChange={(event) => updateList(setSongBooks, item.key, 'lyrics', event.target.value)} className={inputClass} placeholder="Paste the lyrics for this song" /><span className="mt-1 block text-xs text-ink/50">Around 60–80 words works well in the layout. Longer lyrics are welcome too.</span>{errors[`song-${item.key}-lyrics`] && <span className="mt-1 block text-xs text-red-700">{errors[`song-${item.key}-lyrics`]}</span>}</label>
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Additional notes (optional)</span><textarea rows="2" value={item.notes} onChange={(event) => updateList(setSongBooks, item.key, 'notes', event.target.value)} className={inputClass} /></label>
               <div className="mt-5"><UploadPicker title="Photos for this Song Book" files={item.photos} onChange={(photos) => setSongBooks((list) => list.map((row) => row.key === item.key ? { ...row, photos, frontId: photos.some((photo) => photo.id === row.frontId) ? row.frontId : '', backId: photos.some((photo) => photo.id === row.backId) ? row.backId : '' } : row))} help="Choose front and back directly under each photo." error={photoErrors.photos || photoErrors.front || photoErrors.back} frontId={item.frontId} backId={item.backId} onCoverChange={(key, value) => updateList(setSongBooks, item.key, key, value)} /></div>
             </div>
           })}</div>
-          <button type="button" disabled={!canAddItems('songBooks', songBooks.length)} onClick={() => addItem(setSongBooks, 'song-book')} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('songBooks', songBooks.length) ? 'Add another Song Book' : 'Song Book item limit reached'}</button>
+          <button type="button" disabled={!canAddItems('songBooks', songBooks.length)} onClick={() => addItem(setSongBooks, 'song-book', { productId: songProducts[0]?.id || '' })} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('songBooks', songBooks.length) ? 'Add another Song Book' : 'Song Book item limit reached'}</button>
         </ProductSectionCard>}
         {(errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty) && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty}</p>}
         <div className="flex items-center justify-between gap-4 rounded-2xl bg-brand px-5 py-4 text-white"><span className="text-sm text-white/75">Current product subtotal</span><strong className="text-xl">{formatPrice(productSubtotal)}</strong></div>
@@ -761,12 +821,13 @@ export default function ManualOrderPage() {
         <SectionCard title="Review your order" subtitle="Check every item, customization, and delivery charge before sending it to our team.">
           <div className="divide-y divide-sand">{items.map((item, index) => {
             let title = ''; let option = ''; let unitPrice = item.price || 0; let quantity = Number(item.quantity ?? item.qty ?? 1)
-            if (item.type === 'polaroids') { title = manualCatalog.polaroids.title; option = `${quantity} prints · ${formatPrice(manualCatalog.polaroids.unitPrice)} each` }
+            if (item.type === 'polaroids') { title = polaroidProduct?.name || manualCatalog.polaroids.title; option = `${quantity} prints · ${formatPrice(polaroidUnitPrice)} each${pricedPolaroids.applied ? ` · offer ${pricedPolaroids.applied.pieces}+` : ''}` }
+            if (item.type === 'photo-strip') { title = photoStripProduct?.name || 'Photo Strip'; option = `${quantity} strips · ${item.design?.name || 'Design selected'}${pricedPhotoStrip.applied ? ` · offer ${pricedPhotoStrip.applied.pieces}+` : ''}` }
             if (item.type === 'frame') { const design = frameDesigns.find((row) => row.id === item.designId); title = `Frame #${index + 1}`; option = [item.optionId, design?.name].filter(Boolean).join(' · '); unitPrice = design?.price > 0 ? design.price : frameOptions.find((row) => row.id === item.optionId)?.price || 0 }
-            if (item.type === 'mini-magazine') { title = manualCatalog.miniMagazines.title; option = '8 pages' }
+            if (item.type === 'mini-magazine') { title = item.product?.title || 'Mini Pocket Magazine'; option = '8 pages'; unitPrice = Number(item.product?.price) || 0 }
             if (item.type === 'magazine') { title = `${manualCatalog.magazines.title} #${index + 1}`; const size = magazineOptions.find((row) => row.id === item.sizeId); option = size ? `${size.format} · ${size.pages} pages · ${item.category}` : item.category; unitPrice = size?.price || 0 }
-            if (item.type === 'song-book') { title = `${manualCatalog.songBooks.title} #${index + 1}`; option = `12 pages · ${item.songName}` }
-            return <div key={item.key} className="py-4 first:pt-0 last:pb-0"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-ink/55">{option}</p>{item.type === 'magazine' && <p className="mt-1 text-xs text-ink/60">{Object.entries(item.custom).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{item.type === 'song-book' && <p className="mt-1 line-clamp-2 text-xs text-ink/60">{item.lyrics}</p>}<ReviewPhotoGallery photos={item.photos} frontId={item.frontId} backId={item.backId} />{item.reference && <p className="mt-2 text-xs text-ink/55">Design reference: {item.reference.file.name}</p>}</div><p className="shrink-0 font-semibold">{formatPrice(unitPrice * quantity)}</p></div></div>
+            if (item.type === 'song-book') { title = `${item.product?.title || 'Song Book'} #${index + 1}`; option = `12 pages · ${item.songName}`; unitPrice = Number(item.product?.price12) || 0 }
+            return <div key={item.key} className="py-4 first:pt-0 last:pb-0"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-ink/55">{option}</p>{item.type === 'magazine' && <p className="mt-1 text-xs text-ink/60">{Object.entries(item.custom).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{item.type === 'song-book' && <p className="mt-1 line-clamp-2 text-xs text-ink/60">{item.lyrics}</p>}{item.type === 'photo-strip' && item.notes && <p className="mt-1 text-xs text-ink/60">{item.notes}</p>}<ReviewPhotoGallery photos={item.photos} frontId={item.frontId} backId={item.backId} />{item.reference && <p className="mt-2 text-xs text-ink/55">Design reference: {item.reference.file.name}</p>}</div><p className="shrink-0 font-semibold">{formatPrice(item.lineTotal ?? unitPrice * quantity)}</p></div></div>
           })}</div>
         </SectionCard>
         <SectionCard title="Delivery & contact">

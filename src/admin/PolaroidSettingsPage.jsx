@@ -1,5 +1,5 @@
 import ItemManager from './ItemManager'
-import { polaroidProductsApi } from '../shared/services/contentService'
+import { polaroidCatalogApi } from '../shared/services/contentService'
 
 const packProblem = (packs) => {
   const rows = Array.isArray(packs) ? packs : []
@@ -9,7 +9,7 @@ const packProblem = (packs) => {
 }
 
 export default function PolaroidSettingsPage() {
-  return <ItemManager title="Polaroids" note="Each item appears on /polaroids as its own card. Customers choose one, then upload one photo for every piece." api={polaroidProductsApi} fields={[
+  return <ItemManager title="Polaroids" note="Each item appears on /polaroids as its own card. Customers choose one, then upload one photo for every piece. This is the single catalog for Polaroid names, prices, offers and images." api={polaroidCatalogApi} fields={[
     { name: 'title', label: 'Polaroid title', required: true },
     { name: 'image', label: 'Cover image', type: 'image', required: true },
     { name: 'unitPrice', label: 'Price per Polaroid (BDT) - used when no offers are added', type: 'number', required: true },

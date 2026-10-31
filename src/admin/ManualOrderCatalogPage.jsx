@@ -4,7 +4,7 @@ import Button from '../shared/ui/Button'
 import useAsync from '../shared/hooks/useAsync'
 import { inputClass } from './classes'
 import { adminAuth } from '../shared/services/firebaseClient'
-import { getManualOrderCatalog, manualOrderCatalogApi, productsApi, sizesApi } from '../shared/services/contentService'
+import { getManualOrderCatalog, manualOrderCatalogApi, getMiniMagazines, getProducts, getSongBooks, sizesApi } from '../shared/services/contentService'
 import { Link } from 'react-router-dom'
 import { mergeManualOrderCatalog } from '../pages/manual-order/catalog'
 import { parseOptions } from '../shared/utils/options'
@@ -96,8 +96,8 @@ function CardImage({ card, onChange }) {
 
 export default function ManualOrderCatalogPage() {
   const { data, loading, error: loadError, reload } = useAsync(async () => {
-    const [catalog, products, sizes] = await Promise.all([getManualOrderCatalog(), productsApi.list(), sizesApi.list()])
-    return { catalog: mergeManualOrderCatalog(catalog), products, sizes }
+    const [catalog, products, sizes, miniProducts, songBooks] = await Promise.all([getManualOrderCatalog(), getProducts(), sizesApi.list(), getMiniMagazines(), getSongBooks()])
+    return { catalog: mergeManualOrderCatalog(catalog), products, sizes, miniProducts, songBooks }
   })
   const [catalog, setCatalog] = useState(null)
   const [frameProduct, setFrameProduct] = useState(null)
@@ -144,10 +144,6 @@ export default function ManualOrderCatalogPage() {
       setMessage('Add a title, card position, and an item limit from 1 to 80 for each product.')
       return
     }
-    if (Object.values(catalog).some((card) => ['polaroids', 'miniMagazines', 'songBooks'].includes(card.id) && (!Number.isFinite(Number(card.unitPrice)) || Number(card.unitPrice) < 1))) {
-      setMessage('Product prices must be at least ৳1.')
-      return
-    }
     if (Object.values(catalog).some((card) => card.id === 'frames' && (!Number.isInteger(Number(card.maxQuantity)) || Number(card.maxQuantity) < 1 || Number(card.maxQuantity) > 80))) {
       setMessage('Maximum frame quantity must be from 1 to 80.')
       return
@@ -181,21 +177,17 @@ export default function ManualOrderCatalogPage() {
         <label className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-cream px-3 text-sm font-medium"><input type="checkbox" checked={Boolean(card.enabled)} onChange={(event) => updateCard(card.id, { enabled: event.target.checked })} /> Available</label>
       </div>
       <div className="grid gap-5 md:grid-cols-[minmax(220px,0.8fr)_1.2fr]">
-        <CardImage card={card} onChange={(next) => updateCard(card.id, next)} />
+        {['polaroids', 'photoStrip', 'miniMagazines', 'songBooks'].includes(card.id) ? <div><div className="relative aspect-[1.7/1] overflow-hidden rounded-xl border border-sand bg-cream">{(card.id === 'photoStrip' ? data.products.find((product) => product.id === 'photo-strip')?.image : card.id === 'polaroids' ? data.products.find((product) => product.id === 'polaroids')?.image : card.id === 'miniMagazines' ? data.miniProducts[0]?.image : data.songBooks[0]?.image) ? <img src={card.id === 'photoStrip' ? data.products.find((product) => product.id === 'photo-strip')?.image : card.id === 'polaroids' ? data.products.find((product) => product.id === 'polaroids')?.image : card.id === 'miniMagazines' ? data.miniProducts[0]?.image : data.songBooks[0]?.image} alt={`${card.title} card preview`} className="size-full object-cover" /> : <div className="grid h-full place-items-center text-sm text-ink/45">Set the product image in its catalog</div>}</div><p className="mt-2 text-xs text-ink/55">Product image is managed in its catalog.</p></div> : <CardImage card={card} onChange={(next) => updateCard(card.id, next)} />}
         <div className="grid content-start gap-4 sm:grid-cols-2">
-          <Input label="Card title" value={card.title} onChange={(title) => updateCard(card.id, { title })} />
+          {![ 'polaroids', 'photoStrip', 'miniMagazines', 'songBooks' ].includes(card.id) && <Input label="Card title" value={card.title} onChange={(title) => updateCard(card.id, { title })} />}
           <Input label="Card position" type="number" min="1" max="5" value={card.order} onChange={(order) => updateCard(card.id, { order })} />
-          <Input label="Short description" value={card.description} onChange={(description) => updateCard(card.id, { description })} />
+          {![ 'polaroids', 'photoStrip', 'miniMagazines', 'songBooks' ].includes(card.id) && <Input label="Short description" value={card.description} onChange={(description) => updateCard(card.id, { description })} />}
           <Input label="Maximum separate items per order" type="number" min="1" max="80" value={card.maxItems} onChange={(maxItems) => updateCard(card.id, { maxItems })} hint="For repeated items such as magazines and song books." />
-          {['polaroids', 'miniMagazines', 'songBooks'].includes(card.id) && <Input label={card.id === 'polaroids' ? 'Price per Polaroid' : 'Price per item'} type="number" min="1" value={card.unitPrice} onChange={(unitPrice) => updateCard(card.id, { unitPrice })} />}
-          {card.id === 'miniMagazines' && <>
-            <Input label="Minimum photos per magazine" type="number" min="2" value={card.minPhotos} onChange={(minPhotos) => updateCard(card.id, { minPhotos })} hint="At least 2 (front and back cover)." />
-            <Input label="Maximum photos per magazine" type="number" min="0" value={card.maxPhotos} onChange={(maxPhotos) => updateCard(card.id, { maxPhotos })} hint="Leave 0 for no upper limit." />
-          </>}
           {card.id === 'frames' && <Input label="Maximum quantity per frame size" type="number" min="1" max="80" value={card.maxQuantity} onChange={(maxQuantity) => updateCard(card.id, { maxQuantity })} />}
         </div>
       </div>
-      {card.id === 'polaroids' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Minimum quantity remains 9 Polaroids. Customers see the updated per-piece price and subtotal.</p>}
+      {card.id === 'polaroids' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Price, minimum quantity and combo offers are read from the Polaroids catalog.</p>}
+      {card.id === 'photoStrip' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Name, image, price and designs are read from the Photo Strip catalog. Availability is controlled there.</p>}
       {card.id === 'frames' && <div className="mt-6 border-t border-sand pt-5"><h3 className="font-semibold">Frame sizes and prices</h3><p className="mt-1 text-xs text-ink/55">Sizes, prices and designs come from Frame settings, so you only add them once.</p><Link to="/admin/frame-settings" className="mt-2 inline-block text-sm font-semibold text-brand underline">Edit in Frame settings</Link></div>}
       {card.id === 'magazines' && <div className="mt-6 border-t border-sand pt-5">
         <div className="mb-3"><h3 className="font-semibold">Magazine page prices</h3><p className="mt-1 text-xs text-ink/55">Set a price for each supported page count. Set a price to 0 to hide that option.</p></div>
@@ -204,8 +196,8 @@ export default function ManualOrderCatalogPage() {
           <span className="relative"><span className="absolute left-3 top-2.5 text-ink/45">৳</span><input type="number" min="0" aria-label={`${size.format} ${size.pages} pages price`} value={size.price} onChange={(event) => updateSize(size.id, { price: Number(event.target.value) })} className={`${inputClass} pl-8`} /></span>
         </label>)}</div>
       </div>}
-      {card.id === 'miniMagazines' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">The photo limits above apply to every separate Mini Pocket Magazine. The price is applied once to each magazine.</p>}
-      {card.id === 'songBooks' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Each Song Book remains 12 pages. The price above is applied once to every separate book.</p>}
+      {card.id === 'miniMagazines' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Names, images, prices and photo limits come from each Mini Magazine's catalog.</p>}
+      {card.id === 'songBooks' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Names, images and page prices come from each Song Book's catalog.</p>}
     </section>)}
 
     {message && <p role="status" className={`rounded-xl p-3 text-sm ${message.startsWith('Saved.') ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'}`}>{message}</p>}

@@ -41,8 +41,16 @@ const SONG_BOOK_TILE_MIGRATION_KEY = 'moreProductsSongBookSeeded'
 const MINI_TILE_ID = 'mini-magazines'
 const MINI_TILE_MIGRATION_KEY = 'moreProductsMiniMagazineSeeded'
 const isMiniTile = (item) => item.id === MINI_TILE_ID || item.to === '/mini-magazines'
+const isPhotoStripTile = (item) => item.id === 'photo-strip' || ['/photo-strip', '/products/photo-strip'].includes(String(item.to || '').replace(/\/+$/, ''))
 export const moreProductsApi = {
   ...moreProductsCollection,
+  save: async (item) => {
+    const items = await moreProductsCollection.list()
+    if (isPhotoStripTile(item) && items.some((existing) => existing.id !== item.id && isPhotoStripTile(existing))) {
+      throw new Error('Photo Strip can appear only once on the home page.')
+    }
+    return moreProductsCollection.save(isPhotoStripTile(item) ? { ...item, to: '/photo-strip' } : item)
+  },
   list: async () => {
     let items = await moreProductsCollection.list()
     if (!(await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false))) {
@@ -69,7 +77,30 @@ export const moreProductsApi = {
         }
       }
     }
-    return items
+    const [shop, frames, polaroids] = await Promise.all([
+      productsApi.list().catch(() => []),
+      getFrameProducts().catch(() => []),
+      getPolaroidProducts().catch(() => []),
+    ])
+    let photoStripSeen = false
+    return items.map((tile) => {
+      if (isPhotoStripTile(tile)) {
+        if (photoStripSeen) return null
+        photoStripSeen = true
+        tile = { ...tile, to: '/photo-strip' }
+      }
+      const path = String(tile.to || '').replace(/\/+$/, '')
+      const product = shop.find((item) => path === `/${item.id}` || path === `/products/${item.id}`)
+      const canonical = path === '/frame' ? frames[0] : path === '/polaroids' ? polaroids[0] : product
+      return canonical ? { ...tile, name: canonical.title || canonical.name || tile.name, image: canonical.image || tile.image } : tile
+    }).filter((tile) => {
+      if (!tile) return false
+      const path = String(tile.to || '').replace(/\/+$/, '')
+      if (path === '/sticker' || path === '/products/sticker') return shop.some((item) => item.id === 'sticker')
+      if (path !== '/photo-strip' && path !== '/products/photo-strip') return true
+      const product = shop.find((item) => item.id === 'photo-strip')
+      return Array.isArray(product?.designs) && product.designs.some((design) => design?.id && design.image)
+    })
   },
 }
 const magazinesCollection = collection('magazines', magazines)
@@ -130,7 +161,28 @@ const sizesCollection = collection('printSizes', SIZES, (items) =>
 )
 export const sizesApi = { ...sizesCollection, saveAll: (items) => store.set('printSizes', items) }
 export const occasionsApi = collection('occasions', OCCASIONS, (items) => [...items].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)))
-export const productsApi = collection('products', products)
+const storedProductsApi = collection('products', products)
+const CONFIGURABLE_PRODUCT_KEYS = { 'photo-strip': 'photoStripConfigured', sticker: 'stickerConfigured' }
+export const productsApi = {
+  ...storedProductsApi,
+  list: async () => {
+    const items = await storedProductsApi.list()
+    const configured = Object.fromEntries(await Promise.all(Object.entries(CONFIGURABLE_PRODUCT_KEYS).map(async ([id, key]) => [id, await store.get(key, false)])))
+    return items.filter((item) => !CONFIGURABLE_PRODUCT_KEYS[item.id] || configured[item.id])
+  },
+  save: async (item) => {
+    const result = await storedProductsApi.save(item)
+    const key = CONFIGURABLE_PRODUCT_KEYS[item.id]
+    if (key) await store.set(key, true)
+    return result
+  },
+  remove: async (id) => {
+    const result = await storedProductsApi.remove(id)
+    const key = CONFIGURABLE_PRODUCT_KEYS[id]
+    if (key) await store.set(key, false)
+    return result
+  },
+}
 export const frameProductsApi = collection('frameProducts', frameProducts, (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
 export const addonsApi = collection('addons', addons)
 const localOrdersApi = collection('orders', [], (items) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
@@ -427,19 +479,34 @@ export const getBestSelling = bestSellingApi.list
 // Cards that point at a shop product (/frame, /polaroids, /sticker, /photo-strip) always show that product's current
 // name and image, so they are edited once in Admin > Shop Products.
 export const getMoreProducts = async () => {
-  const [items, shop] = await Promise.all([moreProductsApi.list(), productsApi.list().catch(() => [])])
-  return items.map((tile) => {
-    const path = String(tile.to || '').replace(/\/+$/, '')
-    const product = shop.find((item) => path === `/${item.id}` || path === `/products/${item.id}`)
-    return product ? { ...tile, name: product.name || tile.name, image: product.image || tile.image } : tile
-  })
+  return moreProductsApi.list()
 }
 export const getMagazines = magazinesApi.list
 // Customers only see sizes that have a price.
 export const getSizes = async () => (await sizesApi.list()).filter((s) => s.price > 0)
 export const getOccasions = async () => (await occasionsApi.list()).filter((o) => o.status !== 'Inactive')
-export const getProducts = productsApi.list
-export const getProduct = async (id) => (await productsApi.list()).find((p) => p.id === id) ?? null
+export const withPhotoStripPricing = (product) => {
+  if (!product || product.id !== 'photo-strip' || Number(product.unitPrice) > 0) return product
+  const oldOptions = parseOptions(product.options)
+  if (!oldOptions.length) return { ...product, packs: Array.isArray(product.packs) ? product.packs : [] }
+  const quantities = oldOptions.map((option) => Number(option.label.match(/\d+/)?.[0]) || 1)
+  return {
+    ...product,
+    unitPrice: Math.max(1, Math.round(oldOptions[0].price / quantities[0])),
+    packs: oldOptions.slice(1).map((option, index) => ({ id: `legacy-${quantities[index + 1]}`, pieces: quantities[index + 1], price: option.price, tag: option.tag || '' })),
+  }
+}
+export const getProducts = async () => {
+  const [items, frames, polaroids] = await Promise.all([productsApi.list(), getFrameProducts(), getPolaroidProducts()])
+  const firstFrame = frames[0]
+  const firstPolaroid = polaroids[0]
+  return items.map((product) => product.id === 'frame' && firstFrame
+    ? { ...product, name: firstFrame.title || product.name, image: firstFrame.image || product.image }
+    : product.id === 'polaroids' && firstPolaroid
+      ? { ...product, name: firstPolaroid.title || product.name, image: firstPolaroid.image || product.image, unitPrice: firstPolaroid.unitPrice, minQuantity: firstPolaroid.minQuantity, packs: firstPolaroid.packs ?? [] }
+      : product.id === 'photo-strip' ? withPhotoStripPricing(product) : product)
+}
+export const getProduct = async (id) => (await getProducts()).find((p) => p.id === id) ?? null
 // All designs uploaded in Admin > Frames, de-duplicated; used by the guest/manual order form.
 export const getFrameDesigns = async () => {
   const seen = new Map()
@@ -453,14 +520,58 @@ export const getFrameDesigns = async () => {
   return [...seen.values()]
 }
 export const polaroidProductsApi = collection('polaroidProducts', [], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
-export const getPolaroidProducts = async () => (await polaroidProductsApi.list()).filter((item) => item.status !== 'Inactive')
+const POLAROID_CATALOG_MIGRATED_KEY = 'polaroidCatalogManaged'
+const legacyPolaroidCatalogItem = async () => {
+  if (await store.get(POLAROID_CATALOG_MIGRATED_KEY, false)) return null
+  const product = (await productsApi.list()).find((item) => item.id === 'polaroids')
+  if (!product) return null
+  const packs = parseOptions(product.options).flatMap((option) => {
+    const pieces = Number(String(option.label).match(/\d+/)?.[0])
+    return Number.isInteger(pieces) && pieces > 0 ? [{ id: `pack-${pieces}`, pieces, price: option.price, tag: option.tag }] : []
+  })
+  return { id: 'polaroids', title: product.name || 'Polaroids', image: product.image || '', description: product.description || '', unitPrice: Number(product.unitPrice) || 8, minQuantity: Number(product.minQuantity) || 9, packs, status: product.status === 'Coming soon' ? 'Inactive' : 'Available', order: 10 }
+}
+export const getPolaroidProducts = async () => {
+  const items = await polaroidProductsApi.list()
+  if (items.length) return items.filter((item) => item.status !== 'Inactive')
+  const legacy = await legacyPolaroidCatalogItem()
+  return legacy ? [legacy] : []
+}
+const getPolaroidCatalogItems = async () => {
+  const items = await polaroidProductsApi.list()
+  if (items.length || await store.get(POLAROID_CATALOG_MIGRATED_KEY, false)) return items
+  const legacy = await legacyPolaroidCatalogItem()
+  return legacy ? [legacy] : []
+}
+export const polaroidCatalogApi = {
+  list: getPolaroidCatalogItems,
+  save: async (item) => {
+    await store.set(POLAROID_CATALOG_MIGRATED_KEY, true)
+    return polaroidProductsApi.save(item)
+  },
+  remove: async (id) => {
+    await store.set(POLAROID_CATALOG_MIGRATED_KEY, true)
+    return polaroidProductsApi.remove(id)
+  },
+}
 export const getPolaroidProduct = async (id) => (await getPolaroidProducts()).find((item) => item.id === id) ?? null
 export const miniMagazinesApi = collection('miniMagazines', [], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
 export const getMiniMagazines = async () => (await miniMagazinesApi.list()).filter((item) => item.status !== 'Inactive')
 export const getMiniMagazine = async (id) => (await getMiniMagazines()).find((item) => item.id === id) ?? null
 export const getFrameProducts = async () => (await frameProductsApi.list()).filter((item) => item.status !== 'Inactive')
 export const getFrameProduct = async (id) => (await getFrameProducts()).find((item) => item.id === id) ?? null
-export const getActiveAddons = async () => (await addonsApi.list()).filter((a) => a.status !== 'Inactive')
+const mapAddonsToCatalog = async (items) => {
+  const [products, frames, polaroids] = await Promise.all([productsApi.list(), getFrameProducts(), getPolaroidProducts()])
+  return items.map((addon) => {
+    const product = addon.id === 'frame' ? frames[0] : addon.id === 'polaroids' ? polaroids[0] : products.find((item) => item.id === addon.id)
+    const catalogAvailable = addon.id === 'photo-strip'
+      ? Boolean(product?.designs?.some((design) => design?.id && design.image))
+      : addon.id === 'sticker' ? Boolean(product) : true
+    return { ...addon, ...(product ? { name: product.title || product.name || addon.name, image: product.image || addon.image } : {}), catalogAvailable }
+  }).filter((addon) => addon.catalogAvailable)
+}
+export const getAddonCatalog = async () => mapAddonsToCatalog(await addonsApi.list())
+export const getActiveAddons = async () => (await getAddonCatalog()).filter((a) => a.status !== 'Inactive')
 export const getFaqs = faqsApi.list
 export const getPolicies = policiesApi.list
 export const getNavLinks = navLinksApi.list

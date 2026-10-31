@@ -1,37 +1,42 @@
 import ItemManager from './ItemManager'
-import { productsApi } from '../shared/services/contentService'
+import { productsApi, withPhotoStripPricing } from '../shared/services/contentService'
 
-const designsApi = {
-  list: async () => {
-    const product = (await productsApi.list()).find((item) => item.id === 'photo-strip')
-    return Array.isArray(product?.designs) ? product.designs : []
-  },
-  save: async (design) => {
-    const product = (await productsApi.list()).find((item) => item.id === 'photo-strip')
-    if (!product) throw new Error('Photo Strip product was not found.')
-    const designs = Array.isArray(product.designs) ? product.designs : []
-    const exists = designs.some((item) => item.id === design.id)
-    await productsApi.save({ ...product, designs: exists ? designs.map((item) => item.id === design.id ? design : item) : [...designs, design] })
-  },
-  remove: async (id) => {
-    const product = (await productsApi.list()).find((item) => item.id === 'photo-strip')
-    if (!product) throw new Error('Photo Strip product was not found.')
-    await productsApi.save({ ...product, designs: (Array.isArray(product.designs) ? product.designs : []).filter((item) => item.id !== id) })
+const photoStripApi = {
+  ...productsApi,
+  list: async () => (await productsApi.list()).filter((item) => item.id === 'photo-strip').map(withPhotoStripPricing),
+  save: async (item) => {
+    const { options, ...current } = item
+    return productsApi.save(current)
   },
 }
 
 export default function PhotoStripSettingsPage() {
   return <ItemManager
-    title="Photo Strip designs"
-    note="Manage the layouts customers can preview and choose before uploading photos. These designs are saved with the Photo Strip product."
-    api={designsApi}
+    title="Photo Strip"
+    note="No Photo Strip product is created automatically. Add it here when you are ready; its name, cover, prices, and customer designs are managed together."
+    api={photoStripApi}
     fields={[
-      { name: 'name', label: 'Design name', required: true },
-      { name: 'image', label: 'Design image', type: 'image', required: true },
+      { name: 'name', label: 'Product name', required: true },
+      { name: 'image', label: 'Cover image', type: 'image', required: true },
+      { name: 'status', label: 'Availability', type: 'select', options: ['Available', 'Coming soon'] },
+      { name: 'description', label: 'Description', type: 'textarea', rows: 3 },
+      { name: 'unitPrice', label: 'Single price per strip (৳)', type: 'number', required: true },
+      { name: 'packs', label: 'Combo offers (optional)', type: 'packs' },
+      { name: 'designs', label: 'Customer-selectable designs', type: 'gallery' },
     ]}
-    blank={{ name: '', image: '' }}
-    label={(item) => item.name || 'Photo Strip design'}
-    columns={[{ key: 'name', label: 'Design' }]}
-    validate={(item) => !item.name?.trim() || !item.image ? 'Add a design name and image.' : ''}
+    blank={{ name: '', image: '', status: 'Coming soon', description: '', unitPrice: 0, packs: [], designs: [] }}
+    allowAdd={(items) => items.length === 0}
+    makeId={() => 'photo-strip'}
+    label={(item) => item.name || 'Photo Strip'}
+    columns={[{ key: 'status', label: 'Availability' }]}
+    validate={(item) => {
+      if (!item.name?.trim() || !item.image) return 'Add a product name and cover image.'
+      if (!Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 1) return 'Set a single price per strip of at least ৳1.'
+      const packs = Array.isArray(item.packs) ? item.packs : []
+      if (packs.some((row) => !Number.isInteger(Number(row.pieces)) || Number(row.pieces) < 1 || !Number.isFinite(Number(row.price)) || Number(row.price) < 1)) return 'Each combo offer needs a quantity and total price of at least ৳1.'
+      if (new Set(packs.map((row) => Number(row.pieces))).size !== packs.length) return 'Each combo offer must have a different quantity.'
+      if (item.status === 'Available' && !item.designs?.some((design) => design?.id && design.image)) return 'Add at least one customer design before making Photo Strip available.'
+      return ''
+    }}
   />
 }

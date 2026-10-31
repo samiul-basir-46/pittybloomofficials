@@ -44,6 +44,7 @@ import FrameSettingsPage from './admin/FrameSettingsPage'
 import MiniMagazineSettingsPage from './admin/MiniMagazineSettingsPage'
 import PolaroidSettingsPage from './admin/PolaroidSettingsPage'
 import PhotoStripSettingsPage from './admin/PhotoStripSettingsPage'
+import StickerSettingsPage from './admin/StickerSettingsPage'
 import { AdminAuthProvider } from './admin/AdminAuthContext'
 
 export default function App() {
@@ -104,6 +105,7 @@ export default function App() {
           <Route path="mini-magazine-settings" element={<MiniMagazineSettingsPage />} />
           <Route path="polaroid-settings" element={<PolaroidSettingsPage />} />
           <Route path="photo-strip-designs" element={<PhotoStripSettingsPage />} />
+          <Route path="sticker-settings" element={<StickerSettingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

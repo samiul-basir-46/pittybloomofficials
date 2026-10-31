@@ -8,8 +8,9 @@ import useAsync from '../shared/hooks/useAsync'
 import { slugify } from '../shared/utils/text'
 import { inputClass } from './classes'
 import { uploadCatalogImage } from '../shared/services/catalogImageStore'
+import OptionsEditor from './OptionsEditor'
 
-export default function ItemManager({ title, api, fields, blank, label, columns = [], makeId = (i) => slugify(label(i)), validate, note }) {
+export default function ItemManager({ title, api, fields, blank, label, columns = [], makeId = (i) => slugify(label(i)), validate, note, allowAdd = true }) {
   const { data, loading, reload } = useAsync(api.list)
   const [form, setForm] = useState(null)
   const [query, setQuery] = useState('')
@@ -17,9 +18,10 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
   const [toast, setToast] = useState('')
   const [problem, setProblem] = useState('')
   const items = data ?? []
+  const canAdd = typeof allowAdd === 'function' ? allowAdd(items) : allowAdd
   const imageKeys = fields.filter((f) => f.type === 'image').map((f) => f.name)
   // Forms with page or design pictures get a wider window so thumbnails are big enough to see.
-  const wideForm = fields.some((f) => ['pdf', 'gallery'].includes(f.type))
+  const wideForm = fields.some((f) => ['pdf', 'gallery', 'options'].includes(f.type))
   const galleryKeys = fields.filter((f) => f.type === 'gallery').map((f) => f.name)
   const imageKey = imageKeys[0]
   const shown = items.filter((i) => label(i).toLowerCase().includes(query.trim().toLowerCase()))
@@ -46,7 +48,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
       setProblem(message)
       return
     }
-    if (item.id === 'polaroids' && (!Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 1 || !Number.isInteger(Number(item.minQuantity)) || Number(item.minQuantity) < 1)) {
+    if (fields.some((field) => field.name === 'unitPrice') && item.id === 'polaroids' && (!Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 1 || !Number.isInteger(Number(item.minQuantity)) || Number(item.minQuantity) < 1)) {
       setProblem('Enter a per-piece price of at least ৳1 and a minimum quantity of at least 1.')
       return
     }
@@ -97,12 +99,12 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
           <p className="mt-1 text-sm text-ink/60">{items.length} item{items.length === 1 ? '' : 's'}</p>
           {note && <p className="mt-2 max-w-xl text-sm text-ink/60">{note}</p>}
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => {
+        {canAdd && <Button size="sm" className="gap-1.5" onClick={() => {
             setProblem('')
             setForm({ isNew: true, item: blank })
           }}>
           <Plus size={16} /> Add new
-        </Button>
+        </Button>}
       </div>
 
       {items.length > 5 && (
@@ -149,7 +151,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
                   setProblem('')
                   setForm({
                     isNew: false,
-                    item: item.id === 'polaroids'
+                    item: item.id === 'polaroids' && fields.some((field) => field.name === 'unitPrice')
                       ? { ...item, unitPrice: item.unitPrice ?? 8, minQuantity: item.minQuantity ?? 9 }
                       : item,
                   })
@@ -189,7 +191,9 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
                 <X size={20} />
               </button>
             </div>
-            {fields.filter((field) => !(['frame', 'polaroids'].includes(form.item.id) && field.name === 'options')).map((f) => (
+            {fields.filter((field) => !(['frame', 'polaroids'].includes(form.item.id) && field.name === 'options')).map((f) => f.type === 'options' ? (
+              <OptionsEditor key={f.name} label={f.label} required={f.required} value={form.item[f.name]} onChange={(v) => setForm({ ...form, item: { ...form.item, [f.name]: v } })} />
+            ) : (
               <Field
                 key={f.name}
                 label={f.label}
@@ -201,7 +205,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
               />
             ))}
             {form.item.id === 'frame' && <div className="rounded-2xl border border-sand bg-cream/50 p-4 text-sm"><h3 className="font-semibold">Frame sizes and prices</h3><p className="mt-1 text-xs leading-5 text-ink/60">Frame sizes are managed in one place so they never go out of sync.</p><Link to="/admin/frame-settings" className="mt-2 inline-block text-sm font-semibold text-brand underline">Edit sizes in Frame settings</Link></div>}
-            {form.item.id === 'polaroids' && <div className="space-y-3 rounded-2xl border border-sand bg-cream/50 p-4"><div><h3 className="font-semibold">Polaroid order settings</h3><p className="mt-1 text-xs text-ink/60">Customers upload one print photo per piece.</p></div><label className="block text-xs font-medium text-ink/60">Price per Polaroid (BDT)<input aria-label="Price per Polaroid" type="number" min="1" className={`${inputClass} mt-1`} value={form.item.unitPrice ?? 8} onChange={(event) => setForm({ ...form, item: { ...form.item, unitPrice: event.target.value } })} /></label><label className="block text-xs font-medium text-ink/60">Minimum quantity<input aria-label="Minimum Polaroid quantity" type="number" min="1" className={`${inputClass} mt-1`} value={form.item.minQuantity ?? 9} onChange={(event) => setForm({ ...form, item: { ...form.item, minQuantity: event.target.value } })} /></label></div>}
+            {form.item.id === 'polaroids' && fields.some((field) => field.name === 'unitPrice') && <div className="space-y-3 rounded-2xl border border-sand bg-cream/50 p-4"><div><h3 className="font-semibold">Polaroid order settings</h3><p className="mt-1 text-xs text-ink/60">Customers upload one print photo per piece.</p></div><label className="block text-xs font-medium text-ink/60">Price per Polaroid (BDT)<input aria-label="Price per Polaroid" type="number" min="1" className={`${inputClass} mt-1`} value={form.item.unitPrice ?? 8} onChange={(event) => setForm({ ...form, item: { ...form.item, unitPrice: event.target.value } })} /></label><label className="block text-xs font-medium text-ink/60">Minimum quantity<input aria-label="Minimum Polaroid quantity" type="number" min="1" className={`${inputClass} mt-1`} value={form.item.minQuantity ?? 9} onChange={(event) => setForm({ ...form, item: { ...form.item, minQuantity: event.target.value } })} /></label></div>}
             {problem && (
               <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {problem}
