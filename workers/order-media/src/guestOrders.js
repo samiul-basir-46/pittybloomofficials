@@ -268,13 +268,14 @@ function buildItem(input, config, photos, referenceFile) {
   if (input.type === 'song-book') {
     const book = config.songBooks?.find((row) => row.id === String(input.productId)) ?? config.songBooks?.[0]
     if (!book) throw new Error('Song Book is not currently available.')
-    const unitPrice = Number(book.price12)
+    const pages = Number(input.pages) === 16 ? 16 : 12
+    const unitPrice = Number(pages === 16 ? book.price16 : book.price12)
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('Song Book pricing is not available. Please contact us.')
     if (quantity !== 1 || !text(input.songName, 200) || !text(input.lyrics, 20000)) throw new Error('Enter a song name and lyrics for each Song Book.')
     assertCovers(photos, input)
     const details = [{ label: 'Song name', value: text(input.songName, 200) }, { label: 'Lyrics', value: text(input.lyrics, 20000) }]
     if (notes) details.push({ label: 'Additional notes', value: notes })
-    return { kind: 'song-book', id: book?.id || 'song-book', name: book?.title || card.title, image: book?.image || '', optionLabel: '12 pages', qty: 1, price: unitPrice, meta: { pages: 12 }, details, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
+    return { kind: 'song-book', id: book?.id || 'song-book', name: book?.title || card.title, image: book?.image || '', optionLabel: `${pages} pages`, qty: 1, price: unitPrice, meta: { pages }, details, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
   }
   throw new Error('This product is not available in the manual order form.')
 }
