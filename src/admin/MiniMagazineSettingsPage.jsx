@@ -10,7 +10,7 @@ const photoLimitError = (item) => {
 }
 
 export default function MiniMagazineSettingsPage() {
-  return <ItemManager title="Mini pocket magazines" note="Each item appears on /mini-magazines. You control the price and how many photos a customer must / may upload." api={miniMagazinesApi} fields={[
+  return <ItemManager title="Mini pocket magazines" note="Keep one Mini Pocket Magazine here with a fixed price (for example ৳150). The guest order form uses the first available item. Customers choose their own front and back cover photos." api={miniMagazinesApi} fields={[
     { name: 'title', label: 'Title', required: true },
     { name: 'image', label: 'Cover image', type: 'image', required: true },
     { name: 'price', label: 'Price (BDT)', type: 'number', required: true },

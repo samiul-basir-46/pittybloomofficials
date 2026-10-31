@@ -29,6 +29,7 @@ export default function MiniMagazineOrderPage() {
   const cartMode = params.get('mode') === 'cart'
   const [photos, setPhotos] = useState([])
   const [note, setNote] = useState('')
+  const [cover, setCover] = useState({ front: '', back: '' })
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
   const [deliveryArea, setDeliveryArea] = useState('')
   const [placing, setPlacing] = useState(false)
@@ -63,6 +64,9 @@ export default function MiniMagazineOrderPage() {
     const selected = photoStore.list(photoKey.current)
     const problem = rule.check(selected.length)
     if (problem) { setError(problem); return }
+    if (!selected.some((photo) => photo.id === cover.front)) { setError('Choose which photo goes on the front cover.'); return }
+    if (!selected.some((photo) => photo.id === cover.back)) { setError('Choose which photo goes on the back cover.'); return }
+    if (cover.front === cover.back) { setError('Front and back covers must be different photos.'); return }
     if (!cartMode && !deliveryArea) { setError('Select Inside Dhaka or Outside Dhaka.'); return }
     setPlacing(true)
     setError('')
@@ -74,7 +78,7 @@ export default function MiniMagazineOrderPage() {
         optionId: 'mini-pocket-magazine', optionLabel: `${uploaded.length} photos`,
         price, qty: 1, ...(note.trim() ? { note: note.trim() } : {}),
         meta: { cartConfigId: uid() },
-        photos: { count: uploaded.length, files: uploaded.map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })) },
+        photos: { count: uploaded.length, front: uploaded.find((photo) => photo.id === cover.front)?.name ?? '', back: uploaded.find((photo) => photo.id === cover.back)?.name ?? '', frontId: cover.front, backId: cover.back, files: uploaded.map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })) },
       }
       if (cartMode) { addToCart(line); navigate('/cart'); return }
       const order = await ordersApi.place(buildOrder({
@@ -107,10 +111,12 @@ export default function MiniMagazineOrderPage() {
             {photos.length > 0 && <div className="mt-4 flex w-full min-w-0 gap-2.5 overflow-x-auto pb-2">{photos.map((photo) => <div key={photo.id} className="relative w-24 shrink-0 overflow-hidden rounded-lg border border-sand bg-cream sm:w-28">
               {photo.url && <img src={photo.url} alt={photo.name} className="aspect-square w-full object-cover" />}
               <p className="truncate px-2 py-1.5 text-xs" title={photo.name}>{photo.name}</p>
-              <button type="button" aria-label={`Remove ${photo.name}`} onClick={() => { photoStore.remove(photoKey.current, photo.id); setPhotos([...photoStore.list(photoKey.current)]) }} className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-white/95 shadow"><Trash2 size={14} /></button>
+              <div className="flex gap-1 px-1.5 pb-1.5">{[['front', 'Front'], ['back', 'Back']].map(([key, label]) => <button key={key} type="button" aria-pressed={cover[key] === photo.id} aria-label={`Use ${photo.name} for ${label.toLowerCase()} cover`} onClick={() => setCover((current) => ({ ...current, [key]: current[key] === photo.id ? '' : photo.id }))} className={`min-h-8 flex-1 rounded-md border text-[11px] font-semibold ${cover[key] === photo.id ? 'border-brand bg-brand text-white' : 'border-sand text-ink/70 hover:bg-white'}`}>{label}</button>)}</div>
+              <button type="button" aria-label={`Remove ${photo.name}`} onClick={() => { photoStore.remove(photoKey.current, photo.id); setPhotos([...photoStore.list(photoKey.current)]); setCover((current) => ({ front: current.front === photo.id ? '' : current.front, back: current.back === photo.id ? '' : current.back })) }} className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-white/95 shadow"><Trash2 size={14} /></button>
             </div>)}</div>}
             <button type="button" onClick={() => inputRef.current?.click()} className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand/30 bg-cream px-4 text-sm font-semibold text-brand hover:border-brand"><ImagePlus size={18} /> Upload your photos</button>
             <p className="mt-2 text-xs text-ink/50">Selected: {photos.length}{rule.max ? ` / ${rule.max}` : ''} photos (minimum {rule.min}). Photos are kept exactly as you upload them. Each image can be up to 100 MB.</p>
+            <p className="mt-1 text-xs font-medium text-brand">Under each photo, tap <strong>Front</strong> or <strong>Back</strong> to choose the cover photos.{cover.front || cover.back ? ` Front: ${cover.front ? 'chosen' : 'not chosen'} · Back: ${cover.back ? 'chosen' : 'not chosen'}.` : ''}</p>
           </div>
           <label className="block text-sm font-medium">Notes <span className="font-normal text-ink/50">(optional)</span><textarea rows={3} className={`${inputClass} mt-1`} value={note} onChange={(event) => setNote(event.target.value)} /></label>
           {!cartMode && <div className="border-t border-sand pt-6"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mb-4 mt-1 text-sm text-ink/60">We’ll contact you to confirm delivery.</p><div className="space-y-3">
