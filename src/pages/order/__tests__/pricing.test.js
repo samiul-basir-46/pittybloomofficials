@@ -34,16 +34,18 @@ describe('delivery dates and rush charges', () => {
     expect(checkDate('2026-10-19', 'inside', settings, late).allowed).toBe(false)
     expect(checkDate('2026-10-20', 'inside', settings, late)).toMatchObject({ allowed: true, rush: 100 })
   })
-  it('Outside Dhaka never has a rush charge and needs the minimum lead time', () => {
+  it('Outside Dhaka needs the minimum lead time and its rush window is one day later', () => {
     expect(checkDate('2026-10-19', 'outside', settings, now).allowed).toBe(false)
-    expect(checkDate('2026-10-21', 'outside', settings, now)).toMatchObject({ allowed: true, rush: 0 })
+    expect(checkDate('2026-10-20', 'outside', settings, now)).toMatchObject({ allowed: true, rush: 100 })
+    expect(checkDate('2026-10-21', 'outside', settings, now)).toMatchObject({ allowed: true, rush: 50 })
+    expect(checkDate('2026-10-22', 'outside', settings, now)).toMatchObject({ allowed: true, rush: 0 })
   })
   it('works across a month end', () => {
     expect(checkDate('2026-11-01', 'inside', settings, at('2026-10-31', 9))).toMatchObject({ allowed: true, rush: 100 })
   })
   it('parses rush rules and ignores broken lines', () => {
     expect(parseRushRules('2 | 50\n1 | 100\nnonsense')).toEqual([{ days: 1, charge: 100 }, { days: 2, charge: 50 }])
-    expect(rushSentence(settings, (n) => `৳${n}`)).toBe('Inside Dhaka: 1 day is +৳100, 2 days is +৳50 (Orders placed after 6:00 PM count from the next day).')
+    expect(rushSentence(settings, (n) => `৳${n}`)).toBe('Inside Dhaka: 1 day is +৳100, 2 days is +৳50. Outside Dhaka: 2 days is +৳100, 3 days is +৳50 (Orders placed after 6:00 PM count from the next day).')
   })
 })
 
@@ -56,8 +58,9 @@ describe('order totals', () => {
     expect(t).toMatchObject({ magazineTotal: 549 * 2 + 200, addonTotal: 299, deliveryCharge: 60, rushCharge: 100, rushDays: 1 })
     expect(t.total).toBe(1298 + 299 + 60 + 100)
   })
-  it('charges Outside Dhaka delivery with no rush', () => {
-    expect(calcTotals({ copies: [copy('a4-8')], location: 'outside', date: '2026-10-21', settings, now }).total).toBe(549 + 110)
+  it('charges Outside Dhaka delivery plus the rush charge for its rush window', () => {
+    expect(calcTotals({ copies: [copy('a4-8')], location: 'outside', date: '2026-10-21', settings, now }).total).toBe(549 + 110 + 50)
+    expect(calcTotals({ copies: [copy('a4-8')], location: 'outside', date: '2026-10-22', settings, now }).total).toBe(549 + 110)
   })
   it('shows only the magazine price until a location is chosen', () => {
     expect(calcTotals({ copies: [copy('a4-8')], settings, now }).total).toBe(549)
