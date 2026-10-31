@@ -31,7 +31,7 @@ export const SECTIONS = [
   { path: 'best-selling', title: 'Best Selling', icon: Star, api: bestSellingApi, ...card },
   {
     path: 'more-products', title: 'More Products', icon: LayoutGrid, api: moreProductsApi,
-    note: 'Set each card’s position on the home page. Lower numbers appear first; matching positions keep their current order.',
+    note: 'Set each card’s position on the home page. Lower numbers appear first. Cards linking to /frame, /polaroids, /sticker or /photo-strip automatically use the name and image from Shop Products, so edit those there.',
     fields: [
       ...card.fields,
       { name: 'order', label: 'Position (1 is first)', type: 'number', required: true },

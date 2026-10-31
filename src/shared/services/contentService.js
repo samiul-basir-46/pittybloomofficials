@@ -424,11 +424,15 @@ export const manualOrderCatalogApi = {
 export const getManualOrderCatalog = manualOrderCatalogApi.get
 
 export const getBestSelling = bestSellingApi.list
+// Cards that point at a shop product (/frame, /polaroids, /sticker, /photo-strip) always show that product's current
+// name and image, so they are edited once in Admin > Shop Products.
 export const getMoreProducts = async () => {
-  const items = await moreProductsApi.list()
-  if (items.some(isSongBookTile) || await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false)) return items
-  const book = (await getSongBooks())[0]
-  return book ? sortMoreProducts([...items, { ...songBookTile(book), order: (items.length + 1) * 10 }]) : items
+  const [items, shop] = await Promise.all([moreProductsApi.list(), productsApi.list().catch(() => [])])
+  return items.map((tile) => {
+    const path = String(tile.to || '').replace(/\/+$/, '')
+    const product = shop.find((item) => path === `/${item.id}` || path === `/products/${item.id}`)
+    return product ? { ...tile, name: product.name || tile.name, image: product.image || tile.image } : tile
+  })
 }
 export const getMagazines = magazinesApi.list
 // Customers only see sizes that have a price.
