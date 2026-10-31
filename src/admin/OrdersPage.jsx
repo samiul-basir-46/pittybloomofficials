@@ -10,14 +10,20 @@ import { inputClass } from './classes'
 import { CopyButton } from './orderUi'
 import { groupedOrderSummaries } from './orderSummary'
 
+// Classify by the item's own kind/id first. Names are only a fallback (and never the option text), because a frame
+// design called "Polaroid style" must not turn a Frame order into a Polaroids order.
+const KIND_CATEGORY = { magazine: 'magazine', 'song-book': 'song-book', frame: 'frame', polaroids: 'polaroids', 'mini-magazine': 'mini-magazine' }
+const PRODUCT_ID_CATEGORY = { polaroids: 'polaroids', sticker: 'sticker', 'photo-strip': 'photo-strip', frame: 'frame' }
+const NAME_CATEGORIES = [['mini-magazine', /mini.*magazine|magazine.*mini|pocket/i], ['song-book', /song\s*book/i], ['frame', /frame/i], ['polaroids', /polaroid/i], ['sticker', /sticker/i], ['photo-strip', /photo\s*strip/i], ['magazine', /magazine/i]]
+const itemCategory = (item) => {
+  if (item.kind === 'mini-magazine' || item.optionId === 'mini-pocket-magazine') return 'mini-magazine'
+  if (KIND_CATEGORY[item.kind]) return KIND_CATEGORY[item.kind]
+  if (item.kind === 'product' && PRODUCT_ID_CATEGORY[item.id]) return PRODUCT_ID_CATEGORY[item.id]
+  return NAME_CATEGORIES.find(([, pattern]) => pattern.test(String(item.name || '')))?.[0] ?? ''
+}
 const CATEGORY_TABS = [
-  { id: 'magazine', label: 'Magazine', matches: (item) => item.kind === 'magazine' && !/mini/i.test(`${item.name} ${item.optionLabel}`) },
-  { id: 'song-book', label: 'Song Book', matches: (item) => item.kind === 'song-book' || /song\s*book/i.test(`${item.name} ${item.optionLabel}`) },
-  { id: 'frame', label: 'Frame', matches: (item) => /frame/i.test(`${item.name} ${item.optionLabel}`) },
-  { id: 'polaroids', label: 'Polaroids', matches: (item) => /polaroid/i.test(`${item.name} ${item.optionLabel}`) },
-  { id: 'sticker', label: 'Sticker', matches: (item) => /sticker/i.test(`${item.name} ${item.optionLabel}`) },
-  { id: 'mini-magazine', label: 'Mini Magazine', matches: (item) => /mini.*magazine|magazine.*mini/i.test(`${item.name} ${item.optionLabel}`) },
-]
+  ['magazine', 'Magazine'], ['song-book', 'Song Book'], ['frame', 'Frame'], ['polaroids', 'Polaroids'], ['photo-strip', 'Photo Strip'], ['sticker', 'Sticker'], ['mini-magazine', 'Mini Pocket Magazine'],
+].map(([id, label]) => ({ id, label, matches: (item) => itemCategory(item) === id }))
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'All statuses' },
