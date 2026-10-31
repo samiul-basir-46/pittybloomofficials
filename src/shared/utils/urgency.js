@@ -1,4 +1,5 @@
 import { MONTHS, daysBetween, toISO } from '../../pages/order/lib/pricing'
+import { hasAlwaysUrgentItem } from './orderCategory'
 
 // Which orders still need work. Shipped, Delivered and Cancelled orders are no longer "urgent" for production.
 export const ACTIVE_STATUSES = ['New', 'Confirmed', 'In production']
@@ -46,12 +47,14 @@ export function getUrgency(order, _settings = {}, now = new Date()) {
   const date = deliveryDateOf(order)
   const base = { date, daysLeft: null, level: 'none', label: '', short: '' }
   if (!ACTIVE_STATUSES.includes(order?.status)) return { ...base, label: date ? compactDate(date) : '', short: date ? compactDate(date) : '' }
-  if (!date) return { ...base, level: 'standard', label: 'No delivery date', short: 'No date' }
+  // Frames, Polaroids, Mini Pocket Magazines and Photo Strips are always urgent while the order is open.
+  const alwaysUrgent = hasAlwaysUrgentItem(order)
+  if (!date) return alwaysUrgent ? { ...base, level: 'urgent', label: 'New order', short: 'New order' } : { ...base, level: 'standard', label: 'No delivery date', short: 'No date' }
 
   const daysLeft = daysBetween(toISO(now), date)
   const window = locationOf(order) === 'outside' ? 3 : 2
   const when = daysLeft < 0 ? `Overdue by ${-daysLeft} day${daysLeft === -1 ? '' : 's'}` : daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Tomorrow' : `In ${daysLeft} days`
-  const level = daysLeft < 0 ? 'overdue' : daysLeft <= window ? 'urgent' : 'standard'
+  const level = daysLeft < 0 ? 'overdue' : (daysLeft <= window || alwaysUrgent) ? 'urgent' : 'standard'
   return { ...base, level, daysLeft, label: when, short: when }
 }
 

@@ -226,3 +226,19 @@ describe('Order page and dashboard', () => {
     expect(within(screen.getByRole('link', { name: /Standard/ })).getByText('1')).toBeInTheDocument() // the delivered one is not counted
   })
 })
+
+describe('always-urgent products', () => {
+  const base = { status: 'New', createdAt: '2026-10-20T10:00:00Z', deliveryInfo: { location: 'inside', date: '2026-12-30' } }
+  it.each([
+    ['frame', { kind: 'frame', name: 'Frame' }],
+    ['polaroids', { kind: 'polaroids', name: 'Polaroids' }],
+    ['mini magazine', { kind: 'mini-magazine', name: 'Mini' }],
+    ['photo strip', { kind: 'product', id: 'photo-strip', name: 'Photo Strip' }],
+  ])('%s orders are urgent even with a far delivery date', (_, item) => {
+    expect(getUrgency({ ...base, items: [item] }, {}, new Date('2026-10-21T10:00:00')).level).toBe('urgent')
+  })
+  it('keeps magazines and song books on the delivery-date rule', () => {
+    expect(getUrgency({ ...base, items: [{ kind: 'magazine', name: 'Magazine' }] }, {}, new Date('2026-10-21T10:00:00')).level).toBe('standard')
+    expect(getUrgency({ ...base, items: [{ kind: 'song-book', name: 'Song Book' }] }, {}, new Date('2026-10-21T10:00:00')).level).toBe('standard')
+  })
+})
