@@ -476,8 +476,7 @@ export const manualOrderCatalogApi = {
 export const getManualOrderCatalog = manualOrderCatalogApi.get
 
 export const getBestSelling = bestSellingApi.list
-// Cards that point at a shop product (/frame, /polaroids, /sticker, /photo-strip) always show that product's current
-// name and image, so they are edited once in Admin > Shop Products.
+// Home cards take their name, image and availability from each product's own catalog section.
 export const getMoreProducts = async () => {
   return moreProductsApi.list()
 }
