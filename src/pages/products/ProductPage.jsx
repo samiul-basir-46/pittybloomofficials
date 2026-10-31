@@ -20,6 +20,7 @@ function Detail({ product, options }) {
   const { add } = useCart()
   const isFrame = product.id === 'frame'
   const isPolaroids = product.id === 'polaroids'
+  const isPhotoStrip = product.id === 'photo-strip'
   const minimumQty = isPolaroids ? Math.max(1, Number(product.minQuantity) || 9) : 1
   const [optionId, setOptionId] = useState(options[0].id)
   const [qty, setQty] = useState(minimumQty)
@@ -65,20 +66,22 @@ function Detail({ product, options }) {
           </div>}
           {isPolaroids && <p className="mt-5 font-medium text-ink/65">৳{Number(product.unitPrice) || 8} per Polaroid · Minimum {minimumQty}. Upload one photo for each piece after selecting Buy now.</p>}
           <div className="mt-6 flex items-center gap-4"><span className="font-semibold">Quantity</span><QtyStepper value={Math.max(qty, minimumQty)} min={minimumQty} max={isPolaroids ? 9999 : 99} onChange={setQty} editable={isPolaroids} /></div>
-          {!isFrame && !isPolaroids && <label className="mt-6 block"><span className="mb-1 block text-sm font-medium">Special instructions (optional)</span><textarea rows={3} className={inputClass} placeholder="Theme, caption, colours, anything we should know" value={note} onChange={(e) => setNote(e.target.value)} /></label>}
+          {!isFrame && !isPolaroids && !isPhotoStrip && <label className="mt-6 block"><span className="mb-1 block text-sm font-medium">Special instructions (optional)</span><textarea rows={3} className={inputClass} placeholder="Theme, caption, colours, anything we should know" value={note} onChange={(e) => setNote(e.target.value)} /></label>}
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <Button variant="outline" className="h-14 gap-2" onClick={() => {
               if (isFrame) navigate(`/frame/order?mode=cart&size=${encodeURIComponent(option.id)}&qty=${qty}`)
               else if (isPolaroids) navigate(`/polaroids/order?mode=cart&qty=${qty}`)
+              else if (isPhotoStrip) navigate(`/photo-strip/order?mode=cart&option=${encodeURIComponent(option.id)}&qty=${qty}`)
               else add(line())
             }}><ShoppingCart size={18} /> Add to Cart</Button>
             <Button className="h-14 gap-2 shadow-lg" onClick={() => {
               if (isFrame) navigate(`/frame/order?size=${encodeURIComponent(option.id)}&qty=${qty}`)
               else if (isPolaroids) navigate(`/polaroids/order?qty=${qty}`)
+              else if (isPhotoStrip) navigate(`/photo-strip/order?option=${encodeURIComponent(option.id)}&qty=${qty}`)
               else { add(line(), { silent: true }); navigate('/cart') }
             }}>Buy now <ArrowRight size={18} /></Button>
           </div>
-          {!isFrame && !isPolaroids && <p className="mt-4 text-sm text-ink/50">Send your photos after ordering. We will confirm everything with you before printing. <Link to="/faq" className="text-brand underline">FAQ</Link></p>}
+          {!isFrame && !isPolaroids && <p className="mt-4 text-sm text-ink/50">{isPhotoStrip ? 'Choose your design and upload photos after continuing.' : <>Send your photos after ordering. We will confirm everything with you before printing. <Link to="/faq" className="text-brand underline">FAQ</Link></>}</p>}
         </div>
       </div>
     </Container>

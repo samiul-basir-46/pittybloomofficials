@@ -102,7 +102,7 @@ async function loadFrameDesigns(project, frameOptions) {
       if (!value || value.status === 'Inactive' || !Array.isArray(value.designs)) continue
       const sizeId = frameSizeIdFor(value, frameOptions)
       for (const design of value.designs) {
-        if (design?.id && design.image && sizeId && !designs.has(String(design.id))) designs.set(String(design.id), { id: String(design.id).slice(0, 80), name: text(design.name, 80), image: String(design.image).slice(0, 600), sizeId })
+        if (design?.id && design.image && sizeId && !designs.has(String(design.id))) designs.set(String(design.id), { id: String(design.id).slice(0, 80), name: text(design.name, 80), image: String(design.image).slice(0, 600), sizeId, price: Number(value.price) || 0 })
       }
     }
     return [...designs.values()]
@@ -187,7 +187,7 @@ function buildItem(input, config, photos, referenceFile) {
     const design = designs.find((row) => row.id === String(input.designId))
     if (!design) throw new Error('Choose a design for each frame.')
     if (design.sizeId !== option.id) throw new Error('The selected design is not available for this frame size. Choose a matching design.')
-    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}`, design: { id: design.id, name: design.name, image: design.image }, qty: 1, price: option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
+    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}`, design: { id: design.id, name: design.name, image: design.image }, qty: 1, price: Number(design.price) > 0 ? Number(design.price) : option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'mini-magazine') {
     const unitPrice = Number(card.unitPrice)

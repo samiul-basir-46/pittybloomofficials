@@ -443,7 +443,7 @@ export const getFrameDesigns = async () => {
   const frameOptions = parseOptions(frameCatalog?.options)
   for (const frame of frameProducts) {
     for (const design of Array.isArray(frame.designs) ? frame.designs : []) {
-      if (design?.id && design.image && !seen.has(design.id)) seen.set(design.id, { id: design.id, name: design.name || '', image: design.image, sizeId: frameSizeIdFor(frame, frameOptions) })
+      if (design?.id && design.image && !seen.has(design.id)) seen.set(design.id, { id: design.id, name: design.name || '', image: design.image, sizeId: frameSizeIdFor(frame, frameOptions), price: Number(frame.price) || 0 })
     }
   }
   return [...seen.values()]

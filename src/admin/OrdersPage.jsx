@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Search, ClipboardList, ChevronDown } from 'lucide-react'
+import { Search, ClipboardList, ChevronDown, Check, LoaderCircle } from 'lucide-react'
 import useAsync from '../shared/hooks/useAsync'
 import useOrders from '../shared/hooks/useOrders'
-import { getOrderSettings } from '../shared/services/contentService'
+import { getOrderSettings, ordersApi } from '../shared/services/contentService'
 import { formatPrice } from '../shared/utils/format'
 import { getUrgency } from '../shared/utils/urgency'
 import { inputClass } from './classes'
@@ -74,6 +74,8 @@ export default function OrdersPage({ fixedView = 'all' }) {
   const ordersQuery = useOrders()
   const settingsQuery = useAsync(getOrderSettings)
   const [params, setParams] = useSearchParams()
+  const [completingDispatched, setCompletingDispatched] = useState(false)
+  const [bulkNotice, setBulkNotice] = useState('')
   const now = useMemo(() => new Date(), [])
   const all = ordersQuery.data ?? []
   // Delivered orders belong in the dedicated Completed orders view.
@@ -138,6 +140,19 @@ export default function OrdersPage({ fixedView = 'all' }) {
   const overdueCount = all.filter((order) => PENDING.includes(order.status) && getUrgency(order, settings, now).level === 'overdue').length
   const urgentCount = all.filter((order) => PENDING.includes(order.status) && getUrgency(order, settings, now).level === 'urgent').length
   const dispatchedCount = all.filter((order) => order.status === 'Shipped').length
+  const completeAllDispatched = async () => {
+    const dispatched = all.filter((order) => order.status === 'Shipped')
+    if (!dispatched.length || completingDispatched) return
+    const confirmed = window.confirm(`Mark all ${dispatched.length} dispatched order${dispatched.length === 1 ? '' : 's'} as completed?`)
+    if (!confirmed) return
+    setCompletingDispatched(true)
+    setBulkNotice('')
+    const completedAt = new Date().toISOString()
+    const results = await Promise.allSettled(dispatched.map((order) => ordersApi.updateStatus(order.id, 'Delivered', { statusUpdatedAt: completedAt, completedAt })))
+    const failed = results.filter((result) => result.status === 'rejected').length
+    setBulkNotice(failed ? `${dispatched.length - failed} completed; ${failed} could not be updated. Refresh and try again.` : `All ${dispatched.length} dispatched orders marked complete.`)
+    setCompletingDispatched(false)
+  }
   const revenueToday = deliveredToday.reduce((sum, order) => sum + (Number(order.total) || 0), 0)
   const urgentOrders = all.filter((order) => PENDING.includes(order.status) && ['overdue', 'urgent'].includes(getUrgency(order, settings, now).level))
   const tabsCount = (matcher) => listOrders.filter((order) => order.items.some(matcher)).length
@@ -153,8 +168,9 @@ export default function OrdersPage({ fixedView = 'all' }) {
       <div className="mx-auto max-w-[1240px] pb-6">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div><h1 className="font-serif text-[34px] font-medium leading-tight tracking-[-.01em]">{fixedView === 'completed' ? 'Completed orders' : fixedView === 'cancelled' ? 'Cancelled orders' : 'Orders'}</h1><p className="mt-1 text-sm text-[#6B665C]">{now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}</p></div>
-          {fixedView === 'all' && <CopyButton label="Copy urgent summary" doneLabel="Urgent orders copied!" className={`!rounded-[10px] !bg-[#2F3A33] px-4 py-2.5 ${urgentOrders.length ? '' : 'pointer-events-none opacity-45'}`} getText={() => groupedOrderSummaries(urgentOrders, settings, now)} />}
+          {fixedView === 'all' && <div className="flex flex-wrap items-center gap-2">{dispatchedCount > 0 && <button type="button" onClick={completeAllDispatched} disabled={completingDispatched} className="inline-flex min-h-10 items-center gap-2 rounded-[10px] bg-[#4D8A4F] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#3F7441] disabled:cursor-wait disabled:opacity-70">{completingDispatched ? <LoaderCircle size={16} className="animate-spin" /> : <Check size={16} />}{completingDispatched ? 'Completing…' : `Complete all dispatched (${dispatchedCount})`}</button>}<CopyButton label="Copy urgent summary" doneLabel="Urgent orders copied!" className={`!rounded-[10px] !bg-[#2F3A33] px-4 py-2.5 ${urgentOrders.length ? '' : 'pointer-events-none opacity-45'}`} getText={() => groupedOrderSummaries(urgentOrders, settings, now)} /></div>}
         </header>
+        {bulkNotice && <p role="status" className="mb-4 rounded-xl border border-[#D9D4C7] bg-white px-4 py-3 text-sm text-[#2F3A33]">{bulkNotice}</p>}
 
         <section className="orders-summary-row -mx-1 mb-4 flex gap-2.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:mb-6 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0" aria-label="Order summary">
           <Stat label="Pending dispatch" value={pendingCount} note={`${overdueCount} overdue · ${urgentCount} urgent`} />
