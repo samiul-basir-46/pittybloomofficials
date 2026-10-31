@@ -567,7 +567,7 @@ const mapAddonsToCatalog = async (items) => {
     const catalogAvailable = addon.id === 'photo-strip'
       ? Boolean(product?.designs?.some((design) => design?.id && design.image))
       : addon.id === 'sticker' ? Boolean(product) : true
-    return { ...addon, ...(product ? { name: product.title || product.name || addon.name, image: product.image || addon.image } : {}), catalogAvailable }
+    return { ...addon, ...(product ? { name: product.title || product.name || addon.name, image: product.image || addon.image, options: product.options, unitPrice: product.unitPrice, packs: product.packs } : {}), catalogAvailable }
   }).filter((addon) => addon.catalogAvailable)
 }
 export const getAddonCatalog = async () => mapAddonsToCatalog(await addonsApi.list())

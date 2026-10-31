@@ -128,7 +128,8 @@ async function trustedCatalog(project) {
   const photoStripDoc = await getFirestoreDoc(project, 'contentData/products--photo-strip')
   const polaroidCatalogDoc = await getFirestoreDoc(project, 'contentData/polaroidProducts--polaroids')
   const legacyPolaroidDoc = polaroidCatalogDoc ? null : await getFirestoreDoc(project, 'contentData/products--polaroids')
-  const [miniMagazines, songBooks, polaroidCatalogItems] = await Promise.all([loadCatalogGroup(project, 'miniMagazines'), loadCatalogGroup(project, 'songBooks'), loadCatalogGroup(project, 'polaroidProducts')])
+  const [miniMagazines, songBooks, polaroidCatalogItems, addonRows] = await Promise.all([loadCatalogGroup(project, 'miniMagazines'), loadCatalogGroup(project, 'songBooks'), loadCatalogGroup(project, 'polaroidProducts'), loadCatalogGroup(project, 'addons')])
+  const catalogAddons = await Promise.all(addonRows.map(async (addon) => ({ ...addon, product: (await getFirestoreDoc(project, `contentData/products--${encodeURIComponent(addon.id)}`))?.value ?? null })))
   const sizeDocs = await Promise.all(DEFAULT_SIZES.map((size) => getFirestoreDoc(project, `contentData/printSizes--${encodeURIComponent(size.id)}`)))
   const settingsDoc = await getFirestoreDoc(project, 'contentData/orderSettings--singleton')
   const manualOrderDoc = await getFirestoreDoc(project, 'contentData/manualOrderCatalog--singleton')
@@ -142,13 +143,11 @@ async function trustedCatalog(project) {
     unitPrice: Number(photoStripDoc.value.unitPrice) || (legacyStripOptions[0] ? Math.max(1, Math.round(legacyStripOptions[0].price / stripQuantities[0])) : 0),
     packs: Array.isArray(photoStripDoc.value.packs) ? photoStripDoc.value.packs : legacyStripOptions.slice(1).map((option, index) => ({ id: `legacy-${stripQuantities[index + 1]}`, pieces: stripQuantities[index + 1], price: option.price, tag: option.tag || '' })),
   } : null
-  let polaroidProduct = polaroidCatalogItems[0] ?? polaroidCatalogDoc?.value ?? legacyPolaroidDoc?.value ?? null
-  if (polaroidProduct && !Array.isArray(polaroidProduct.packs) && polaroidProduct.options) {
-    polaroidProduct = { ...polaroidProduct, packs: parseProductOptions(polaroidProduct.options).flatMap((option) => {
+  const polaroidProducts = polaroidCatalogItems.length ? polaroidCatalogItems : [polaroidCatalogDoc?.value ?? legacyPolaroidDoc?.value].filter(Boolean)
+  const normalizedPolaroids = polaroidProducts.map((product) => !Array.isArray(product.packs) && product.options ? { ...product, packs: parseProductOptions(product.options).flatMap((option) => {
       const pieces = Number(option.label.match(/\d+/)?.[0])
       return Number.isInteger(pieces) && pieces > 0 ? [{ pieces, price: option.price, tag: option.tag || '' }] : []
-    }) }
-  }
+    }) } : product)
   const configuredSizes = DEFAULT_SIZES.map((fallback, index) => {
     const saved = sizeDocs[index]?.value
     return saved ? { ...fallback, ...saved, id: fallback.id } : fallback
@@ -157,9 +156,10 @@ async function trustedCatalog(project) {
     frameDesigns,
     frameOptions,
     photoStripProduct,
-    polaroidProduct,
+    polaroidProducts: normalizedPolaroids,
     miniMagazines,
     songBooks,
+    catalogAddons,
     sizes: configuredSizes,
     deliverySettings: settingsDoc?.value ?? {},
     manualOrderCatalog: mergeManualOrderCatalog(manualOrderDoc?.value ?? MANUAL_ORDER_CATALOG_DEFAULTS),
@@ -206,9 +206,20 @@ function buildItem(input, config, photos, referenceFile) {
   if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error('One item has an invalid quantity.')
   const cardId = MANUAL_ORDER_TYPE_TO_CARD[input.type]
   const card = cardId ? config.manualOrderCatalog[cardId] : null
-  if (!card?.enabled) throw new Error('One of the selected products is no longer available. Remove it and try again.')
+  if (input.type !== 'catalog-addon' && !card?.enabled) throw new Error('One of the selected products is no longer available. Remove it and try again.')
+  if (input.type === 'catalog-addon') {
+    const addon = config.catalogAddons?.find((row) => row.id === String(input.productId) && row.status !== 'Inactive')
+    const product = addon?.product
+    if (!addon || !product || product.status === 'Inactive' || product.status === 'Coming soon') throw new Error('This add-on is no longer available. Remove it and try again.')
+    const options = parseProductOptions(product.options)
+    const option = options.length ? options.find((row) => row.id === String(input.optionId)) : null
+    const unitPrice = Number(option?.price ?? product.unitPrice)
+    if ((options.length && !option) || !Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('Choose an available add-on option.')
+    if (quantity > 999 || !photos.length) throw new Error('Add at least one photo and choose a quantity from 1 to 999 for this add-on.')
+    return { kind: 'product', id: product.id, name: product.name || addon.name, image: product.image || addon.image || '', optionLabel: `${option?.label || 'Standard'}${quantity > 1 ? ` × ${quantity}` : ''}`, qty: quantity, price: unitPrice, note: notes, details: option?.tag ? [{ label: 'Offer', value: option.tag }] : [], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
+  }
   if (input.type === 'polaroids') {
-    const product = config.polaroidProduct
+    const product = (config.polaroidProducts ?? []).find((row) => row.id === String(input.productId)) ?? config.polaroidProducts?.[0] ?? null
     if (!product || product.status === 'Inactive' || product.status === 'Coming soon') throw new Error('Polaroids are not currently available.')
     const unitPrice = Number(product.unitPrice)
     const minimum = Math.max(1, Number(product.minQuantity) || 9)
@@ -231,18 +242,18 @@ function buildItem(input, config, photos, referenceFile) {
     if (!design) throw new Error('Choose an available Photo Strip design.')
     const packs = (Array.isArray(product.packs) ? product.packs : []).map((pack) => ({ pieces: Number(pack.pieces), price: Number(pack.price) })).filter((pack) => Number.isInteger(pack.pieces) && pack.pieces > 0 && Number.isFinite(pack.price) && pack.price > 0).sort((a, b) => a.pieces - b.pieces)
     const priced = priceWithOffers(unitPrice, packs, quantity)
-    return { kind: 'product', id: 'photo-strip', name: product.name || 'Photo Strip', image: design.image, optionLabel: `${quantity} strip${quantity === 1 ? '' : 's'}${priced.applied ? ` · offer ${priced.applied.pieces}+` : ''}${design.name ? ` · ${design.name}` : ''}`, design: { id: design.id, name: text(design.name, 100), image: design.image }, qty: packs.length ? 1 : quantity, price: packs.length ? priced.total : unitPrice, note: notes, meta: { photoStripDesignId: design.id }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
+    return { kind: 'product', id: 'photo-strip', name: product.name || 'Photo Strip', image: design.image, optionLabel: `${quantity} strip${quantity === 1 ? '' : 's'}${design.name ? ` · ${design.name}` : ''}`, design: { id: design.id, name: text(design.name, 100), image: design.image }, qty: quantity, price: unitPrice, note: notes, meta: { photoStripDesignId: design.id, photoStripQuantity: quantity }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'frame') {
     if (!photos.length) throw new Error('Add at least one print photo for this frame.')
-    if (quantity !== 1) throw new Error('Configure each frame separately so every frame can have its own design and photos.')
+    if (quantity > Number(card.maxQuantity || 20)) throw new Error(`A repeated frame setup cannot exceed ${Number(card.maxQuantity || 20)} frames.`)
     const option = config.frameOptions.find((row) => row.id === input.optionId)
     if (!option) throw new Error('A selected frame size is no longer available. Please choose another size.')
     const designs = config.frameDesigns ?? []
     const design = designs.find((row) => row.id === String(input.designId))
     if (!design) throw new Error('Choose a design for each frame.')
     if (design.sizeId !== option.id) throw new Error('The selected design is not available for this frame size. Choose a matching design.')
-    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}`, design: { id: design.id, name: design.name, image: design.image }, qty: 1, price: Number(design.price) > 0 ? Number(design.price) : option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
+    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}${quantity > 1 ? ` × ${quantity}` : ''}`, design: { id: design.id, name: design.name, image: design.image }, qty: quantity, price: Number(design.price) > 0 ? Number(design.price) : option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }, ...(quantity > 1 ? [{ label: 'Quantity', value: String(quantity) }] : [])], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'mini-magazine') {
     const product = config.miniMagazines?.find((row) => row.id === String(input.productId)) ?? config.miniMagazines?.[0]
@@ -350,16 +361,20 @@ export async function handleGuestOrder(request, env, cors) {
     for (const item of input.items) {
       const cardId = MANUAL_ORDER_TYPE_TO_CARD[item.type]
       const card = cardId ? config.manualOrderCatalog[cardId] : null
-      const itemCount = (itemCounts.get(cardId) || 0) + 1
-      if (!card?.enabled || itemCount > Number(card.maxItems || 20)) throw new Error('One of the selected products is unavailable or has too many items. Please update your order.')
-      itemCounts.set(cardId, itemCount)
+      const countKey = item.type === 'catalog-addon' ? `addon:${String(item.productId)}` : cardId
+      const itemCount = (itemCounts.get(countKey) || 0) + (item.type === 'frame' ? Number(item.quantity ?? 1) : 1)
+      if (item.type === 'catalog-addon') {
+        const addon = config.catalogAddons?.find((row) => row.id === String(item.productId) && row.status !== 'Inactive')
+        if (!addon || itemCount > 20) throw new Error('One of the selected add-ons is unavailable or has too many items. Please update your order.')
+      } else if (!card?.enabled || itemCount > (item.type === 'photo-strip' ? 20 : Number(card.maxItems || 20))) throw new Error('One of the selected products is unavailable or has too many items. Please update your order.')
+      itemCounts.set(countKey, itemCount)
       if (item.type === 'frame') {
         const groupKey = text(item.groupKey, 80)
         if (!groupKey) throw new Error('Each frame needs its own configuration. Please update your order.')
         const optionId = text(item.optionId, 100)
         if (frameGroupSizes.has(groupKey) && frameGroupSizes.get(groupKey) !== optionId) throw new Error('A frame quantity group cannot contain different sizes. Please update your order.')
         frameGroupSizes.set(groupKey, optionId)
-        const sizeCount = (frameSizeCounts.get(optionId) || 0) + 1
+        const sizeCount = (frameSizeCounts.get(optionId) || 0) + Number(item.quantity ?? 1)
         if (sizeCount > Number(card.maxQuantity || 20)) throw new Error('A frame size has too many individual frames. Please reduce the quantity.')
         frameSizeCounts.set(optionId, sizeCount)
       }
@@ -367,6 +382,23 @@ export async function handleGuestOrder(request, env, cors) {
       const reference = item.type === 'frame' ? null : await verifyReference(env, submissionKey, item.referenceFile)
       mediaRows.push(...photos, ...(reference ? [reference] : []))
       orderItems.push(buildItem(item, config, photos, reference))
+    }
+    const photoStripItems = orderItems.filter((item) => Number(item.meta?.photoStripQuantity) > 0)
+    if (photoStripItems.length) {
+      const stripQuantity = photoStripItems.reduce((sum, item) => sum + Number(item.meta.photoStripQuantity), 0)
+      if (stripQuantity > 9999) throw new Error('The total Photo Strip quantity cannot be greater than 9999.')
+      const product = config.photoStripProduct
+      const packs = (Array.isArray(product?.packs) ? product.packs : []).map((pack) => ({ pieces: Number(pack.pieces), price: Number(pack.price) })).filter((pack) => Number.isInteger(pack.pieces) && pack.pieces > 0 && Number.isFinite(pack.price) && pack.price > 0).sort((a, b) => a.pieces - b.pieces)
+      const aggregatePrice = priceWithOffers(Number(product.unitPrice), packs, stripQuantity)
+      let allocated = 0
+      photoStripItems.forEach((item, index) => {
+        const quantity = Number(item.meta.photoStripQuantity)
+        const linePrice = index === photoStripItems.length - 1 ? aggregatePrice.total - allocated : Math.floor(aggregatePrice.total * quantity / stripQuantity)
+        allocated += linePrice
+        item.qty = 1
+        item.price = linePrice
+        if (aggregatePrice.applied && index === 0) item.optionLabel += ` · combo ${aggregatePrice.applied.pieces}+ offer`
+      })
     }
     const hasRush = orderItems.some((item) => item.kind === 'magazine' || item.kind === 'song-book')
     const rushCharge = expeditedSurcharge({ date, area, hasRushProducts: hasRush, now })

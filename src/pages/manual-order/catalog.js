@@ -21,7 +21,7 @@ export const MANUAL_ORDER_CATALOG_DEFAULTS = {
   },
   photoStrip: {
     id: 'photoStrip', title: 'Photo Strip', description: 'Choose a design and upload your photos.',
-    enabled: true, order: 6, imageUpdatedAt: 0, maxItems: 1,
+    enabled: true, order: 6, imageUpdatedAt: 0, maxItems: 20,
   },
 }
 
