@@ -41,32 +41,22 @@ describe('guest manual order journey', () => {
     expect(screen.getByRole('radio', { name: 'Small minimal' })).toBeInTheDocument()
     expect(screen.queryByRole('radio', { name: 'Medium blue' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: 'Small floral' }))
-    fireEvent.change(screen.getByLabelText('Quantity for Frame #1'), { target: { value: '3' } })
 
-    expect(screen.getByRole('button', { name: 'Configure Frame #2' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Configure Frame #3' })).toBeInTheDocument()
-    expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #1' })).getByRole('radio', { name: 'Small floral' })).toHaveAttribute('aria-checked', 'true')
-    await user.click(screen.getByRole('button', { name: 'Configure Frame #2' }))
-    await user.click(within(screen.getByRole('radiogroup', { name: 'Design for Frame #2' })).getByRole('radio', { name: 'Small minimal' }))
-    expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #2' })).getByRole('radio', { name: 'Small minimal' })).toHaveAttribute('aria-checked', 'true')
+    // A second frame keeps its own size and design
+    await user.click(screen.getByRole('button', { name: /Add another frame design/i }))
+    await user.selectOptions(screen.getByLabelText('Frame size for Frame #2'), 'Small (6×8 in)')
+    const design = (frame, name) => within(screen.getByRole('radiogroup', { name: `Design for Frame #${frame}` })).getByRole('radio', { name })
+    await user.click(design(2, 'Small minimal'))
+    expect(design(2, 'Small minimal')).toHaveAttribute('aria-checked', 'true')
+    expect(design(1, 'Small floral')).toHaveAttribute('aria-checked', 'true')
 
-    await user.click(screen.getByRole('button', { name: 'Configure Frame #1' }))
-    fireEvent.change(screen.getByLabelText('Quantity for Frame #1'), { target: { value: '2' } })
-    expect(screen.queryByRole('button', { name: 'Configure Frame #3' })).not.toBeInTheDocument()
-    expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #1' })).getByRole('radio', { name: 'Small floral' })).toHaveAttribute('aria-checked', 'true')
-    await user.click(screen.getByRole('button', { name: 'Configure Frame #2' }))
-    expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #2' })).getByRole('radio', { name: 'Small minimal' })).toHaveAttribute('aria-checked', 'true')
-
-    await user.click(screen.getByRole('button', { name: 'Configure Frame #1' }))
+    // Changing Frame #1's size clears only Frame #1's design
     await user.selectOptions(screen.getByLabelText('Frame size for Frame #1'), 'Medium (8×10 in)')
-    expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #1' })).getByRole('radio', { name: 'Medium blue' })).toHaveAttribute('aria-checked', 'false')
-    await user.click(screen.getByRole('button', { name: 'Configure Frame #2' }))
-    expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #2' })).getByRole('radio', { name: 'Medium blue' })).toHaveAttribute('aria-checked', 'false')
-    expect(screen.queryByRole('radio', { name: 'Small floral' })).not.toBeInTheDocument()
+    expect(design(1, 'Medium blue')).toHaveAttribute('aria-checked', 'false')
+    expect(design(2, 'Small minimal')).toHaveAttribute('aria-checked', 'true')
 
-    await user.click(screen.getByRole('button', { name: 'Configure Frame #1' }))
     await user.selectOptions(screen.getByLabelText('Frame size for Frame #1'), 'Large (12×16 in)')
-    expect(screen.getAllByText('No designs are currently available for this size.')).toHaveLength(2)
+    expect(screen.getAllByText('No designs are currently available for this size.')).toHaveLength(1)
     expect(screen.queryByText(/Own design reference/)).not.toBeInTheDocument()
   })
 

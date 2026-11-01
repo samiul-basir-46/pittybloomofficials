@@ -152,9 +152,12 @@ function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed,
   }, [draft, status])
 
   const step = Math.min(Math.max(1, Number(params.get('step')) || 1), draft.reached, flowSteps.length)
+  const firstStepRun = useRef(true)
   useEffect(() => {
     topRef.current?.scrollIntoView?.({ block: 'start' })
-    setSaveState(null)
+    // Keep the "saved to cart" note shown right after saving (the page remounts); clear it when the step changes later.
+    if (firstStepRun.current) firstStepRun.current = false
+    else setSaveState(null)
   }, [step])
 
   const update = (fn) => setDraft((d) => fn(d))
