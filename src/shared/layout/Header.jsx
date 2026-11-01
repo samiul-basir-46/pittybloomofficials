@@ -37,13 +37,13 @@ export default function Header() {
   return (
     <header className="relative z-50 border-b border-sand bg-white">
       <Container className="grid h-16 grid-cols-3 items-center sm:h-[120px]">
-        {!isManualOrderPage && <nav className="hidden gap-5 sm:flex sm:gap-8">
+        {!isManualOrderPage && <nav className="hidden items-center gap-5 sm:flex sm:gap-8">
+          {showBack && <button type="button" aria-label="Go back" onClick={goBack} className="inline-grid size-9 place-items-center rounded-full transition-[color,transform] duration-300 hover:-translate-x-0.5 hover:text-brand"><ArrowLeft size={18} /></button>}
           {(nav.data ?? []).map((l) => (
             <NavLink key={l.id} to={l.to} end className={linkClass}>
               {l.label}
             </NavLink>
           ))}
-          {showBack && <button type="button" onClick={goBack} className="inline-flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide transition-[color,transform] duration-300 hover:-translate-y-0.5 hover:text-brand"><ArrowLeft size={15} /> Back</button>}
         </nav>}
         <Link
           to="/"
