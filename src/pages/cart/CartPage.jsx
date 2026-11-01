@@ -156,9 +156,9 @@ function Line({ item }) {
             {item.mrp > item.price && <span className="ml-2 text-ink/40 line-through">{formatPrice(item.mrp)}</span>}
           </p>
         </div>
-        <div className="flex items-center justify-between gap-4 sm:justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:flex-nowrap sm:justify-end">
           {item.meta?.draftId ? <span className="text-sm text-ink/55">1 order</span> : <QtyStepper value={item.qty} onChange={(q) => setQty(item.key, q)} />}
-          <p className="w-20 text-right font-bold">{formatPrice(item.price * item.qty)}</p>
+          <p className="min-w-16 text-right font-bold sm:w-20">{formatPrice(item.price * item.qty)}</p>
           <button
             aria-label={`Remove ${item.name}`}
             onClick={() => remove(item.key)}
@@ -289,7 +289,7 @@ export default function CartPage() {
           draftList.length === 0 && <EmptyCart />
         ) : (
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1.5fr_1fr]">
-            <div>
+            <div className="min-w-0">
               <ul className="overflow-hidden rounded-2xl border border-sand bg-white shadow-sm">
                 {items.map((i) => (
                   <Line key={i.key} item={i} />

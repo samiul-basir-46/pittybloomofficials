@@ -51,6 +51,19 @@
   }
 }
 
+/* Mobile safety: a bare "grid" has one auto-sized column that grows to its widest child
+   (thumbnail rows, long text) and pushes the page wider than the phone. Make that column
+   shrinkable; any grid-cols-* utility still overrides this. */
+@layer base {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html,
+  body {
+    overflow-x: clip;
+  }
+}
+
 body {
   @apply bg-white font-sans text-ink antialiased;
 }
