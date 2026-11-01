@@ -23,7 +23,7 @@ describe('guest multi-product order endpoint', () => {
     const addPhotos = (count, prefix) => Array.from({ length: count }, (_, index) => {
       const saved = photo(`${prefix}-${index + 1}.jpg`); files.push(saved); return saved
     })
-    const polaroids = addPhotos(1, 'polaroid')
+    const polaroids = addPhotos(9, 'polaroid')
     const frameOne = addPhotos(1, 'frame-one')
     const frameTwo = addPhotos(1, 'frame-two')
     const miniOne = addPhotos(2, 'mini-one')
@@ -68,7 +68,15 @@ describe('guest multi-product order endpoint', () => {
     }
     const fetchMock = vi.fn(async (url, options = {}) => {
       const target = String(url)
-      if (target.endsWith(':runQuery')) return jsonResponse([frameDesignRecord])
+      if (target.endsWith(':runQuery')) {
+        const group = JSON.parse(options.body)?.structuredQuery?.where?.fieldFilter?.value?.stringValue
+        const record = (item) => ({ document: { fields: { value: values(item) } } })
+        if (group === 'frameProducts') return jsonResponse([frameDesignRecord])
+        if (group === 'miniMagazines') return jsonResponse([record({ id: 'mini-1', title: 'Mini Pocket Magazine', price: 150, minPhotos: 2, maxPhotos: 8, status: 'Available', order: 10 })])
+        if (group === 'songBooks') return jsonResponse([record({ id: 'song-1', title: 'Song Book', price12: 849, price16: 1049, status: 'Available', order: 10 })])
+        if (group === 'polaroidProducts') return jsonResponse([record({ id: 'polaroids', title: 'Polaroids', unitPrice: 8, minQuantity: 9, status: 'Available', order: 10 })])
+        return jsonResponse([{ readTime: '2026-01-01T00:00:00Z' }])
+      }
       if (target.includes('/contentData/')) {
         if (target.endsWith('printSizes--a4-20')) return jsonResponse({ fields: { value: values({ id: 'a4-20', format: 'A4', pages: 20, price: 1149, photos: '45–50' }) } })
         return jsonResponse({ error: { status: 'NOT_FOUND' } }, 404)

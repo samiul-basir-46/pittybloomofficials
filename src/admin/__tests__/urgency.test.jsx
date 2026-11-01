@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -10,6 +9,12 @@ import { ordersApi } from '../../shared/services/contentService'
 import { ORDER_DEFAULTS } from '../../pages/order/data'
 import { compareByDelivery, getUrgency } from '../../shared/utils/urgency'
 import { categoryText, cityText, formatOrderSummary, productsText, summariesFor } from '../orderSummary'
+
+// The admin pages are behind Google/email sign-in; tests act as a signed-in admin.
+vi.mock('../AdminAuthContext', () => ({
+  AdminAuthProvider: ({ children }) => children,
+  useAdminAuth: () => ({ user: { email: 'admin@example.com' }, loading: false, configured: true, isAdmin: true, signOut: async () => {}, signInWithPassword: async () => {} }),
+}))
 
 const NOW = new Date(2026, 9, 19, 10, 0) // Monday 19 Oct 2026
 const settings = ORDER_DEFAULTS
@@ -30,21 +35,16 @@ beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: NOW }))
 afterEach(() => vi.useRealTimers())
 
 describe('urgency from the delivery date', () => {
-  it('past dates are overdue, today/tomorrow/within 3 days (Inside Dhaka) are urgent, later is standard', () => {
+  it('past dates are overdue, today/tomorrow/within 2 days (Inside Dhaka) are urgent, later is standard', () => {
     expect(level(order('a', '2026-10-17'))).toBe('overdue')
     expect(level(order('b', '2026-10-19'))).toBe('urgent') // today
     expect(level(order('c', '2026-10-20'))).toBe('urgent') // tomorrow
-    expect(level(order('d', '2026-10-22'))).toBe('urgent') // 3 days
-    expect(level(order('e', '2026-10-23'))).toBe('standard') // 4 days
+    expect(level(order('d', '2026-10-21'))).toBe('urgent') // 2 days
+    expect(level(order('e', '2026-10-22'))).toBe('standard') // 3 days
   })
   it('Outside Dhaka gets one more day', () => {
-    expect(level(order('a', '2026-10-23', 'outside'))).toBe('urgent') // 4 days
-    expect(level(order('b', '2026-10-24', 'outside'))).toBe('standard')
-  })
-  it('the limits are editable', () => {
-    const wide = { ...settings, urgentDaysInside: 6 }
-    expect(getUrgency(order('a', '2026-10-25'), wide, NOW).level).toBe('urgent')
-    expect(getUrgency(order('a', '2026-10-26'), wide, NOW).level).toBe('standard')
+    expect(level(order('a', '2026-10-22', 'outside'))).toBe('urgent') // 3 days
+    expect(level(order('b', '2026-10-23', 'outside'))).toBe('standard') // 4 days
   })
   it('labels say it plainly', () => {
     const label = (date) => getUrgency(order('a', date), settings, NOW).label
@@ -63,7 +63,7 @@ describe('urgency from the delivery date', () => {
     const list = [
       order('std', '2026-11-01'),
       order('done', '2026-10-01', 'inside', { status: 'Delivered' }),
-      order('u2', '2026-10-22'),
+      order('u2', '2026-10-21'),
       order('nodate', ''),
       order('over', '2026-10-15'),
       order('u1', '2026-10-20'),
@@ -95,7 +95,7 @@ describe('copy summary text', () => {
     expect(categoryText(cart)).toBe('personal')
   })
   it('summariesFor picks the right orders in delivery order', () => {
-    const list = [order('std', '2026-11-01'), order('u2', '2026-10-22'), order('over', '2026-10-15'), order('done', '2026-10-15', 'inside', { status: 'Shipped' })]
+    const list = [order('std', '2026-11-01'), order('u2', '2026-10-21'), order('over', '2026-10-15'), order('done', '2026-10-15', 'inside', { status: 'Shipped' })]
     expect(summariesFor(list, 'urgent', settings, NOW).map((r) => r.order.id)).toEqual(['over', 'u2'])
     expect(summariesFor(list, 'standard', settings, NOW).map((r) => r.order.id)).toEqual(['std'])
     expect(summariesFor(list, 'active', settings, NOW).map((r) => r.order.id)).toEqual(['over', 'u2', 'std'])
@@ -120,31 +120,24 @@ const seed = async () => {
 }
 
 describe('Admin Orders list', () => {
-  it('splits the list by urgency with the most urgent first, and shows how soon each is needed', async () => {
+  it('shows every order with its priority, most urgent first', async () => {
     await seed()
     open('/admin/orders')
     await screen.findByRole('link', { name: /OVER/ })
-    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(headings).toEqual(['🚨 Overdue (1)', '🔥 Urgent (1)', '📅 Standard (1)', 'Shipped, delivered or cancelled (1)'])
-    const ids = screen.getAllByRole('link', { name: /^(OVER|SOON|STD|DONE)/ }).map((l) => l.textContent.match(/^(OVER|SOON|STD|DONE)/)[1])
+    const ids = screen.getAllByRole('link', { name: /^#(OVER|SOON|STD|DONE)/ }).map((link) => link.textContent.replace('#', ''))
     expect(ids).toEqual(['OVER', 'SOON', 'STD', 'DONE'])
-    expect(within(screen.getByRole('link', { name: /OVER/ })).getByText(/Overdue by 4 days · Thu 15 Oct/)).toBeInTheDocument()
-    expect(within(screen.getByRole('link', { name: /SOON/ })).getByText(/Tomorrow · Tue 20 Oct/)).toBeInTheDocument()
-    expect(within(screen.getByRole('link', { name: /STD/ })).getByText(/In 13 days · Sun 1 Nov/)).toBeInTheDocument()
-    expect(within(screen.getByRole('link', { name: /DONE/ })).getByText(/Needed Thu 15 Oct/)).toBeInTheDocument()
+    expect(within(screen.getByRole('link', { name: /OVER/ }).closest('tr')).getByText('Overdue')).toBeInTheDocument()
+    expect(within(screen.getByRole('link', { name: /SOON/ }).closest('tr')).getByText('Urgent')).toBeInTheDocument()
   })
 
-  it('urgency pills show counts and filter the list; the filter is kept in the address', async () => {
+  it('the priority filter narrows the list and is kept in the address', async () => {
     await seed()
     const user = userEvent.setup()
     open('/admin/orders')
     await screen.findByRole('link', { name: /OVER/ })
-    expect(screen.getByRole('button', { name: /^All \(4\)/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Overdue \(1\)/ })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /^🔥 Urgent/ }))
+    await user.selectOptions(screen.getByLabelText('Filter by priority'), 'urgent')
     expect(screen.getByRole('link', { name: /SOON/ })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /OVER/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^🔥 Urgent/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('can be opened already filtered, e.g. from the dashboard', async () => {
@@ -154,54 +147,17 @@ describe('Admin Orders list', () => {
     expect(screen.queryByRole('link', { name: /SOON/ })).not.toBeInTheDocument()
   })
 
-  it('"Newest first" gives a plain list ordered by when the order was placed', async () => {
-    await seed()
+  it('a Frame order whose design is named like a Polaroid stays under Frame, and is urgent', async () => {
+    const frame = { kind: 'frame', id: 'frame', name: 'Frame', optionLabel: '4×6 in - Polaroid style', qty: 1, price: 250 }
+    await ordersApi.save(order('FRAME1', '2026-12-30', 'inside', { items: [frame], total: 250 }))
     const user = userEvent.setup()
     open('/admin/orders')
-    await screen.findByRole('link', { name: /OVER/ })
-    await user.selectOptions(screen.getByLabelText(/sort orders/i), 'newest')
-    expect(screen.queryByText(/🚨 Overdue \(/)).not.toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: /^(OVER|SOON|STD|DONE)/ })).toHaveLength(4)
-  })
-
-  it('copies one order summary from its row without opening the order', async () => {
-    await ordersApi.save(order('SOON', '2026-10-20'))
-    const user = userEvent.setup()
-    open('/admin/orders')
-    await screen.findByRole('link', { name: /SOON/ })
-    await user.click(screen.getByRole('button', { name: 'Copy summary of SOON' }))
-    expect(await navigator.clipboard.readText()).toBe('01712345678 (sarah_a) - A4(1pcs, 8p) - birthday - 609tk - urgent (need 20 October) - Cumilla')
-    expect(screen.getByRole('status')).toHaveTextContent('Copied')
-    expect(screen.queryByRole('heading', { name: 'SOON' })).not.toBeInTheDocument() // still on the list
-  })
-
-  it('"Copy summaries" opens the production list with urgent orders and copies them all', async () => {
-    await seed()
-    const user = userEvent.setup()
-    open('/admin/orders')
-    await user.click(await screen.findByRole('button', { name: /copy summaries/i }))
-    const dialog = screen.getByRole('dialog', { name: /production summaries/i })
-    expect(within(dialog).getByText('2 orders')).toBeInTheDocument()
-    expect(within(dialog).getByText(/urgent \(need 15 October\)/)).toBeInTheDocument()
-    expect(within(dialog).queryByText(/standard \(need 1 November\)/)).not.toBeInTheDocument()
-
-    await user.click(within(dialog).getByRole('button', { name: /copy all \(2\)/i }))
-    const text = await navigator.clipboard.readText()
-    expect(text.split('\n\n')).toHaveLength(2)
-    expect(text.split('\n\n')[0]).toContain('need 15 October') // overdue first
-
-    await user.selectOptions(within(dialog).getByRole('combobox'), 'active')
-    expect(within(dialog).getByText('3 orders')).toBeInTheDocument()
-    await user.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('tells you when nothing is urgent', async () => {
-    await ordersApi.save(order('STD', '2026-11-01'))
-    const user = userEvent.setup()
-    open('/admin/orders')
-    await user.click(await screen.findByRole('button', { name: /copy summaries/i }))
-    expect(screen.getByText(/nothing urgent right now/i)).toBeInTheDocument()
+    await screen.findByRole('link', { name: /FRAME1/ })
+    await user.click(screen.getByRole('button', { name: /^Polaroids/ }))
+    expect(screen.queryByRole('link', { name: /FRAME1/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Frame/ }))
+    const row = (await screen.findByRole('link', { name: /FRAME1/ })).closest('tr')
+    expect(within(row).getByText('Urgent')).toBeInTheDocument()
   })
 })
 

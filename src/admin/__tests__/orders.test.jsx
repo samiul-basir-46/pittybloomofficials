@@ -7,6 +7,12 @@ import { CartProvider } from '../../shared/context/CartContext'
 import { SettingsProvider } from '../../shared/context/SettingsContext'
 import { ordersApi } from '../../shared/services/contentService'
 
+// The admin pages are behind sign-in; tests act as a signed-in admin.
+vi.mock('../AdminAuthContext', () => ({
+  AdminAuthProvider: ({ children }) => children,
+  useAdminAuth: () => ({ user: { email: 'admin@example.com' }, loading: false, configured: true, isAdmin: true, signOut: async () => {}, signInWithPassword: async () => {} }),
+}))
+
 const order = (id, name, extra = {}) => ({
   id, createdAt: '2026-10-19T00:44:00.000Z', status: 'New',
   customer: { name, phone: '01712345678', instagram: '@sarah', email: 's@example.com', address: 'House 1, Dhaka', recipient: 'Sarah', deliveryPhone: '01800000000' },

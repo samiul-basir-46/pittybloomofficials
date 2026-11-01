@@ -8,8 +8,10 @@ import { getFrameDesigns } from '../../shared/services/contentService'
 vi.mock('../../shared/services/contentService', () => ({
   getFrameDesigns: vi.fn(async () => []),
   getManualOrderCatalog: async () => ({}),
+  getActiveAddons: async () => [],
+  getPolaroidProducts: async () => [{ id: 'polaroids', title: 'Polaroids', name: 'Polaroids', unitPrice: 8, minQuantity: 9, packs: [], status: 'Available' }],
   getMiniMagazines: async () => [],
-  getSongBooks: async () => [],
+  getSongBooks: async () => [{ id: 'song-1', title: 'Song Book', price12: 849, price16: 1049, status: 'Available' }],
   getProducts: async () => [{ id: 'frame', name: 'Frame', options: 'Small (6×8 in) | 699\nMedium (8×10 in) | 999\nLarge (12×16 in) | 1499' }],
   getSizes: async () => [
     { id: 'a4-4', format: 'A4', pages: 4, price: 299 },
