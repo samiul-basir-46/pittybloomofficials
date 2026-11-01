@@ -52,11 +52,11 @@ function Detail({ product, options }) {
   return (
     <Container className="pb-20 pt-4">
       <PageNav trail={[{ label: product.name }]} />
-      <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="mx-auto w-full max-w-xl">
+      <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16 [&>*]:min-w-0">
+        <div className="mx-auto w-full min-w-0 max-w-xl">
           <div className="aspect-square overflow-hidden rounded-2xl bg-sand shadow-lg"><SmartImage src={product.image} alt={product.name} placeholder="800x800" /></div>
         </div>
-        <div>
+        <div className="min-w-0">
           <h1 className="font-serif text-4xl sm:text-5xl">{product.name}</h1>
           {product.tagline && <p className="mt-2 text-lg text-ink/60">{product.tagline}</p>}
           {previewDesigns.length > 0 && <div className="mt-5 min-w-0"><p className="text-sm font-semibold">{previewDesigns.length} design{previewDesigns.length === 1 ? '' : 's'} to choose from</p><div className="mt-2 flex min-w-0 max-w-full gap-2 overflow-x-auto pb-2">{previewDesigns.slice(0, 8).map((design, index) => <button key={design.id} type="button" aria-label={`View ${design.name || `design ${index + 1}`} larger`} onClick={() => setPreviewDesign(design)} className="size-14 shrink-0 overflow-hidden rounded-lg border border-sand bg-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand sm:size-16"><img src={design.image} alt={design.name || 'Photo Strip design'} loading="lazy" className="size-full object-cover" /></button>)}{previewDesigns.length > 8 && <span className="grid size-14 shrink-0 place-items-center rounded-lg bg-cream text-xs font-semibold text-ink/60 sm:size-16">+{previewDesigns.length - 8}</span>}</div></div>}
