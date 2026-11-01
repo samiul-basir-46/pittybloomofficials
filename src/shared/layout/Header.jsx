@@ -61,7 +61,7 @@ export default function Header() {
               </span>
             )}
           </Link>
-          <Link to="/account" aria-label="Account" className="hidden sm:block">
+          <Link to="/account" aria-label="Account" className="transition-transform duration-200 hover:scale-110">
             <User size={20} />
           </Link>
           {configured && user && <button onClick={signOut} className="hidden items-center gap-2 text-xs uppercase tracking-wide text-ink/70 sm:flex">
@@ -77,6 +77,7 @@ export default function Header() {
         <nav aria-label="Main navigation" className="space-y-1">
           {(nav.data ?? []).map((link) => <NavLink key={link.id} to={link.to} end onClick={() => setMenuOpen(false)} className={({ isActive }) => `block rounded-lg px-3 py-2.5 text-sm font-medium uppercase tracking-wide ${isActive ? 'bg-cream text-brand' : 'text-ink hover:bg-cream'}`}>{link.label}</NavLink>)}
           <Link to="/account" onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-cream">My account</Link>
+          {configured && user && <button type="button" onClick={() => { setMenuOpen(false); signOut() }} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-cream">Logout</button>}
         </nav>
       </div>}
     </header>
