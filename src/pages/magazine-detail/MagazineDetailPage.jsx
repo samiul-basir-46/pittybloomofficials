@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ChevronRight, Gift, ShoppingCart } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ArrowRight, ChevronRight, Gift, ShoppingCart } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import CoverViewer from './components/CoverViewer'
@@ -20,7 +20,6 @@ import { photoStore } from '../order/lib/photoStore'
 
 function Detail({ magazine, sizes, settings }) {
   const navigate = useNavigate()
-  const location = useLocation()
   const { add } = useCart()
   const { productInfo } = useSettings().settings
   const related = useAsync(getMagazines)
@@ -58,13 +57,6 @@ function Detail({ magazine, sizes, settings }) {
   return (
     <Container className="pb-32 pt-3 sm:pb-20 sm:pt-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <button
-          // location.key is "default" when the page was opened directly, so there is nothing to go back to
-          onClick={() => (location.key !== 'default' ? navigate(-1) : navigate('/magazines'))}
-          className="inline-flex items-center gap-2 rounded-full border border-sand bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-sand"
-        >
-          <ArrowLeft size={16} /> Back
-        </button>
         <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm text-ink/60 sm:flex">
           <Link to="/" className="hover:text-brand">
             Home

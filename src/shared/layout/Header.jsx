@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
-import { LogOut, Menu, ShoppingCart, User, X } from 'lucide-react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, LogOut, Menu, ShoppingCart, User, X } from 'lucide-react'
 import Container from '../ui/Container'
 import SmartImage from '../ui/SmartImage'
 import useAsync from '../hooks/useAsync'
@@ -15,11 +15,16 @@ const linkClass = ({ isActive }) =>
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const { count } = useCart()
   const { user, signOut, configured } = useAuth()
   const { settings } = useSettings()
   const nav = useAsync(getNavLinks)
   const isManualOrderPage = location.pathname === '/order-form' || location.pathname === '/custom-order'
+
+  // One Back button for every page, in the header next to Home. location.key is "default" when the page was opened directly.
+  const showBack = location.pathname !== '/' && !isManualOrderPage
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/'))
 
   useEffect(() => setMenuOpen(false), [location.pathname])
   useEffect(() => {
@@ -38,6 +43,7 @@ export default function Header() {
               {l.label}
             </NavLink>
           ))}
+          {showBack && <button type="button" onClick={goBack} className="inline-flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide transition-[color,transform] duration-300 hover:-translate-y-0.5 hover:text-brand"><ArrowLeft size={15} /> Back</button>}
         </nav>}
         <Link
           to="/"
@@ -62,6 +68,7 @@ export default function Header() {
             <LogOut size={16} /> Logout
           </button>}
         </div>}
+        {showBack && <button type="button" aria-label="Go back" onClick={goBack} className="absolute left-14 top-1/2 inline-grid size-10 -translate-y-1/2 place-items-center rounded-lg text-ink sm:hidden"><ArrowLeft size={20} /></button>}
         {!isManualOrderPage && <button type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="mobile-site-navigation" onClick={() => setMenuOpen((open) => !open)} className="absolute left-4 top-1/2 inline-grid size-10 -translate-y-1/2 place-items-center rounded-lg text-ink sm:hidden">
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>}
