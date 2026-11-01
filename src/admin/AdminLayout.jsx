@@ -14,7 +14,7 @@ const NAV_GROUPS = [
     { to: '/admin/cancelled-orders', label: 'Cancelled orders', icon: CircleX },
   ] },
   { title: 'Catalog', links: [
-    ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'song-books', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
+    ...SECTIONS.filter((s) => ['best-selling', 'more-products', 'magazines', 'magazine-filters', 'song-books', 'addons'].includes(s.path)).map((s) => ({ to: `/admin/${s.path}`, label: s.title, icon: s.icon })),
     { to: '/admin/sticker-settings', label: 'Sticker', icon: PackagePlus, iconSrc: '/images/sticker.png' },
     { to: '/admin/frame-settings', label: 'Frame settings', icon: ImageIcon },
     { to: '/admin/polaroid-settings', label: 'Polaroid settings', icon: ImageIcon, iconSrc: '/images/polaroid.png' },

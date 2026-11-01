@@ -138,6 +138,19 @@ export const songBooksApi = {
 }
 export const getSongBooks = async () => (await songBooksApi.list()).filter((item) => item.status !== 'Inactive')
 export const getSongBook = async (id) => (await songBooksApi.list()).find((item) => item.id === id && item.status !== 'Inactive') ?? null
+// Filter names on the Magazines page (Couple, Birthday, Personal…). Admin → Magazine filters adds, renames or removes them.
+export const magazineCategoriesApi = collection('magazineCategories', [
+  { id: 'couple', name: 'Couple', order: 10 },
+  { id: 'birthday', name: 'Birthday', order: 20 },
+  { id: 'personal', name: 'Personal', order: 30 },
+], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
+export const getMagazineCategories = magazineCategoriesApi.list
+export const magazineCategoryIds = (magazine, categories = []) => {
+  if (Array.isArray(magazine?.categories)) return magazine.categories
+  // Magazines saved before filters existed are matched by the filter name in their title until an admin picks filters.
+  const title = String(magazine?.title ?? '').toLowerCase()
+  return categories.filter((category) => category.name && title.includes(String(category.name).toLowerCase())).map((category) => category.id)
+}
 export const magazinesApi = {
   ...magazinesCollection,
   save: async (item) => {
