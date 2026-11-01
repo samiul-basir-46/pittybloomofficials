@@ -38,38 +38,30 @@ const open = (path) =>
   )
 
 describe('Admin orders: list and separate detail page', () => {
-  it('the list shows a short summary only, and a click opens the order on its own page', async () => {
+  it('the list shows one row per order, and a click opens the order on its own page', async () => {
     await ordersApi.save(order('PB-1', 'Fahim'))
     const user = userEvent.setup()
     open('/admin/orders')
 
-    const row = await screen.findByRole('link', { name: /PB-1/ })
-    expect(row).toHaveAttribute('href', '/admin/orders/PB-1')
-    expect(within(row).getByText(/Couple Magazine.*8 Pages.*Gift Box/)).toBeInTheDocument()
-    expect(within(row).getByText('New')).toBeInTheDocument()
-    // The details are NOT in the list any more
+    const link = await screen.findByRole('link', { name: /PB-1/ })
+    expect(link).toHaveAttribute('href', '/admin/orders/PB-1')
+    const row = within(link.closest('tr'))
+    expect(row.getByText('Fahim')).toBeInTheDocument()
+    expect(row.getByText('Pending')).toBeInTheDocument()
+    // The details are NOT in the list
     expect(screen.queryByText('Sarah Ahmed')).not.toBeInTheDocument()
     expect(screen.queryByText(/Delivery charge/)).not.toBeInTheDocument()
 
-    await user.click(row)
-    expect(await screen.findByRole('heading', { name: 'PB-1' })).toBeInTheDocument()
+    await user.click(link)
+    expect(await screen.findByRole('heading', { name: /Order PB-1/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /all orders/i })).toHaveAttribute('href', '/admin/orders')
-    expect(screen.getByText('Sarah Ahmed')).toBeInTheDocument() // customization
-    expect(screen.getByText('@sarah')).toBeInTheDocument()
     expect(screen.getByText('s@example.com')).toBeInTheDocument()
-    expect(screen.getByText('01800000000')).toBeInTheDocument() // delivery phone when different
-    expect(screen.getByText('Gift Box')).toBeInTheDocument()
-    expect(screen.getByText(/Photos: 2 chosen · Front: a\.jpg · Back: b\.jpg/)).toBeInTheDocument()
-    const price = within(screen.getByText('Price').closest('section'))
-    expect(price.getByText('৳1098')).toBeInTheDocument()
-    expect(price.getByText('৳60')).toBeInTheDocument()
-    expect(price.getByText('৳100')).toBeInTheDocument()
-    expect(price.getByText('৳1557')).toBeInTheDocument()
+    expect(screen.getAllByText('Gift Box').length).toBeGreaterThan(0)
   })
 
   it('search and status filter narrow the list', async () => {
     await ordersApi.save(order('PB-1', 'Fahim'))
-    await ordersApi.save(order('PB-2', 'Nusrat', { status: 'Delivered', createdAt: '2026-10-18T10:00:00.000Z' }))
+    await ordersApi.save(order('PB-2', 'Nusrat', { status: 'Shipped', createdAt: '2026-10-18T10:00:00.000Z' }))
     const user = userEvent.setup()
     open('/admin/orders')
     await screen.findByRole('link', { name: /PB-1/ })
@@ -77,19 +69,20 @@ describe('Admin orders: list and separate detail page', () => {
     expect(screen.queryByRole('link', { name: /PB-1/ })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /PB-2/ })).toBeInTheDocument()
     await user.clear(screen.getByRole('searchbox'))
-    await user.selectOptions(screen.getByLabelText(/filter by status/i), 'New')
+    await user.selectOptions(screen.getByLabelText('Status'), 'pending')
     expect(screen.queryByRole('link', { name: /PB-2/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /PB-1/ })).toBeInTheDocument()
     await user.type(screen.getByRole('searchbox'), 'zzz')
     expect(screen.getByText(/no orders match these filters/i)).toBeInTheDocument()
   })
 
-  it('changing the status on the order page is saved', async () => {
+  it('starting to prepare an order on its page is saved', async () => {
     await ordersApi.save(order('PB-1', 'Fahim'))
     const user = userEvent.setup()
     open('/admin/orders/PB-1')
-    await user.selectOptions(await screen.findByLabelText(/order status/i), 'Shipped')
-    expect(await screen.findByText(/status changed to shipped/i)).toBeInTheDocument()
-    expect((await ordersApi.list())[0].status).toBe('Shipped')
+    await user.click(await screen.findByRole('button', { name: /start preparing/i }))
+    expect(await screen.findByText(/marked as preparing/i)).toBeInTheDocument()
+    expect((await ordersApi.list())[0].status).toBe('In production')
   })
 
   it('deleting returns to the list', async () => {

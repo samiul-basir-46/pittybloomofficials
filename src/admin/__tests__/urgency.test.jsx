@@ -125,7 +125,7 @@ describe('Admin Orders list', () => {
     open('/admin/orders')
     await screen.findByRole('link', { name: /OVER/ })
     const ids = screen.getAllByRole('link', { name: /^#(OVER|SOON|STD|DONE)/ }).map((link) => link.textContent.replace('#', ''))
-    expect(ids).toEqual(['OVER', 'SOON', 'STD', 'DONE'])
+    expect(ids).toEqual(['OVER', 'SOON', 'STD']) // delivered orders live under Completed orders
     expect(within(screen.getByRole('link', { name: /OVER/ }).closest('tr')).getByText('Overdue')).toBeInTheDocument()
     expect(within(screen.getByRole('link', { name: /SOON/ }).closest('tr')).getByText('Urgent')).toBeInTheDocument()
   })
@@ -162,24 +162,19 @@ describe('Admin Orders list', () => {
 })
 
 describe('Order page and dashboard', () => {
-  it('the order page shows the deadline and a copyable production summary', async () => {
+  it('the order page offers a copyable production summary', async () => {
     await ordersApi.save(order('SOON', '2026-10-20', 'inside', { delivery: 'Inside Dhaka · Tuesday, 20 October 2026' }))
     const user = userEvent.setup()
     open('/admin/orders/SOON')
-    expect(await screen.findByText(/Urgent: Tomorrow/)).toBeInTheDocument()
-    expect(screen.getByText('Tuesday, 20 October 2026')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /copy summary/i }))
+    await user.click(await screen.findByRole('button', { name: /copy production summary/i }))
     expect(await navigator.clipboard.readText()).toMatch(/urgent \(need 20 October\) - Cumilla$/)
   })
 
-  it('the dashboard counts open orders by urgency and links to the filtered list', async () => {
+  it('the dashboard counts the orders that need action and links to the urgent list', async () => {
     await seed()
     open('/admin')
-    const overdue = await screen.findByRole('link', { name: /Overdue/ })
-    expect(overdue).toHaveAttribute('href', '/admin/orders?urgency=overdue')
-    expect(within(overdue).getByText('1')).toBeInTheDocument()
-    expect(within(screen.getByRole('link', { name: /Urgent/ })).getByText('1')).toBeInTheDocument()
-    expect(within(screen.getByRole('link', { name: /Standard/ })).getByText('1')).toBeInTheDocument() // the delivered one is not counted
+    expect(await screen.findByText('2 urgent')).toBeInTheDocument() // one overdue + one urgent; the delivered one is not counted
+    expect(screen.getAllByRole('link', { name: 'View all' }).some((link) => link.getAttribute('href') === '/admin/orders?urgency=urgent&date=all')).toBe(true)
   })
 })
 

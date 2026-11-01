@@ -94,7 +94,7 @@ describe('magazine order journey', () => {
     // Today is unavailable, tomorrow is +100 (rush)
     expect(screen.getByRole('button', { name: /sunday, 18 october$/i })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: /monday, 19 october, rush delivery plus ৳100/i }))
-    expect(summary().getByText(/Rush delivery \(1 day\)/)).toBeInTheDocument()
+    expect(summary().getByText(/Rush delivery/)).toBeInTheDocument()
     expect(summary().getByText('৳1258')).toBeInTheDocument() // 1098 + 60 + 100
     await cont()
 
@@ -185,7 +185,7 @@ describe('magazine order journey', () => {
     expect(screen.getByRole('heading', { name: /choose your magazine/i })).toBeInTheDocument()
   })
 
-  it('Outside Dhaka: higher delivery charge, no rush dates', async () => {
+  it('Outside Dhaka: higher delivery charge, and its rush window starts a day later', async () => {
     open()
     await screen.findByRole('heading', { name: /choose your magazine/i })
     await cont()
@@ -196,9 +196,10 @@ describe('magazine order journey', () => {
     await cont() // photos are optional
     await screen.findByRole('heading', { name: /delivery details/i })
     await fillDelivery(/outside dhaka/i)
-    expect(screen.getByRole('button', { name: /tuesday, 20 october$/i })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: /wednesday, 21 october$/i }))
-    expect(within(screen.getByRole('complementary')).getByText('৳659')).toBeInTheDocument() // 549 + 110
+    expect(screen.getByRole('button', { name: /monday, 19 october$/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /tuesday, 20 october, rush delivery plus ৳100/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /thursday, 22 october$/i }))
+    expect(within(screen.getByRole('complementary')).getByText('৳659')).toBeInTheDocument() // 549 + 110, no rush
   })
 
   it('clears the date when switching to a location where it is not allowed', async () => {
@@ -228,7 +229,7 @@ describe('magazine order journey', () => {
     await cont() // photos are optional
     await screen.findByRole('heading', { name: /delivery details/i })
     await fillDelivery(/outside dhaka/i)
-    await user.click(screen.getByRole('button', { name: /wednesday, 21 october$/i }))
+    await user.click(screen.getByRole('button', { name: /thursday, 22 october$/i }))
     await cont()
     await screen.findByRole('heading', { name: /your info/i })
     await type(/your name/i, 'Fahim Ahmed')

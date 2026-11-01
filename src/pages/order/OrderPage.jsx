@@ -117,7 +117,15 @@ function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed,
   const [status, setStatus] = useState('idle') // idle | submitting | error | done
   const [submitError, setSubmitError] = useState('')
   const [result, setResult] = useState(null)
-  const [saveState, setSaveState] = useState(null) // null | saving | saved | error
+  // null | saving | saved | error. Saving moves the page into cart mode (the Wizard remounts), so a "just saved" note
+  // is carried across in sessionStorage to keep showing the confirmation.
+  const [saveState, setSaveState] = useState(() => {
+    try {
+      const savedId = resumeDraft?.id
+      if (savedId && sessionStorage.getItem('pb:just-saved') === savedId) { sessionStorage.removeItem('pb:just-saved'); return 'saved' }
+    } catch { /* storage unavailable */ }
+    return null
+  })
   const [photosReady, setPhotosReady] = useState(false)
   const flowSteps = cartMode ? CART_FLOW_STEPS : STEPS
   const flowHeadings = cartMode ? CART_FLOW_HEADINGS : HEADINGS
@@ -264,8 +272,10 @@ function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed,
         return next
       })
       update((d) => ({ ...d, savedId: id }))
+      try { sessionStorage.setItem('pb:just-saved', id) } catch { /* storage unavailable */ }
       setSaveState('saved')
-    } catch {
+    } catch (cause) {
+      console.error('Save to cart failed', cause)
       setSaveState('error')
     }
   }

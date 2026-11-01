@@ -41,7 +41,7 @@ describe('guest manual order journey', () => {
     expect(screen.getByRole('radio', { name: 'Small minimal' })).toBeInTheDocument()
     expect(screen.queryByRole('radio', { name: 'Medium blue' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: 'Small floral' }))
-    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } })
+    fireEvent.change(screen.getByLabelText('Quantity for Frame #1'), { target: { value: '3' } })
 
     expect(screen.getByRole('button', { name: 'Configure Frame #2' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Configure Frame #3' })).toBeInTheDocument()
@@ -51,7 +51,7 @@ describe('guest manual order journey', () => {
     expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #2' })).getByRole('radio', { name: 'Small minimal' })).toHaveAttribute('aria-checked', 'true')
 
     await user.click(screen.getByRole('button', { name: 'Configure Frame #1' }))
-    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Quantity for Frame #1'), { target: { value: '2' } })
     expect(screen.queryByRole('button', { name: 'Configure Frame #3' })).not.toBeInTheDocument()
     expect(within(screen.getByRole('radiogroup', { name: 'Design for Frame #1' })).getByRole('radio', { name: 'Small floral' })).toHaveAttribute('aria-checked', 'true')
     await user.click(screen.getByRole('button', { name: 'Configure Frame #2' }))
@@ -91,7 +91,7 @@ describe('guest manual order journey', () => {
     const { container } = render(<MemoryRouter><ManualOrderPage /></MemoryRouter>)
     expect(await screen.findByRole('heading', { name: 'Order Form' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Polaroids/ }))
-    await user.click(screen.getByRole('button', { name: /A custom magazine made around your story/ }))
+    await user.click(screen.getByRole('button', { name: /^Magazine/ }))
     await user.click(screen.getByRole('button', { name: /Song Book/ }))
     await user.click(screen.getByRole('button', { name: /Continue to product details/i }))
 
