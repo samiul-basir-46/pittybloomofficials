@@ -34,12 +34,13 @@ export const SECTIONS = [
   { path: 'best-selling', title: 'Best Selling', icon: Star, api: bestSellingApi, ...card },
   {
     path: 'more-products', title: 'Home page products', icon: LayoutGrid, api: moreProductsApi,
-    note: 'This controls only which product cards appear on the home page and their order. Product names, images and prices come from each product’s own catalog section.',
+    note: 'This controls only which product cards appear on the home page and their order. Names and prices come from each product’s own catalog section. Add a Home page image to choose the picture shown on the home page; leave it empty to use the product’s own image.',
     fields: [
+      { name: 'homeImage', label: 'Home page image (optional)', type: 'image' },
       { name: 'to', label: 'Product page link', required: true },
       { name: 'order', label: 'Position (1 is first)', type: 'number', required: true },
     ],
-    blank: { name: '', image: '', to: '', order: 10 },
+    blank: { name: '', image: '', homeImage: '', to: '', order: 10 },
     label: card.label,
     columns: [...card.columns, { key: 'order', label: 'Position' }],
   },
