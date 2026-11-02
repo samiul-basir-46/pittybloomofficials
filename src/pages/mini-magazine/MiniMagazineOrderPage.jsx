@@ -12,6 +12,7 @@ import { buildOrder } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
 import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
+import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 import { photoStore } from '../order/lib/photoStore'
 import { photoRule } from './photoRule'
 
@@ -30,7 +31,7 @@ export default function MiniMagazineOrderPage() {
   const [photos, setPhotos] = useState([])
   const [note, setNote] = useState('')
   const [cover, setCover] = useState({ front: '', back: '' })
-  const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [customer, setCustomer] = useState({ name: '', phone: '', instagram: '', address: '' })
   const [deliveryArea, setDeliveryArea] = useState('')
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
@@ -67,6 +68,7 @@ export default function MiniMagazineOrderPage() {
     if (!selected.some((photo) => photo.id === cover.front)) { setError('Choose which photo goes on the front cover.'); return }
     if (!selected.some((photo) => photo.id === cover.back)) { setError('Choose which photo goes on the back cover.'); return }
     if (cover.front === cover.back) { setError('Front and back covers must be different photos.'); return }
+    if (!cartMode && instagramProblem(customer.instagram)) { setError(`Instagram username: ${instagramProblem(customer.instagram)}`); return }
     if (!cartMode && !deliveryArea) { setError('Select Inside Dhaka or Outside Dhaka.'); return }
     setPlacing(true)
     setError('')
@@ -84,7 +86,7 @@ export default function MiniMagazineOrderPage() {
       const order = await ordersApi.place(buildOrder({
         id: '',
         cartItems: [line],
-        customer: { ...customer, uid: user?.uid || '', email: user?.email || '' },
+        customer: { ...customer, instagram: cleanInstagram(customer.instagram), uid: user?.uid || '', email: user?.email || '' },
         extras: { deliveryCharge: deliveryFee(deliveryArea), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
       }), requestKey.current)
       setPlacedOrder(order)
@@ -122,7 +124,8 @@ export default function MiniMagazineOrderPage() {
           {!cartMode && <div className="border-t border-sand pt-6"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mb-4 mt-1 text-sm text-ink/60">We’ll contact you to confirm delivery.</p><div className="space-y-3">
             <input className={inputClass} placeholder="Full name" autoComplete="name" required value={customer.name} onChange={setField('name')} />
             <input className={inputClass} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" required value={customer.phone} onChange={setField('phone')} />
-            <textarea className={inputClass} rows={4} placeholder="Full delivery address" autoComplete="street-address" required value={customer.address} onChange={setField('address')} />
+            <input className={inputClass} placeholder="Instagram username (e.g. @yourname)" aria-label="Instagram username" autoComplete="off" autoCapitalize="none" required value={customer.instagram} onChange={setField('instagram')} />
+              <textarea className={inputClass} rows={4} placeholder="Full delivery address" autoComplete="street-address" required value={customer.address} onChange={setField('address')} />
             <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => setDeliveryArea(event.target.value)} className={`${inputClass} appearance-none pr-10`}><option value="">Select an area</option><option value="inside">Inside Dhaka · ৳60</option><option value="outside">Outside Dhaka · ৳110</option></select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink/50" /></span></label>
           </div></div>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}

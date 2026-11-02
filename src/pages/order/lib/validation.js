@@ -15,6 +15,13 @@ export const WHATSAPP_MESSAGE = 'Enter a valid WhatsApp number, like 01712345678
 const stripAt = (v = '') => String(v).trim().replace(/^@+/, '')
 export const cleanInstagram = (v) => (stripAt(v) ? `@${stripAt(v)}` : '')
 const looksLikeLink = (v) => /[/:]|instagram\.com/i.test(v)
+// One message for any order form: '' when the Instagram username is fine.
+export const instagramProblem = (v = '') => {
+  if (!stripAt(v)) return 'Please enter your Instagram username.'
+  if (looksLikeLink(v)) return 'Enter only your username, like @yourname.'
+  if (!isInstagram(v)) return 'Use letters, numbers, dots and underscores only.'
+  return ''
+}
 const isInstagram = (v) => /^[A-Za-z0-9._]{1,30}$/.test(stripAt(v))
 
 // Every validator returns { fieldKey: 'message' }. An empty object means the step is fine.
