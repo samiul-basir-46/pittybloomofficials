@@ -233,16 +233,18 @@ function buildItem(input, config, photos, referenceFile) {
   if (input.type === 'photo-strip') {
     const product = config.photoStripProduct
     const designs = (Array.isArray(product?.designs) ? product.designs : []).filter((design) => design?.id && design.image)
-    if (!product || product.status !== 'Available' || !designs.length) throw new Error('Photo Strip is not currently available.')
+    if (!product || product.status !== 'Available') throw new Error('Photo Strip is not currently available.')
     const unitPrice = Number(product.unitPrice)
     if (!Number.isFinite(unitPrice) || unitPrice < 1) throw new Error('Photo Strip pricing is not available. Please contact us.')
     if (quantity > 9999) throw new Error('Photo Strip quantity cannot be greater than 9999.')
     if (!photos.length) throw new Error('Add at least one photo for your Photo Strip.')
-    const design = designs.find((row) => row.id === String(input.designId))
+    // "My own design": no template; the customer's uploaded picture is printed as sent.
+    const ownDesign = String(input.designId) === 'custom'
+    const design = ownDesign ? { id: 'custom', name: 'My own design', image: '', custom: true } : designs.find((row) => row.id === String(input.designId))
     if (!design) throw new Error('Choose an available Photo Strip design.')
     const packs = (Array.isArray(product.packs) ? product.packs : []).map((pack) => ({ pieces: Number(pack.pieces), price: Number(pack.price) })).filter((pack) => Number.isInteger(pack.pieces) && pack.pieces > 0 && Number.isFinite(pack.price) && pack.price > 0).sort((a, b) => a.pieces - b.pieces)
     const priced = priceWithOffers(unitPrice, packs, quantity)
-    return { kind: 'product', id: 'photo-strip', name: product.name || 'Photo Strip', image: design.image, optionLabel: `${quantity} strip${quantity === 1 ? '' : 's'}${design.name ? ` · ${design.name}` : ''}`, design: { id: design.id, name: text(design.name, 100), image: design.image }, qty: quantity, price: unitPrice, note: notes, meta: { photoStripDesignId: design.id, photoStripQuantity: quantity }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
+    return { kind: 'product', id: 'photo-strip', name: product.name || 'Photo Strip', image: design.image || product.image || '', optionLabel: `${quantity} strip${quantity === 1 ? '' : 's'}${ownDesign ? ' · Own design' : design.name ? ` · ${design.name}` : ''}`, design: { id: design.id, name: text(design.name, 100), image: design.image, ...(ownDesign ? { custom: true } : {}) }, qty: quantity, price: unitPrice, note: notes, meta: { photoStripDesignId: design.id, photoStripQuantity: quantity }, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'frame') {
     if (!photos.length) throw new Error('Add at least one print photo for this frame.')
@@ -250,10 +252,11 @@ function buildItem(input, config, photos, referenceFile) {
     const option = config.frameOptions.find((row) => row.id === input.optionId)
     if (!option) throw new Error('A selected frame size is no longer available. Please choose another size.')
     const designs = config.frameDesigns ?? []
-    const design = designs.find((row) => row.id === String(input.designId))
+    const ownDesign = String(input.designId) === 'custom'
+    const design = ownDesign ? { id: 'custom', name: 'My own design', image: '', sizeId: option.id, custom: true } : designs.find((row) => row.id === String(input.designId))
     if (!design) throw new Error('Choose a design for each frame.')
     if (design.sizeId !== option.id) throw new Error('The selected design is not available for this frame size. Choose a matching design.')
-    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}${quantity > 1 ? ` × ${quantity}` : ''}`, design: { id: design.id, name: design.name, image: design.image }, qty: quantity, price: Number(design.price) > 0 ? Number(design.price) : option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }, ...(quantity > 1 ? [{ label: 'Quantity', value: String(quantity) }] : [])], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
+    return { kind: 'frame', id: 'frame', name: card.title, optionLabel: `${option.label} - ${design.name || 'Selected design'}${quantity > 1 ? ` × ${quantity}` : ''}`, design: { id: design.id, name: design.name, image: design.image, ...(ownDesign ? { custom: true } : {}) }, qty: quantity, price: Number(design.price) > 0 ? Number(design.price) : option.price, note: notes, meta: { frameSizeId: option.id, frameDesignId: design.id, frameGroupId: text(input.groupKey, 80), frameConfigurationId: text(input.key, 80) }, details: [{ label: 'Frame size', value: option.label }, { label: 'Selected design', value: design.name || 'Selected design' }, ...(quantity > 1 ? [{ label: 'Quantity', value: String(quantity) }] : [])], photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } }
   }
   if (input.type === 'mini-magazine') {
     const product = config.miniMagazines?.find((row) => row.id === String(input.productId)) ?? config.miniMagazines?.[0]

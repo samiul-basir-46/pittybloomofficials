@@ -53,6 +53,8 @@ export function PhotoGallery({ photos }) {
   const [loadingPhotos, setLoadingPhotos] = useState(false)
   const [photoError, setPhotoError] = useState('')
   const [retry, setRetry] = useState(0)
+  // Browsers (Chrome/Edge/Firefox) cannot draw iPhone HEIC/HEIF photos. The file is fine; it only needs downloading.
+  const [unreadable, setUnreadable] = useState({})
   const files = photos?.files ?? EMPTY_PHOTO_FILES
   const pageCount = Math.ceil(files.length / pageSize)
   const visibleFiles = useMemo(() => files.slice(page * pageSize, (page + 1) * pageSize), [files, page])
@@ -97,8 +99,8 @@ export function PhotoGallery({ photos }) {
             ? 'Back cover'
             : ''
         return <div key={file.id} className="min-w-0">
-        <button type="button" onClick={() => urls[file.id] && setPreview({ ...file, url: urls[file.id] })} className="relative block aspect-square w-full overflow-hidden rounded-xl border border-sand bg-cream text-left">
-          {urls[file.id] ? <img src={urls[file.id]} alt={file.name} className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center px-2 text-center text-xs text-ink/50">Preview unavailable</span>}
+        <button type="button" onClick={() => urls[file.id] && !unreadable[file.id] && setPreview({ ...file, url: urls[file.id] })} className="relative block aspect-square w-full overflow-hidden rounded-xl border border-sand bg-cream text-left">
+          {urls[file.id] && unreadable[file.id] ? <span className="grid h-full place-content-center gap-1 px-2 text-center text-[11px] leading-4 text-ink/60"><span className="font-bold text-brand">{(String(file.name).split('.').pop() || file.type || 'IMAGE').slice(0, 5).toUpperCase()}</span>Can’t preview in this browser. Download to open.</span> : urls[file.id] ? <img src={urls[file.id]} alt={file.name} onError={() => setUnreadable((current) => ({ ...current, [file.id]: true }))} className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center px-2 text-center text-xs text-ink/50">Preview unavailable</span>}
           {coverLabel && <span className={`absolute left-1.5 top-1.5 rounded-md px-2 py-1 text-[10px] font-bold text-white shadow-sm ${coverLabel === 'Front cover' ? 'bg-brand' : 'bg-ink/80'}`}>{coverLabel}</span>}
         </button>
         <div className="mt-1.5 flex items-center justify-between gap-2"><span className="truncate text-xs text-ink/65" title={file.name}>{file.name}</span><button type="button" aria-label={`Download ${file.name}`} disabled={!urls[file.id]} onClick={() => download(file)} className="grid size-8 shrink-0 place-items-center rounded-lg border border-sand text-brand hover:bg-cream disabled:opacity-40"><ArrowDownToLine size={15} /></button></div>

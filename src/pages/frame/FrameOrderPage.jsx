@@ -54,7 +54,7 @@ function FramePiece({ pieceKey, index, total, designs, designId, quantity, onQua
     {<div className="mt-4 min-w-0 max-w-full">
       <p className="text-sm font-semibold">Choose one design for this frame <span className="text-red-600">*</span></p>
       <div id={`frame-design-${pieceKey}`} tabIndex={-1} role="radiogroup" aria-label={`Design for frame ${index + 1}`} className={`mt-2 grid min-w-0 grid-cols-[repeat(auto-fill,minmax(68px,1fr))] gap-2 rounded-lg ${errors.design ? 'outline outline-1 outline-red-400 outline-offset-2' : ''}`}>
-        <button type="button" role="radio" aria-checked={designId === CUSTOM_DESIGN.id} onClick={() => onDesign(CUSTOM_DESIGN.id)} className={`col-span-full flex min-h-14 w-full items-center gap-3 rounded-lg border-2 px-3 py-2 text-left ${designId === CUSTOM_DESIGN.id ? 'border-brand bg-cream shadow-sm' : 'border-dashed border-brand/40 bg-white'}`}><span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand/10 text-brand">{designId === CUSTOM_DESIGN.id ? <Check size={17} /> : <ImagePlus size={17} />}</span><span className="min-w-0"><span className="block text-sm font-semibold">Use my own design / photo</span><span className="block text-xs text-ink/60">Upload from your phone — we print it exactly as you send it.</span></span></button>
+        <button type="button" role="radio" aria-checked={designId === CUSTOM_DESIGN.id} onClick={() => onDesign(CUSTOM_DESIGN.id)} className={`col-span-full flex min-h-14 w-full items-center gap-3 rounded-lg border-2 px-3 py-2 text-left ${designId === CUSTOM_DESIGN.id ? 'border-brand bg-cream shadow-sm' : 'border-dashed border-brand/40 bg-white'}`}><span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand/10 text-brand">{designId === CUSTOM_DESIGN.id ? <Check size={17} /> : <ImagePlus size={17} />}</span><span className="min-w-0"><span className="block text-sm font-semibold">Use my own design</span><span className="block text-xs text-ink/60">We print exactly the picture you upload.</span></span></button>
         {designs.map((design) => {
           const selected = design.id === designId
           return <div key={design.id} className={`relative min-w-0 overflow-hidden rounded-lg border-2 bg-white ${selected ? 'border-brand shadow-sm' : 'border-sand'}`}>
@@ -71,8 +71,8 @@ function FramePiece({ pieceKey, index, total, designs, designId, quantity, onQua
     </div>}
 
     <div className="mt-5 min-w-0 max-w-full">
-      <p className="text-sm font-semibold">{designId === CUSTOM_DESIGN.id ? 'Your design to print on' : 'Photos for'} {total > 1 ? `frame #${index + 1}` : 'your frame'} <span className="text-red-600">*</span></p>
-      <p className="mt-0.5 text-xs text-ink/60">{designId === CUSTOM_DESIGN.id ? 'Upload the finished design or picture. It will be printed exactly as uploaded.' : 'Photos in this group repeat for the quantity above. Add another setup for a different design or photos.'}</p>
+      <p className="text-sm font-semibold">{designId === CUSTOM_DESIGN.id ? 'Your design' : 'Photos for'} {total > 1 ? `frame #${index + 1}` : 'your frame'} <span className="text-red-600">*</span></p>
+      <p className="mt-0.5 text-xs text-ink/60">{designId === CUSTOM_DESIGN.id ? 'Upload your design. We print it exactly as it is.' : 'Photos in this group repeat for the quantity above. Add another setup for a different design or photos.'}</p>
       <input ref={input} type="file" accept="image/*" multiple className="sr-only" onChange={(event) => { onPhotos(Array.from(event.target.files ?? [])); event.target.value = '' }} />
       {photos.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
         {photos.map((photo) => <div key={photo.id} className="relative w-16 shrink-0 overflow-hidden rounded-lg border border-sand bg-cream sm:w-[72px]">
