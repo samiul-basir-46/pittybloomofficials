@@ -311,7 +311,7 @@ export default function ManualOrderPage() {
     ...(selected.miniMagazines ? miniBooks.map((item) => { const product = miniProducts.find((row) => row.id === item.productId) ?? miniProducts[0]; return { ...item, type: 'mini-magazine', price: Number(product?.price) || 0, product } }) : []),
     ...(selected.magazines ? magazines.map((item) => ({ ...item, type: 'magazine', price: magazineOptions.find((option) => option.id === item.sizeId)?.price || 0 })) : []),
     ...(selected.songBooks ? songBooks.map((item) => { const book = songProducts.find((row) => row.id === item.productId) ?? songProducts[0]; return { ...item, type: 'song-book', price: Number(book?.price12) || 0, product: book } }) : []),
-    ...(selected.photoStrip ? [{ ...photoStrip, type: 'photo-strip', qty: 1, quantity: Number(photoStrip.quantity) || 1, price: pricedPhotoStrip.total, lineTotal: pricedPhotoStrip.total, design: photoStripDesigns.find((design) => design.id === photoStrip.designId) }] : []),
+    ...(selected.photoStrip ? photoStrips.map((item) => ({ ...item, type: 'photo-strip', qty: 1, quantity: Number(item.quantity) || 1, price: pricedPhotoStrip.total, lineTotal: pricedPhotoStrip.total, design: photoStripDesigns.find((design) => design.id === item.designId) })) : []),
   ]
   const productSubtotal = items.reduce((sum, item) => sum + (Number(item.lineTotal) || (Number(item.price) || 0) * (Number(item.qty ?? item.quantity) || 0)), 0)
   const hasPolaroids = Boolean(selected.polaroids)
