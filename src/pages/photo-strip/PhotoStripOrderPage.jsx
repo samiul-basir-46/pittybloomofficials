@@ -15,6 +15,7 @@ import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
 import { polaroidPricing } from '../polaroids/packs'
+import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 
 const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
 const areaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
@@ -39,7 +40,7 @@ export default function PhotoStripOrderPage() {
   const unitPrice = hasQuantityPricing ? Number(product.unitPrice) : Number(option?.price) || 0
   const [strips, setStrips] = useState(() => [{ key: newKey(), quantity: qty, designId: '', notes: '' }])
   const [preview, setPreview] = useState(null)
-  const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [customer, setCustomer] = useState({ name: '', phone: '', instagram: '', address: '' })
   const [area, setArea] = useState('')
   const [step, setStep] = useState(1)
   const [stripErrors, setStripErrors] = useState({})
@@ -133,15 +134,16 @@ export default function PhotoStripOrderPage() {
       targetInvalidField(targetId)
       return
     }
-    if (!cartMode && (!customer.name.trim() || !customer.phone.trim() || !customer.address.trim() || !area)) {
+    if (!cartMode && (!customer.name.trim() || !customer.phone.trim() || instagramProblem(customer.instagram) || !customer.address.trim() || !area)) {
       const errors = {
         name: customer.name.trim() ? '' : 'Enter your full name.',
         phone: customer.phone.trim() ? '' : 'Enter your WhatsApp or phone number.',
+        instagram: instagramProblem(customer.instagram),
         address: customer.address.trim() ? '' : 'Enter your delivery address.',
         area: area ? '' : 'Select your delivery area.',
       }
       setCustomerErrors(errors)
-      const targetId = errors.name ? 'photo-strip-customer-name' : errors.phone ? 'photo-strip-customer-phone' : errors.address ? 'photo-strip-customer-address' : 'photo-strip-delivery-area'
+      const targetId = errors.name ? 'photo-strip-customer-name' : errors.phone ? 'photo-strip-customer-phone' : errors.instagram ? 'photo-strip-customer-instagram' : errors.address ? 'photo-strip-customer-address' : 'photo-strip-delivery-area'
       targetInvalidField(targetId)
       return
     }
@@ -170,7 +172,7 @@ export default function PhotoStripOrderPage() {
       })
       if (cartMode) { lines.forEach((line, index) => addToCart(line, { silent: index < lines.length - 1 })); navigate('/cart'); return }
       const order = await ordersApi.place(buildOrder({
-        id: '', cartItems: lines, customer: { ...customer, uid: user?.uid || '', email: user?.email || '' },
+        id: '', cartItems: lines, customer: { ...customer, instagram: cleanInstagram(customer.instagram), uid: user?.uid || '', email: user?.email || '' },
         extras: { deliveryCharge: deliveryFee(area), deliveryLabel: `${areaLabel(area)} · Delivery details received`, deliveryInfo: { location: area, locationLabel: areaLabel(area) } },
       }), requestKey.current)
       setPlacedOrder(order)
@@ -204,7 +206,7 @@ export default function PhotoStripOrderPage() {
           })}</div>
           <Button id="photo-strip-add-design" type="button" variant="outline" disabled={strips.length >= 20} onClick={() => setStrips((current) => [...current, { key: newKey(), quantity: 1, designId: '', notes: '' }])} className="w-full justify-center gap-2 rounded-xl py-3 text-center leading-snug sm:w-auto"><Plus size={16} /> Add another design</Button>
           </>}
-          {!cartMode && step === 2 && <div className="border-t border-sand pt-5"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mt-1 text-sm text-ink/60">Enter where we should deliver your Photo Strip order.</p><div className="mt-4 space-y-3"><div><input id="photo-strip-customer-name" aria-label="Full name" aria-invalid={Boolean(customerErrors.name)} className={`${inputClass} ${customerErrors.name ? 'border-red-500' : ''}`} placeholder="Full name" autoComplete="name" value={customer.name} onChange={setCustomerField('name')} />{customerErrors.name && <p className="mt-1 text-xs text-red-600">{customerErrors.name}</p>}</div><div><input id="photo-strip-customer-phone" aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p className="mt-1 text-xs text-red-600">{customerErrors.phone}</p>}</div><div><textarea id="photo-strip-customer-address" aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={3} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p className="mt-1 text-xs text-red-600">{customerErrors.address}</p>}</div><div><select id="photo-strip-delivery-area" aria-label="Delivery area" aria-invalid={Boolean(customerErrors.area)} className={`${inputClass} ${customerErrors.area ? 'border-red-500' : ''}`} value={area} onChange={(event) => { setArea(event.target.value); setCustomerErrors((current) => ({ ...current, area: '' })) }}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select>{customerErrors.area && <p className="mt-1 text-xs text-red-600">{customerErrors.area}</p>}</div></div></div>}
+          {!cartMode && step === 2 && <div className="border-t border-sand pt-5"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mt-1 text-sm text-ink/60">Enter where we should deliver your Photo Strip order.</p><div className="mt-4 space-y-3"><div><input id="photo-strip-customer-name" aria-label="Full name" aria-invalid={Boolean(customerErrors.name)} className={`${inputClass} ${customerErrors.name ? 'border-red-500' : ''}`} placeholder="Full name" autoComplete="name" value={customer.name} onChange={setCustomerField('name')} />{customerErrors.name && <p className="mt-1 text-xs text-red-600">{customerErrors.name}</p>}</div><div><input id="photo-strip-customer-phone" aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p className="mt-1 text-xs text-red-600">{customerErrors.phone}</p>}</div><div><input id="photo-strip-customer-instagram" aria-label="Instagram username" aria-invalid={Boolean(customerErrors.instagram)} className={`${inputClass} ${customerErrors.instagram ? 'border-red-500' : ''}`} placeholder="Instagram username (e.g. @yourname)" autoComplete="off" autoCapitalize="none" value={customer.instagram} onChange={setCustomerField('instagram')} />{customerErrors.instagram && <p className="mt-1 text-xs text-red-600">{customerErrors.instagram}</p>}</div><div><textarea id="photo-strip-customer-address" aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={3} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p className="mt-1 text-xs text-red-600">{customerErrors.address}</p>}</div><div><select id="photo-strip-delivery-area" aria-label="Delivery area" aria-invalid={Boolean(customerErrors.area)} className={`${inputClass} ${customerErrors.area ? 'border-red-500' : ''}`} value={area} onChange={(event) => { setArea(event.target.value); setCustomerErrors((current) => ({ ...current, area: '' })) }}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select>{customerErrors.area && <p className="mt-1 text-xs text-red-600">{customerErrors.area}</p>}</div></div></div>}
           {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {cartMode ? <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? 'Adding to cart…' : 'Add to cart'} <ShoppingBag size={17} /></Button> : step === 1 ? <Button type="button" onClick={continueToDelivery} className="w-full gap-2">Continue to delivery <Plus size={17} /></Button> : <div className="grid gap-3 sm:grid-cols-2"><Button type="button" variant="outline" onClick={() => { setStep(1); setError(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>Back to strip details</Button><Button type="submit" disabled={placing} className="w-full gap-2">{placing ? 'Saving order…' : 'Place order'} <ShoppingBag size={17} /></Button></div>}
         </section>

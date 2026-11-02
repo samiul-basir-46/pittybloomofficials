@@ -10,6 +10,7 @@ import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
 import useAsync from '../../shared/hooks/useAsync'
 import { customerProfileApi, getMagazines, getSongBooks, ordersApi } from '../../shared/services/contentService'
+import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 import { savedDrafts } from '../order/lib/savedDrafts'
 import { photoStore } from '../order/lib/photoStore'
 import { buildOrder } from '../../shared/utils/orders'
@@ -200,6 +201,7 @@ export default function CartPage() {
   const [customer, setCustomer] = useState(() => ({
     name: savedOrderCheckout?.customer?.recipient || savedOrderCheckout?.customer?.name || '',
     phone: savedOrderCheckout?.customer?.deliveryPhone || savedOrderCheckout?.customer?.phone || '',
+    instagram: savedOrderCheckout?.customer?.instagram || '',
     address: savedOrderCheckout?.customer?.address || '',
     note: savedOrderCheckout?.customer?.note || '',
   }))
@@ -210,6 +212,7 @@ export default function CartPage() {
       ...current,
       name: current.name || profile.data?.name || user?.displayName || '',
       phone: current.phone || profile.data?.phone || '',
+      instagram: current.instagram || profile.data?.instagram || '',
       address: current.address || [profile.data?.address, profile.data?.city].filter(Boolean).join(', '),
     }))
   }, [profile.loading, profile.data, user?.displayName])
@@ -231,6 +234,7 @@ export default function CartPage() {
       navigate(`/account?next=${encodeURIComponent('/cart?checkout=1')}`)
       return
     }
+    if (instagramProblem(customer.instagram)) { setCheckoutOpen(true); setSubmitError(`Instagram username: ${instagramProblem(customer.instagram)}`); return }
     if (hasFrameOrPolaroids && !deliveryArea) { setSubmitError('Select Inside Dhaka or Outside Dhaka.'); return }
     submitting.current = true
     setSubmitError('')
@@ -238,8 +242,8 @@ export default function CartPage() {
 
     try {
       const orderCustomer = savedOrderCheckout?.customer
-        ? { ...savedOrderCheckout.customer, recipient: customer.name, deliveryPhone: customer.phone, address: customer.address, note: customer.note || savedOrderCheckout.customer.note }
-        : { ...customer, recipient: customer.name, deliveryPhone: customer.phone }
+        ? { ...savedOrderCheckout.customer, recipient: customer.name, deliveryPhone: customer.phone, instagram: cleanInstagram(customer.instagram), address: customer.address, note: customer.note || savedOrderCheckout.customer.note }
+        : { ...customer, instagram: cleanInstagram(customer.instagram), recipient: customer.name, deliveryPhone: customer.phone }
       const order = await ordersApi.place(buildOrder({
         id: '',
         cartItems: items,
@@ -339,6 +343,7 @@ export default function CartPage() {
                 <p className="font-semibold">Delivery information</p>
                 <input className={inputClass} placeholder="Recipient name" required value={customer.name} onChange={set('name')} />
                 <input className={inputClass} type="tel" placeholder="Delivery phone number" required value={customer.phone} onChange={set('phone')} />
+                <input className={inputClass} placeholder="Instagram username (e.g. @yourname)" aria-label="Instagram username" autoComplete="off" autoCapitalize="none" required value={customer.instagram} onChange={set('instagram')} />
                 <textarea className={inputClass} rows={3} placeholder="Delivery address" required value={customer.address} onChange={set('address')} />
                 {hasFrameOrPolaroids && <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setSubmitError('') }} className={`${inputClass} appearance-none pr-10`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span></label>}
                 <input className={inputClass} placeholder="Delivery note (optional)" value={customer.note} onChange={set('note')} />

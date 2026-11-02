@@ -13,6 +13,7 @@ import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
+import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 import { photoStore } from '../order/lib/photoStore'
 
 const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
@@ -105,7 +106,7 @@ export default function FrameOrderPage() {
   const cartMode = params.get('mode') === 'cart'
   // Each frame of a frame product is its own piece (own design, own photos). The old size-based product keeps one piece with a quantity.
   const perPiece = Boolean(frame)
-  const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [customer, setCustomer] = useState({ name: '', phone: '', instagram: '', address: '' })
   const [deliveryArea, setDeliveryArea] = useState('')
   const [customerErrors, setCustomerErrors] = useState({})
   const [step, setStep] = useState(1)
@@ -210,6 +211,7 @@ export default function FrameOrderPage() {
     const contactProblems = cartMode ? {} : {
       name: customer.name.trim() ? '' : 'Enter your full name.',
       phone: customer.phone.trim() ? '' : 'Enter your WhatsApp or phone number.',
+      instagram: instagramProblem(customer.instagram),
       address: customer.address.trim() ? '' : 'Enter your delivery address.',
       deliveryArea: deliveryArea ? '' : 'Select Inside Dhaka or Outside Dhaka.',
     }
@@ -220,7 +222,7 @@ export default function FrameOrderPage() {
       setError('')
       window.requestAnimationFrame(() => {
         const fields = firstInvalidPiece ? problems[firstInvalidPiece.key] : null
-        const targetId = firstInvalidPiece ? fields.quantity ? `frame-quantity-${firstInvalidPiece.key}` : fields.design ? `frame-design-${firstInvalidPiece.key}` : `frame-photos-${firstInvalidPiece.key}` : contactProblems.name ? 'frame-customer-name' : contactProblems.phone ? 'frame-customer-phone' : contactProblems.address ? 'frame-customer-address' : 'frame-delivery-area'
+        const targetId = firstInvalidPiece ? fields.quantity ? `frame-quantity-${firstInvalidPiece.key}` : fields.design ? `frame-design-${firstInvalidPiece.key}` : `frame-photos-${firstInvalidPiece.key}` : contactProblems.name ? 'frame-customer-name' : contactProblems.phone ? 'frame-customer-phone' : contactProblems.instagram ? 'frame-customer-instagram' : contactProblems.address ? 'frame-customer-address' : 'frame-delivery-area'
         const target = document.getElementById(targetId)
         target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         target?.focus({ preventScroll: true })
@@ -251,7 +253,7 @@ export default function FrameOrderPage() {
         return
       }
       const order = await ordersApi.place(buildOrder({
-        id: '', cartItems: items, customer: { ...customer, uid: user?.uid || '', email: user?.email || '' },
+        id: '', cartItems: items, customer: { ...customer, instagram: cleanInstagram(customer.instagram), uid: user?.uid || '', email: user?.email || '' },
         extras: { deliveryCharge: deliveryFee(deliveryArea), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
       }), requestKey.current)
       setPlacedOrder(order)
@@ -300,6 +302,7 @@ export default function FrameOrderPage() {
               <div className="space-y-3">
                 <div><input id="frame-customer-name" aria-label="Full name" aria-invalid={Boolean(customerErrors.name)} aria-describedby={customerErrors.name ? 'frame-name-error' : undefined} className={`${inputClass} ${customerErrors.name ? 'border-red-500' : ''}`} placeholder="Full name" autoComplete="name" value={customer.name} onChange={setCustomerField('name')} />{customerErrors.name && <p id="frame-name-error" className="mt-1 text-xs text-red-700">{customerErrors.name}</p>}</div>
                 <div><input id="frame-customer-phone" aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} aria-describedby={customerErrors.phone ? 'frame-phone-error' : undefined} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p id="frame-phone-error" className="mt-1 text-xs text-red-700">{customerErrors.phone}</p>}</div>
+                <div><input id="frame-customer-instagram" aria-label="Instagram username" aria-invalid={Boolean(customerErrors.instagram)} className={`${inputClass} ${customerErrors.instagram ? 'border-red-500' : ''}`} placeholder="Instagram username (e.g. @yourname)" autoComplete="off" autoCapitalize="none" value={customer.instagram} onChange={setCustomerField('instagram')} />{customerErrors.instagram && <p className="mt-1 text-xs text-red-700">{customerErrors.instagram}</p>}</div>
                 <div><textarea id="frame-customer-address" aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} aria-describedby={customerErrors.address ? 'frame-address-error' : undefined} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={4} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p id="frame-address-error" className="mt-1 text-xs text-red-700">{customerErrors.address}</p>}</div>
                 <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select id="frame-delivery-area" aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setCustomerErrors((current) => ({ ...current, deliveryArea: '' })) }} className={`${inputClass} appearance-none pr-10 ${customerErrors.deliveryArea ? 'border-red-500' : ''}`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span>{customerErrors.deliveryArea && <span className="mt-1 block text-xs text-red-700">{customerErrors.deliveryArea}</span>}</label>
               </div>
