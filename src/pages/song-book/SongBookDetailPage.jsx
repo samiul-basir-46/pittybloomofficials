@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, ChevronRight, Gift, ShoppingCart } from 'lucide-react'
+import { ArrowRight, Gift, ShoppingCart } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import CoverViewer from '../magazine-detail/components/CoverViewer'
@@ -36,10 +36,6 @@ export default function SongBookDetailPage() {
 
   return (
     <Container className="pb-32 pt-3 sm:pb-20 sm:pt-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm text-ink/60 sm:flex"><Link to="/" className="hover:text-brand">Home</Link><ChevronRight size={14} className="shrink-0" /><Link to="/song-books" className="hover:text-brand">Song Books</Link><ChevronRight size={14} className="shrink-0" /><span className="truncate font-medium text-ink">{book.title}</span></nav>
-      </div>
-
       <div className="mt-3 grid gap-4 sm:mt-5 sm:gap-7 lg:mt-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-14">
         {hasBook ? <BookViewer key={uploadedPreview.key} book={uploadedPreview} title={book.title} fallback={cover} /> : cover}
         <div className="text-center">

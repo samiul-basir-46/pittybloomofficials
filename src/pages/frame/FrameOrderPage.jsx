@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, CheckCircle2, ChevronDown, ImagePlus, Maximize2, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
-import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
 import { getFrameProduct, getProduct, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
@@ -268,7 +267,6 @@ export default function FrameOrderPage() {
 
   return <div className="min-h-screen bg-cream pb-16 pt-6 sm:pt-10">
     <Container>
-      <PageNav trail={[{ label: 'Frame', to: '/frame' }, { label: 'Order' }]} />
       {placedOrder ? <section className="mx-auto mt-12 max-w-xl rounded-3xl border border-sand bg-white p-8 text-center shadow-sm">
         <CheckCircle2 className="mx-auto text-green-600" size={44} />
         <h1 className="mt-4 font-serif text-3xl">Your frame order is confirmed</h1>

@@ -4,7 +4,6 @@ import { ArrowRight, ShoppingCart, X } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import SmartImage from '../../shared/ui/SmartImage'
-import PageNav from '../../shared/ui/PageNav'
 import QtyStepper from '../../shared/ui/QtyStepper'
 import ComingSoon from '../../shared/ui/ComingSoon'
 import useAsync from '../../shared/hooks/useAsync'
@@ -51,7 +50,6 @@ function Detail({ product, options }) {
 
   return (
     <Container className="pb-20 pt-4">
-      <PageNav trail={[{ label: product.name }]} />
       <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16 [&>*]:min-w-0">
         <div className="mx-auto w-full min-w-0 max-w-xl">
           <div className="aspect-square overflow-hidden rounded-2xl bg-sand shadow-lg"><SmartImage src={product.image} alt={product.name} placeholder="800x800" /></div>

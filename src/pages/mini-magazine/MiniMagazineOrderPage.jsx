@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, ChevronDown, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
-import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
 import { getMiniMagazine, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
@@ -97,7 +96,6 @@ export default function MiniMagazineOrderPage() {
   }
 
   return <div className="min-h-screen bg-cream pb-16 pt-6 sm:pt-10"><Container>
-    <PageNav trail={[{ label: 'Mini Pocket Magazines', to: '/mini-magazines' }, { label: 'Order' }]} />
     {placedOrder ? <section className="mx-auto mt-12 max-w-xl rounded-3xl border border-sand bg-white p-8 text-center shadow-sm">
       <CheckCircle2 className="mx-auto text-green-600" size={44} />
       <h1 className="mt-4 font-serif text-3xl">Your order is confirmed</h1>

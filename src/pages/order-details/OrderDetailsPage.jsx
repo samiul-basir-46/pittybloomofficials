@@ -4,7 +4,6 @@ import { ArrowRight } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import SmartImage from '../../shared/ui/SmartImage'
-import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
 import { useCart } from '../../shared/context/CartContext'
 import { draft } from '../../shared/services/draft'
@@ -74,13 +73,6 @@ function Details({ magazine, size, addons, selection }) {
   return (
     <div className="bg-cream py-8 sm:py-12">
       <Container>
-        <PageNav
-          trail={[
-            { label: 'Magazines', to: '/magazines' },
-            { label: magazine.title, to: `/magazines/${magazine.id}` },
-            { label: 'Details' },
-          ]}
-        />
         <h1 className="mt-8 font-serif text-4xl sm:text-5xl">Review your order</h1>
         <p className="mt-2 text-ink/60">Step 2 of 3: check the details, then continue to checkout.</p>
 

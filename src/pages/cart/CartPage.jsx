@@ -4,7 +4,6 @@ import { CheckCircle2, ChevronDown, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import SmartImage from '../../shared/ui/SmartImage'
-import PageNav from '../../shared/ui/PageNav'
 import QtyStepper from '../../shared/ui/QtyStepper'
 import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
@@ -280,7 +279,6 @@ export default function CartPage() {
   return (
     <div className="bg-cream py-8 sm:py-12">
       <Container>
-        <PageNav trail={[{ label: 'Cart' }]} />
         <h1 className="mt-8 font-serif text-4xl sm:text-5xl">
           {placed ? 'Thank you' : 'Your Cart'} {!placed && count > 0 && <span className="text-2xl text-ink/40">({count})</span>}
         </h1>

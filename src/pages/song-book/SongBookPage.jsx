@@ -4,7 +4,6 @@ import SmartImage from '../../shared/ui/SmartImage'
 import useAsync from '../../shared/hooks/useAsync'
 import { getSongBooks } from '../../shared/services/contentService'
 import ProductGrid from '../../shared/ui/ProductGrid'
-import PageNav from '../../shared/ui/PageNav'
 
 function SongBookCard({ book }) {
   return (
@@ -24,8 +23,7 @@ export default function SongBookPage() {
   return (
     <div className="bg-cream py-12 sm:py-16">
       <Container>
-        <div className="mb-6"><PageNav trail={[{ label: 'Song Books' }]} /></div>
-        <h1 className="mb-12 text-center font-serif text-4xl sm:text-5xl">Song Books</h1>
+                <h1 className="mb-12 text-center font-serif text-4xl sm:text-5xl">Song Books</h1>
         {loading ? (
           <p className="py-20 text-center text-ink/60">Loading…</p>
         ) : error ? (

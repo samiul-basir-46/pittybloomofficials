@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, CheckCircle2, ImagePlus, Maximize2, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
-import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
 import { getProduct, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
@@ -184,7 +183,6 @@ export default function PhotoStripOrderPage() {
 
   const total = hasQuantityPricing ? pricing.total : option.price * totalQty
   return <Container className="pb-20 pt-4">
-    <PageNav trail={[{ label: 'Photo Strip', to: '/photo-strip' }, { label: 'Order' }]} />
     {placedOrder ? <section className="mx-auto mt-12 max-w-xl rounded-3xl border border-sand bg-white p-8 text-center shadow-sm"><CheckCircle2 className="mx-auto text-green-600" size={44} /><h1 className="mt-4 font-serif text-3xl">Your Photo Strip order is confirmed</h1><p className="mt-2 text-sm text-ink/60">Order ID: <strong className="text-ink">{placedOrder.id}</strong>.</p><Button className="mt-6" onClick={() => navigate('/account')}>View my orders</Button></section> : <>
       <div className="mt-4 sm:mt-5"><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-brand">Photo Strip order</p><h1 className="mt-1 font-serif text-2xl leading-tight sm:text-4xl">{step === 1 ? 'Choose your design and photos' : 'Delivery information'}</h1><p className="mt-2 max-w-xl text-sm leading-5 text-ink/60">{step === 1 ? 'Select a layout, then upload the photos you want us to use.' : 'Tell us where to deliver your Photo Strip order.'}</p></div>
       {!cartMode && <nav aria-label="Order steps" className="mt-5 grid grid-cols-2 rounded-xl border border-sand bg-white p-1 text-xs sm:mt-6 sm:p-1.5 sm:text-sm"><div aria-current={step === 1 ? 'step' : undefined} className={`grid min-h-11 place-items-center rounded-lg px-2 text-center font-medium leading-tight sm:px-3 ${step === 1 ? 'bg-brand text-white' : 'text-ink/55'}`}>1. Design &amp; photos</div><div aria-current={step === 2 ? 'step' : undefined} className={`grid min-h-11 place-items-center rounded-lg px-2 text-center font-medium leading-tight sm:px-3 ${step === 2 ? 'bg-brand text-white' : 'text-ink/55'}`}>2. Delivery</div></nav>}

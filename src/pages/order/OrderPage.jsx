@@ -3,7 +3,6 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Send, ShoppingCart } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
-import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
@@ -442,7 +441,6 @@ function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed,
   return (
     <div className="bg-cream pb-32 pt-6 sm:pt-10 lg:pb-16">
       <Container>
-        <PageNav trail={[{ label: 'Magazines', to: '/magazines' }, { label: magazine.title, to: `/magazines/${magazine.id}` }, { label: 'Order' }]} />
         <div ref={topRef} className="scroll-mt-4" />
         <h1 className="mt-6 font-serif text-3xl sm:text-5xl">Order your magazine</h1>
         <p className="mt-2 text-ink/70">It only takes a few minutes. Your answers are saved as you go.</p>

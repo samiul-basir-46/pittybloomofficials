@@ -5,7 +5,6 @@ import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import SmartImage from '../../shared/ui/SmartImage'
 import ExpandableText from '../../shared/ui/ExpandableText'
-import PageNav from '../../shared/ui/PageNav'
 import useAsync from '../../shared/hooks/useAsync'
 import { getMiniMagazine } from '../../shared/services/contentService'
 import { formatPrice } from '../../shared/utils/format'
@@ -43,7 +42,6 @@ export default function MiniMagazineDetailPage() {
   }
 
   return <Container className="pb-20 pt-4">
-    <PageNav trail={[{ label: 'Mini Pocket Magazine' }]} />
     <div className="mt-4 grid min-w-0 grid-cols-1 gap-6 sm:mt-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-center lg:justify-center lg:gap-14">
       <div className="mx-auto w-full min-w-0 max-w-[300px] sm:max-w-[360px] lg:max-w-[420px]" onKeyDown={(event) => { if (event.key === 'ArrowLeft') go(active - 1); if (event.key === 'ArrowRight') go(active + 1) }}>
         <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-gradient-to-b from-[#fbf6f7] to-sand shadow-[0_18px_40px_-24px_rgba(81,46,48,.4)] ring-1 ring-sand" onTouchStart={(event) => { touchX.current = event.touches[0].clientX }} onTouchEnd={onTouchEnd}>

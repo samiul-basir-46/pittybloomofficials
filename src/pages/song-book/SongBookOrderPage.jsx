@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, AlertCircle, CheckCircle2, ShoppingCart } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
-import PageNav from '../../shared/ui/PageNav'
 import Stepper from '../order/components/Stepper'
 import PhotosStep from '../order/steps/PhotosStep'
 import DeliveryStep from '../order/steps/DeliveryStep'
@@ -174,7 +173,6 @@ export default function SongBookOrderPage() {
   ]
   const last = step === STEPS.length
   return <div className="bg-cream pb-32 pt-6 sm:pt-10 lg:pb-16"><Container>
-    <PageNav trail={[{ label: 'Song Books', to: '/song-books' }, { label: book.title, to: `/song-books/${book.id}` }, { label: 'Order' }]} />
     <h1 className="mt-6 font-serif text-3xl sm:text-5xl">Order your Song Book</h1><p className="mt-2 text-ink/70">It only takes a few minutes. Your answers are saved as you go.</p>
     <div className="mt-6 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6"><Stepper steps={STEPS} current={step} reached={draft.reached} onGo={edit} /></div>
     <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1.5fr_1fr] lg:gap-8">
