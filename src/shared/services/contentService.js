@@ -49,7 +49,8 @@ export const moreProductsApi = {
     if (isPhotoStripTile(item) && items.some((existing) => existing.id !== item.id && isPhotoStripTile(existing))) {
       throw new Error('Photo Strip can appear only once on the home page.')
     }
-    return moreProductsCollection.save(isPhotoStripTile(item) ? { ...item, to: '/photo-strip' } : item)
+    const tile = { ...item, name: item.name || item.homeName || '' }
+    return moreProductsCollection.save(isPhotoStripTile(tile) ? { ...tile, to: '/photo-strip' } : tile)
   },
   list: async () => {
     let items = await moreProductsCollection.list()
@@ -92,8 +93,9 @@ export const moreProductsApi = {
       const path = String(tile.to || '').replace(/\/+$/, '')
       const product = shop.find((item) => path === `/${item.id}` || path === `/products/${item.id}`)
       const canonical = path === '/frame' ? frames[0] : path === '/polaroids' ? polaroids[0] : product
+      const ownName = String(tile.homeName || '').trim() // name chosen in Admin → Home page products wins over the catalog name
       const own = String(tile.homeImage || '').trim() // picture chosen in Admin → Home page products wins over the catalog picture
-      return canonical ? { ...tile, name: canonical.title || canonical.name || tile.name, image: own || canonical.image || tile.image } : own ? { ...tile, image: own } : tile
+      return canonical ? { ...tile, name: ownName || canonical.title || canonical.name || tile.name, image: own || canonical.image || tile.image } : { ...tile, ...(ownName ? { name: ownName } : {}), ...(own ? { image: own } : {}) }
     }).filter((tile) => {
       if (!tile) return false
       const path = String(tile.to || '').replace(/\/+$/, '')
