@@ -77,9 +77,9 @@ export default function MiniMagazineOrderPage() {
       const uploaded = photoStore.list(photoKey.current)
       const line = {
         kind: 'product', id: item.id, name: item.title, image: item.image,
-        optionId: 'mini-pocket-magazine', optionLabel: `${uploaded.length} photos`,
+        optionId: 'mini-pocket-magazine', optionLabel: `8 pages · ${uploaded.length} photos`,
         price, qty: 1, ...(note.trim() ? { note: note.trim() } : {}),
-        meta: { cartConfigId: uid() },
+        meta: { pages: 8, photoMin: rule.min, photoMax: rule.max, cartConfigId: uid() },
         photos: { count: uploaded.length, front: uploaded.find((photo) => photo.id === cover.front)?.name ?? '', back: uploaded.find((photo) => photo.id === cover.back)?.name ?? '', frontId: cover.front, backId: cover.back, files: uploaded.map(({ id, name, size, type, storageKey }) => ({ id, name, size, type, storageKey })) },
       }
       if (cartMode) { addToCart(line); navigate('/cart'); return }
@@ -104,7 +104,7 @@ export default function MiniMagazineOrderPage() {
       <p className="mt-2 text-sm text-ink/60">Order ID: <strong className="text-ink">{placedOrder.id}</strong>. We’ll contact you to confirm delivery and payment.</p>
       <Button className="mt-6" onClick={() => navigate('/account')}>View my orders</Button>
     </section> : <>
-      <div className="mt-5"><p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Mini Pocket Magazine</p><h1 className="mt-1 font-serif text-4xl">{item.title}</h1><p className="mt-2 text-sm text-ink/60">{rule.summary}</p></div>
+      <div className="mt-5"><p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Mini Pocket Magazine · 8 pages</p><h1 className="mt-1 font-serif text-4xl">{item.title}</h1><p className="mt-2 text-sm text-ink/60">{rule.summary}</p></div>
       <form onSubmit={placeOrder} className="mt-7 grid w-full min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
         <section className="min-w-0 max-w-full space-y-6 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-7">
           <div>

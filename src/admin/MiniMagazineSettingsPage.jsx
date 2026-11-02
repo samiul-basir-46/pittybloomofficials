@@ -10,16 +10,17 @@ const photoLimitError = (item) => {
 }
 
 export default function MiniMagazineSettingsPage() {
-  return <ItemManager title="Mini pocket magazines" note="Keep one Mini Pocket Magazine here with a fixed price (for example ৳150). The guest order form uses the first available item. Customers choose their own front and back cover photos." api={miniMagazinesApi} fields={[
+  return <ItemManager title="Mini pocket magazines" note="Add each pocket magazine product once. Set its cover photo, then upload the remaining magazine pages below; customers see those pages in a slider on the detail page. Set a fixed price and photo limits for each product. Pocket magazines have 8 pages." api={miniMagazinesApi} fields={[
     { name: 'title', label: 'Title', required: true },
-    { name: 'image', label: 'Cover image', type: 'image', required: true },
+    { name: 'image', label: 'Cover photo (shown on the product card)', type: 'image', required: true },
+    { name: 'gallery', label: 'Remaining magazine pages (detail page slider)', type: 'gallery' },
     { name: 'price', label: 'Price (BDT)', type: 'number', required: true },
     { name: 'minPhotos', label: 'Minimum photos', type: 'number', required: true },
     { name: 'maxPhotos', label: 'Maximum photos (leave empty or 0 for no limit)', type: 'number' },
     { name: 'description', label: 'Description', type: 'textarea', rows: 6 },
     { name: 'status', label: 'Availability', type: 'select', options: ['Available', 'Inactive'] },
     { name: 'order', label: 'List position', type: 'number' },
-  ]} blank={{ title: '', image: '', price: 0, minPhotos: 2, maxPhotos: 8, description: '', status: 'Available', order: 10 }} label={(item) => item.title} columns={[
+  ]} blank={{ title: '', image: '', gallery: [], price: 0, minPhotos: 8, maxPhotos: 12, description: '', status: 'Available', order: 10 }} label={(item) => item.title} columns={[
     { key: 'price', label: 'Price', format: (value) => `৳${value}` },
     { key: 'minPhotos', label: 'Min photos' },
     { key: 'maxPhotos', label: 'Max photos' },

@@ -40,7 +40,10 @@ const songBookTile = (book) => ({ id: SONG_BOOK_TILE_ID, name: 'Song Books', ima
 const SONG_BOOK_TILE_MIGRATION_KEY = 'moreProductsSongBookSeeded'
 const MINI_TILE_ID = 'mini-magazines'
 const MINI_TILE_MIGRATION_KEY = 'moreProductsMiniMagazineSeeded'
-const isMiniTile = (item) => item.id === MINI_TILE_ID || item.to === '/mini-magazines'
+const isMiniTile = (item) => item.id === MINI_TILE_ID || ['/mini-magazines', '/pocket-magazine'].includes(String(item.to || '').replace(/\/+$/, ''))
+const normalizeMiniTile = (item) => isMiniTile(item)
+  ? { ...item, id: MINI_TILE_ID, name: item.name || 'Mini Pocket Magazine', to: '/mini-magazines' }
+  : item
 const isPhotoStripTile = (item) => item.id === 'photo-strip' || ['/photo-strip', '/products/photo-strip'].includes(String(item.to || '').replace(/\/+$/, ''))
 export const moreProductsApi = {
   ...moreProductsCollection,
@@ -49,10 +52,16 @@ export const moreProductsApi = {
     if (isPhotoStripTile(item) && items.some((existing) => existing.id !== item.id && isPhotoStripTile(existing))) {
       throw new Error('Photo Strip can appear only once on the home page.')
     }
-    return moreProductsCollection.save(isPhotoStripTile(item) ? { ...item, to: '/photo-strip' } : item)
+    let tile = { ...item, name: item.name || item.homeName || '' }
+    if (isMiniTile(tile)) {
+      tile = { ...normalizeMiniTile(tile), ...(tile.homeName ? { homeName: tile.homeName } : {}), ...(tile.homeImage ? { homeImage: tile.homeImage } : {}) }
+      // Collapse old/duplicate Pocket Magazine links onto the single catalog page.
+      for (const existing of items.filter((row) => isMiniTile(row) && row.id !== tile.id)) await moreProductsCollection.remove(existing.id)
+    }
+    return moreProductsCollection.save(isPhotoStripTile(tile) ? { ...tile, to: '/photo-strip' } : tile)
   },
   list: async () => {
-    let items = await moreProductsCollection.list()
+    let items = (await moreProductsCollection.list()).map(normalizeMiniTile)
     if (!(await store.get(SONG_BOOK_TILE_MIGRATION_KEY, false))) {
       if (items.some(isSongBookTile)) await store.set(SONG_BOOK_TILE_MIGRATION_KEY, true)
       else {
@@ -65,17 +74,21 @@ export const moreProductsApi = {
         }
       }
     }
-    // One-time: add a "Mini Pocket Magazine" tile once an item exists. The admin can reorder or delete it afterwards.
-    if (!(await store.get(MINI_TILE_MIGRATION_KEY, false))) {
-      if (items.some(isMiniTile)) await store.set(MINI_TILE_MIGRATION_KEY, true)
-      else {
-        const mini = (await getMiniMagazines())[0]
-        if (mini) {
-          const tile = { id: MINI_TILE_ID, name: 'Mini Pocket Magazine', image: mini.image || '', to: '/mini-magazines' }
-          try { await moreProductsCollection.save(tile); await store.set(MINI_TILE_MIGRATION_KEY, true) } catch { /* visitors cannot write; show the tile anyway */ }
-          items = sortMoreProducts([...items, { ...tile, order: (items.length + 1) * 10 }])
-        }
+    // Keep the catalog reachable even when the original one-time seed ran before designs were added.
+    const mini = (await getMiniMagazines().catch(() => []))[0]
+    if (mini) {
+      let miniTile = items.find(isMiniTile)
+      if (!miniTile) {
+        miniTile = { id: MINI_TILE_ID, name: 'Mini Pocket Magazine', image: mini.image || '', to: '/mini-magazines', order: (items.length + 1) * 10 }
+        try { await moreProductsCollection.save(miniTile); await store.set(MINI_TILE_MIGRATION_KEY, true) } catch { /* visitors cannot write; show the tile anyway */ }
+        items = sortMoreProducts([...items, miniTile])
+      } else {
+        miniTile = { ...miniTile, image: miniTile.homeImage || miniTile.image || mini.image || '' }
+        items = items.map((item) => isMiniTile(item) ? miniTile : item)
+        if (!(await store.get(MINI_TILE_MIGRATION_KEY, false))) await store.set(MINI_TILE_MIGRATION_KEY, true).catch(() => {})
       }
+    } else {
+      items = items.filter((item) => !isMiniTile(item))
     }
     const [shop, frames, polaroids] = await Promise.all([
       productsApi.list().catch(() => []),
@@ -92,8 +105,9 @@ export const moreProductsApi = {
       const path = String(tile.to || '').replace(/\/+$/, '')
       const product = shop.find((item) => path === `/${item.id}` || path === `/products/${item.id}`)
       const canonical = path === '/frame' ? frames[0] : path === '/polaroids' ? polaroids[0] : product
+      const ownName = String(tile.homeName || '').trim() // name chosen in Admin → Home page products wins over the catalog name
       const own = String(tile.homeImage || '').trim() // picture chosen in Admin → Home page products wins over the catalog picture
-      return canonical ? { ...tile, name: canonical.title || canonical.name || tile.name, image: own || canonical.image || tile.image } : own ? { ...tile, image: own } : tile
+      return canonical ? { ...tile, name: ownName || canonical.title || canonical.name || tile.name, image: own || canonical.image || tile.image } : { ...tile, ...(ownName ? { name: ownName } : {}), ...(own ? { image: own } : {}) }
     }).filter((tile) => {
       if (!tile) return false
       const path = String(tile.to || '').replace(/\/+$/, '')

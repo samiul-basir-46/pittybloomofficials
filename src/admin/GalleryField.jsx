@@ -68,7 +68,7 @@ export default function GalleryField({ value, onChange }) {
         <ImagePlus size={14} /> {busy ? 'Processing…' : list.length ? 'Add more designs' : 'Upload designs'}
         <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={add} disabled={busy} />
       </label>
-      <p className="text-xs text-ink/50">Select many pictures at once. {list.length} design{list.length === 1 ? '' : 's'} added. Customers pick one of these for each frame they order. Add new designs here any time.</p>
+      <p className="text-xs text-ink/50">Select many pictures at once. {list.length} image{list.length === 1 ? '' : 's'} added. These appear in order in the customer-facing gallery. Add, remove or reorder them any time.</p>
       {problem && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{problem}</p>}
     </div>
   )

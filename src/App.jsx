@@ -72,6 +72,7 @@ export default function App() {
           <Route path="frame/:id" element={<FrameDetailPage />} />
           <Route path="frame/order" element={<RequireCustomer><FrameOrderPage /></RequireCustomer>} />
           <Route path="mini-magazines" element={<MiniMagazinePage />} />
+          <Route path="pocket-magazine" element={<Navigate to="/mini-magazines" replace />} />
           <Route path="mini-magazines/order" element={<RequireCustomer><MiniMagazineOrderPage /></RequireCustomer>} />
           <Route path="mini-magazines/:id" element={<MiniMagazineDetailPage />} />
           <Route path="polaroids" element={<PolaroidsPage />} />

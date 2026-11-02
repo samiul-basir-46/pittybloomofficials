@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ShoppingCart } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowRight, ShoppingCart } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import SmartImage from '../../shared/ui/SmartImage'
@@ -25,8 +25,8 @@ export default function PolaroidDetailPage() {
   const amount = Math.max(qty, minimum)
   const priced = polaroidPricing(item, amount)
   const go = (cart) => navigate(`/polaroids/order?item=${encodeURIComponent(item.id)}&qty=${amount}${cart ? '&mode=cart' : ''}`)
-  return <Container className="pb-20 pt-4"><Link to="/polaroids" className="inline-flex items-center gap-2 rounded-full border border-sand bg-white px-4 py-2 text-sm"><ArrowLeft size={16} /> Back to Polaroids</Link>
-    <div className="mt-5 grid min-w-0 grid-cols-1 gap-5 sm:mt-8 sm:gap-8 lg:grid-cols-2 lg:gap-16">
+  return <Container className="pb-20 pt-4">
+    <div className="grid min-w-0 grid-cols-1 gap-5 sm:mt-8 sm:gap-8 lg:grid-cols-2 lg:gap-16">
       <div className="mx-auto aspect-[4/5] w-full min-w-0 max-w-[190px] overflow-hidden rounded-xl bg-cream sm:max-w-md sm:rounded-2xl"><SmartImage src={item.image} alt={item.title} className="size-full object-cover" /></div>
       <div className="min-w-0 self-center">
         <p className="text-xs font-semibold uppercase tracking-[.18em] text-brand">Polaroid</p>

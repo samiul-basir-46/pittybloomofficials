@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ChevronRight, Gift, ShoppingCart } from 'lucide-react'
+import { ArrowRight, ChevronRight, Gift, ShoppingCart } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import CoverViewer from '../magazine-detail/components/CoverViewer'
@@ -37,7 +37,6 @@ export default function SongBookDetailPage() {
   return (
     <Container className="pb-32 pt-3 sm:pb-20 sm:pt-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <button type="button" onClick={() => navigate('/song-books')} className="inline-flex items-center gap-2 rounded-full border border-sand bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-sand"><ArrowLeft size={16} /> Back</button>
         <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm text-ink/60 sm:flex"><Link to="/" className="hover:text-brand">Home</Link><ChevronRight size={14} className="shrink-0" /><Link to="/song-books" className="hover:text-brand">Song Books</Link><ChevronRight size={14} className="shrink-0" /><span className="truncate font-medium text-ink">{book.title}</span></nav>
       </div>
 
