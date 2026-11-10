@@ -44,6 +44,8 @@ const isMiniTile = (item) => item.id === MINI_TILE_ID || ['/mini-magazines', '/p
 const normalizeMiniTile = (item) => isMiniTile(item)
   ? { ...item, id: MINI_TILE_ID, name: item.name || 'Mini Pocket Magazine', to: '/mini-magazines' }
   : item
+const GIFT_TILE_ID = 'gift-card'
+const isGiftTile = (item) => item.id === GIFT_TILE_ID || ['/gift-card', '/gift-cards'].includes(String(item.to || '').replace(/\/+$/, ''))
 const isPhotoStripTile = (item) => item.id === 'photo-strip' || ['/photo-strip', '/products/photo-strip'].includes(String(item.to || '').replace(/\/+$/, ''))
 export const moreProductsApi = {
   ...moreProductsCollection,
@@ -57,6 +59,10 @@ export const moreProductsApi = {
       tile = { ...normalizeMiniTile(tile), ...(tile.homeName ? { homeName: tile.homeName } : {}), ...(tile.homeImage ? { homeImage: tile.homeImage } : {}) }
       // Collapse old/duplicate Pocket Magazine links onto the single catalog page.
       for (const existing of items.filter((row) => isMiniTile(row) && row.id !== tile.id)) await moreProductsCollection.remove(existing.id)
+    }
+    if (isGiftTile(tile)) {
+      tile = { ...tile, id: GIFT_TILE_ID, name: tile.name || 'Gift Card', to: '/gift-card' }
+      for (const existing of items.filter((row) => isGiftTile(row) && row.id !== tile.id)) await moreProductsCollection.remove(existing.id)
     }
     return moreProductsCollection.save(isPhotoStripTile(tile) ? { ...tile, to: '/photo-strip' } : tile)
   },
@@ -89,6 +95,20 @@ export const moreProductsApi = {
       }
     } else {
       items = items.filter((item) => !isMiniTile(item))
+    }
+    // Gift Card: the home tile appears as soon as a priced gift card exists, and goes away when none is available.
+    const giftCard = (await getGiftCards().catch(() => []))[0]
+    if (giftCard) {
+      const existing = items.find(isGiftTile)
+      if (!existing) {
+        const giftTile = { id: GIFT_TILE_ID, name: giftCard.title || 'Gift Card', image: giftCard.image || '', to: '/gift-card', order: (items.length + 1) * 10 }
+        try { await moreProductsCollection.save(giftTile) } catch { /* visitors cannot write; show the tile anyway */ }
+        items = sortMoreProducts([...items, giftTile])
+      } else {
+        items = items.map((item) => isGiftTile(item) ? { ...item, to: '/gift-card', image: item.homeImage || item.image || giftCard.image || '' } : item)
+      }
+    } else {
+      items = items.filter((item) => !isGiftTile(item))
     }
     const [shop, frames, polaroids] = await Promise.all([
       productsApi.list().catch(() => []),
@@ -585,6 +605,9 @@ export const getPolaroidProduct = async (id) => (await getPolaroidProducts()).fi
 export const miniMagazinesApi = collection('miniMagazines', [], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
 export const getMiniMagazines = async () => (await miniMagazinesApi.list()).filter((item) => item.status !== 'Inactive')
 export const getMiniMagazine = async (id) => (await getMiniMagazines()).find((item) => item.id === id) ?? null
+export const giftCardsApi = collection('giftCards', [], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
+export const getGiftCards = async () => (await giftCardsApi.list()).filter((item) => item.status !== 'Inactive' && (Number(item.priceA4) > 0 || Number(item.priceA3) > 0))
+export const getGiftCard = async (id) => { const cards = await getGiftCards(); return (id && cards.find((item) => item.id === id)) || cards[0] || null }
 export const getFrameProducts = async () => (await frameProductsApi.list()).filter((item) => item.status !== 'Inactive')
 export const getFrameProduct = async (id) => (await getFrameProducts()).find((item) => item.id === id) ?? null
 const mapAddonsToCatalog = async (items) => {

@@ -1,10 +1,11 @@
 // Which product an order line belongs to. Uses the line's own kind/id first; names are only a fallback (and never the
 // option text), so a frame design called "Polaroid style" is still a Frame.
-const KIND_CATEGORY = { magazine: 'magazine', 'song-book': 'song-book', frame: 'frame', polaroids: 'polaroids', 'mini-magazine': 'mini-magazine' }
+const KIND_CATEGORY = { 'gift-card': 'gift-card', magazine: 'magazine', 'song-book': 'song-book', frame: 'frame', polaroids: 'polaroids', 'mini-magazine': 'mini-magazine' }
 const PRODUCT_ID_CATEGORY = { polaroids: 'polaroids', sticker: 'sticker', 'photo-strip': 'photo-strip', frame: 'frame' }
-const NAME_CATEGORIES = [['mini-magazine', /mini.*magazine|magazine.*mini|pocket/i], ['song-book', /song\s*book/i], ['frame', /frame/i], ['polaroids', /polaroid/i], ['sticker', /sticker/i], ['photo-strip', /photo\s*strip/i], ['magazine', /magazine/i]]
+const NAME_CATEGORIES = [['gift-card', /gift\s*card/i], ['mini-magazine', /mini.*magazine|magazine.*mini|pocket/i], ['song-book', /song\s*book/i], ['frame', /frame/i], ['polaroids', /polaroid/i], ['sticker', /sticker/i], ['photo-strip', /photo\s*strip/i], ['magazine', /magazine/i]]
 
 export const itemCategory = (item) => {
+  if (item?.kind === 'gift-card' || String(item?.optionId || '').startsWith('gift-card-')) return 'gift-card'
   if (item?.kind === 'mini-magazine' || item?.optionId === 'mini-pocket-magazine') return 'mini-magazine'
   if (KIND_CATEGORY[item?.kind]) return KIND_CATEGORY[item.kind]
   if (item?.kind === 'product' && PRODUCT_ID_CATEGORY[item.id]) return PRODUCT_ID_CATEGORY[item.id]

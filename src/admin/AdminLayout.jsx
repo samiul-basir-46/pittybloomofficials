@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation, useMatch } from 'react-router-dom'
-import { BookOpen, Check, CircleCheck, CircleX, ClipboardList, ExternalLink, Image as ImageIcon, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
+import { BookOpen, Check, CircleCheck, Gift, CircleX, ClipboardList, ExternalLink, Image as ImageIcon, LayoutDashboard, LogOut, Menu, PackagePlus, Settings, SlidersHorizontal, Upload, X } from 'lucide-react'
 import { SECTIONS } from './sections'
 import { dismissBookUpload, getBookUploads, subscribeBookUploads } from '../shared/services/bookUploadQueue'
 import { useAdminAuth } from './AdminAuthContext'
@@ -20,6 +20,7 @@ const NAV_GROUPS = [
     { to: '/admin/polaroid-settings', label: 'Polaroid settings', icon: ImageIcon, iconSrc: '/images/polaroid.png' },
     { to: '/admin/photo-strip-designs', label: 'Photo Strip', icon: ImageIcon, iconSrc: '/images/film-strip.png' },
     { to: '/admin/mini-magazine-settings', label: 'Mini pocket magazines', icon: BookOpen },
+    { to: '/admin/gift-card-settings', label: 'Gift Card', icon: Gift },
   ] },
   { title: 'Store setup', links: [
     { to: '/admin/order-settings', label: 'Order Settings', icon: SlidersHorizontal },

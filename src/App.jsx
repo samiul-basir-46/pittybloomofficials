@@ -10,6 +10,8 @@ import FramePage from './pages/frame/FramePage'
 import MiniMagazinePage from './pages/mini-magazine/MiniMagazinePage'
 import MiniMagazineDetailPage from './pages/mini-magazine/MiniMagazineDetailPage'
 import MiniMagazineOrderPage from './pages/mini-magazine/MiniMagazineOrderPage'
+import GiftCardPage from './pages/gift-card/GiftCardPage'
+import GiftCardOrderPage from './pages/gift-card/GiftCardOrderPage'
 import FrameOrderPage from './pages/frame/FrameOrderPage'
 import FrameDetailPage from './pages/frame/FrameDetailPage'
 import PolaroidsPage from './pages/polaroids/PolaroidsPage'
@@ -42,6 +44,7 @@ import SongBookDetailPage from './pages/song-book/SongBookDetailPage'
 import SongBookOrderPage from './pages/song-book/SongBookOrderPage'
 import FrameSettingsPage from './admin/FrameSettingsPage'
 import MiniMagazineSettingsPage from './admin/MiniMagazineSettingsPage'
+import GiftCardSettingsPage from './admin/GiftCardSettingsPage'
 import PolaroidSettingsPage from './admin/PolaroidSettingsPage'
 import PhotoStripSettingsPage from './admin/PhotoStripSettingsPage'
 import StickerSettingsPage from './admin/StickerSettingsPage'
@@ -71,6 +74,8 @@ export default function App() {
           <Route path="frame" element={<FramePage />} />
           <Route path="frame/:id" element={<FrameDetailPage />} />
           <Route path="frame/order" element={<RequireCustomer><FrameOrderPage /></RequireCustomer>} />
+          <Route path="gift-card" element={<GiftCardPage />} />
+          <Route path="gift-card/order" element={<RequireCustomer><GiftCardOrderPage /></RequireCustomer>} />
           <Route path="mini-magazines" element={<MiniMagazinePage />} />
           <Route path="pocket-magazine" element={<Navigate to="/mini-magazines" replace />} />
           <Route path="mini-magazines/order" element={<RequireCustomer><MiniMagazineOrderPage /></RequireCustomer>} />
@@ -104,6 +109,7 @@ export default function App() {
           <Route path="manual-order" element={<ManualOrderCatalogPage />} />
           <Route path="frame-settings" element={<FrameSettingsPage />} />
           <Route path="mini-magazine-settings" element={<MiniMagazineSettingsPage />} />
+          <Route path="gift-card-settings" element={<GiftCardSettingsPage />} />
           <Route path="polaroid-settings" element={<PolaroidSettingsPage />} />
           <Route path="photo-strip-designs" element={<PhotoStripSettingsPage />} />
           <Route path="sticker-settings" element={<StickerSettingsPage />} />

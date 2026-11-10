@@ -12,7 +12,7 @@ import { CopyButton } from './orderUi'
 import { groupedOrderSummaries } from './orderSummary'
 
 const CATEGORY_TABS = [
-  ['magazine', 'Magazine'], ['song-book', 'Song Book'], ['frame', 'Frame'], ['polaroids', 'Polaroids'], ['photo-strip', 'Photo Strip'], ['sticker', 'Sticker'], ['mini-magazine', 'Mini Pocket Magazine'],
+  ['magazine', 'Magazine'], ['song-book', 'Song Book'], ['frame', 'Frame'], ['polaroids', 'Polaroids'], ['photo-strip', 'Photo Strip'], ['sticker', 'Sticker'], ['mini-magazine', 'Mini Pocket Magazine'], ['gift-card', 'Gift Card'],
 ].map(([id, label]) => ({ id, label, matches: (item) => itemCategory(item) === id }))
 
 const STATUS_FILTERS = [
