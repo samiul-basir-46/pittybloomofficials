@@ -76,8 +76,8 @@ export default function OrdersPage({ fixedView = 'all' }) {
   const [bulkNotice, setBulkNotice] = useState('')
   const now = useMemo(() => new Date(), [])
   const all = ordersQuery.data ?? []
-  // Delivered orders belong in the dedicated Completed orders view.
-  const listOrders = fixedView === 'all' ? all.filter((order) => order.status !== 'Delivered') : all
+  // Finished and cancelled orders belong in their dedicated views.
+  const listOrders = fixedView === 'all' ? all.filter((order) => !['Delivered', 'Cancelled'].includes(order.status)) : all
   const settings = settingsQuery.data ?? {}
   const query = params.get('q') ?? ''
   const urgencyFilter = ['all', 'overdue', 'urgent', 'standard'].includes(params.get('urgency')) ? params.get('urgency') : 'all'

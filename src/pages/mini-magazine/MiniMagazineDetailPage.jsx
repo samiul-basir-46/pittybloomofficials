@@ -62,7 +62,6 @@ export default function MiniMagazineDetailPage() {
         <h1 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl">{item.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-2.5">
           <p className="text-2xl font-extrabold text-ink">{formatPrice(item.price)}</p>
-          <span className="rounded-full bg-cream px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-warm ring-1 ring-sand">Fixed price</span>
         </div>
         <ul className="mt-4 flex flex-wrap gap-2">
           <Chip icon={BookOpen}>8 pages</Chip>

@@ -76,6 +76,7 @@ describe('Admin orders: list and separate detail page', () => {
     expect(screen.getByText(/no orders match these filters/i)).toBeInTheDocument()
   })
 
+
   it('starting to prepare an order on its page is saved', async () => {
     await ordersApi.save(order('PB-1', 'Fahim'))
     const user = userEvent.setup()

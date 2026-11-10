@@ -1,4 +1,5 @@
-import { AlertCircle, Check, Lightbulb } from 'lucide-react'
+import { useState } from 'react'
+import { AlertCircle, Check, Eye, Lightbulb } from 'lucide-react'
 import SmartImage from '../../../shared/ui/SmartImage'
 import QtyStepper from '../../../shared/ui/QtyStepper'
 import { formatPrice } from '../../../shared/utils/format'
@@ -7,10 +8,12 @@ import { Card, Notice } from '../components/FormField'
 import { defaultSizeFor, sizesFor } from '../lib/copies'
 import { Link } from 'react-router-dom'
 import AddonConfigurator, { createAddonDetails } from './AddonConfigurator'
+import MagazineSizePreview from '../../manual-order/MagazineSizePreview'
 
 const QUICK = [1, 2, 3, 4]
 
 export default function MagazineStep({ ctx }) {
+  const [sizePreviewOpen, setSizePreviewOpen] = useState(false)
   const { magazine, sizes, addons, products, frameDesigns, addonsFailed, formats, draft, update, errors, clear, settings } = ctx
   const maxCopies = Math.max(1, Number(settings.maxCopies) || 1)
 
@@ -54,6 +57,9 @@ export default function MagazineStep({ ctx }) {
           Which size? <span className="text-heart">*</span>
         </h2>
         <p className="mt-1 text-sm text-ink/60">You can order both sizes in the same order.</p>
+        <button type="button" onClick={() => setSizePreviewOpen(true)} className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-brand/20 bg-white px-3 py-1.5 text-sm font-semibold text-brand transition-colors hover:bg-cream">
+          <Eye size={15} /> See A4 and A5 size difference
+        </button>
         {errors.picks && (
           <p role="alert" className="mt-3 flex items-center gap-1.5 text-sm text-red-600">
             <AlertCircle size={15} /> {errors.picks}
@@ -234,6 +240,7 @@ export default function MagazineStep({ ctx }) {
         </Card>
       )}
       {addonsFailed && <Notice tone="warn">We could not load the add-on products. You can still continue without them.</Notice>}
+      {sizePreviewOpen && <MagazineSizePreview onClose={() => setSizePreviewOpen(false)} />}
     </div>
   )
 }
