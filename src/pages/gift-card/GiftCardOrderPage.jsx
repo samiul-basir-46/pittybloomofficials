@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, ChevronDown, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ChevronDown, ImagePlus, ShoppingBag, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
@@ -35,6 +35,7 @@ export default function GiftCardOrderPage() {
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
   const [placedOrder, setPlacedOrder] = useState(null)
+  const [step, setStep] = useState(0) // 0 = your card, 1 = delivery
   const inputRef = useRef(null)
   const photoKey = useRef(`gift-card-${uid()}`)
   const requestKey = useRef(uid())
@@ -64,6 +65,7 @@ export default function GiftCardOrderPage() {
     event.preventDefault()
     if (placing) return
     if (!letter.text.trim()) { setError('Please write your letter.'); document.getElementById('gift-letter')?.focus(); return }
+    if (!cartMode && step === 0) { setError(''); setStep(1); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
     if (!cartMode && instagramProblem(customer.instagram)) { setError(`Instagram username: ${instagramProblem(customer.instagram)}`); return }
     if (!cartMode && !deliveryArea) { setError('Select Inside Dhaka or Outside Dhaka.'); return }
     setPlacing(true)
@@ -109,8 +111,12 @@ export default function GiftCardOrderPage() {
       <Button className="mt-6" onClick={() => navigate('/account')}>View my orders</Button>
     </section> : <>
       <div className="mt-5"><p className="text-xs font-semibold uppercase tracking-[.16em] text-brand">Gift Card</p><h1 className="mt-1 font-serif text-4xl">{card.title}</h1><p className="mt-2 text-sm text-ink/60">Write your letter and notes. We print them on your card.</p></div>
-      <form onSubmit={placeOrder} className="mt-7 grid w-full min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
+      {!cartMode && <div role="tablist" aria-label="Order steps" className="mt-6 grid grid-cols-2 gap-1 rounded-xl border border-sand bg-white p-1.5 text-sm font-semibold">
+        {['1. Your card', '2. Delivery'].map((label, index) => <button key={label} type="button" role="tab" aria-selected={step === index} onClick={() => { if (index === step) return; if (index === 1 && !letter.text.trim()) { setError('Please write your letter first.'); return } setError(''); setStep(index); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className={`min-h-11 rounded-lg px-3 transition ${step === index ? 'bg-brand text-white shadow-sm' : 'text-ink/60 hover:bg-cream'}`}>{label}</button>)}
+      </div>}
+      <form onSubmit={placeOrder} className="mt-5 grid w-full min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.8fr)]">
         <section className="min-w-0 max-w-full space-y-6 rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-7">
+          {step === 0 && <div className="space-y-6">
           <div>
             <h2 className="font-serif text-2xl">Size</h2>
             <div role="radiogroup" aria-label="Size" className="mt-3 grid grid-cols-2 gap-2.5">
@@ -147,7 +153,8 @@ export default function GiftCardOrderPage() {
           </div>
 
           <label className="block text-sm font-medium">Notes for us <span className="font-normal text-ink/50">(optional)</span><textarea rows={3} className={`${inputClass} mt-1`} value={note} onChange={(event) => setNote(event.target.value)} /></label>
-          {!cartMode && <div className="border-t border-sand pt-6"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mb-4 mt-1 text-sm text-ink/60">We’ll contact you to confirm delivery.</p><div className="space-y-3">
+          </div>}
+          {!cartMode && step === 1 && <div><h2 className="font-serif text-2xl">Delivery information</h2><p className="mb-4 mt-1 text-sm text-ink/60">We’ll contact you to confirm delivery.</p><div className="space-y-3">
             <input className={inputClass} placeholder="Full name" autoComplete="name" required value={customer.name} onChange={setField('name')} />
             <input className={inputClass} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" required value={customer.phone} onChange={setField('phone')} />
             <input className={inputClass} placeholder="Instagram username (e.g. @yourname)" aria-label="Instagram username" autoComplete="off" autoCapitalize="none" required value={customer.instagram} onChange={setField('instagram')} />
@@ -155,7 +162,10 @@ export default function GiftCardOrderPage() {
             <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => setDeliveryArea(event.target.value)} className={`${inputClass} appearance-none pr-10`}><option value="">Select an area</option><option value="inside">Inside Dhaka · ৳60</option><option value="outside">Outside Dhaka · ৳110</option></select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink/50" /></span></label>
           </div></div>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? (cartMode ? 'Adding to cart…' : 'Placing order…') : (cartMode ? 'Add to Cart' : 'Place order')} <ShoppingBag size={17} /></Button>
+          <div className="flex gap-3">
+            {!cartMode && step === 1 && <Button type="button" variant="outline" disabled={placing} onClick={() => { setError(''); setStep(0); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="shrink-0 px-6">Back</Button>}
+            <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? (cartMode ? 'Adding to cart…' : 'Placing order…') : cartMode ? <>Add to Cart <ShoppingBag size={17} /></> : step === 0 ? <>Continue to delivery <ArrowRight size={17} /></> : <>Place order <ShoppingBag size={17} /></>}</Button>
+          </div>
         </section>
         <aside className="min-w-0 max-w-full rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-6">
           <h2 className="font-serif text-2xl">Order summary</h2>
