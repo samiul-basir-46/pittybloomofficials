@@ -19,6 +19,10 @@ export const MANUAL_ORDER_CATALOG_DEFAULTS = {
     id: 'songBooks', title: 'Song Book', description: 'A song, your lyrics, and your memories in print.',
     enabled: true, order: 5, imageUpdatedAt: 0, unitPrice: 849, maxItems: 20,
   },
+  giftCards: {
+    id: 'giftCards', title: 'Gift Card', description: 'A letter and notes, printed on a card.',
+    enabled: true, order: 7, imageUpdatedAt: 0, maxItems: 20,
+  },
   photoStrip: {
     id: 'photoStrip', title: 'Photo Strip', description: 'Choose a design and upload your photos.',
     enabled: true, order: 6, imageUpdatedAt: 0, maxItems: 20,
@@ -32,6 +36,7 @@ export const MANUAL_ORDER_TYPE_TO_CARD = {
   magazine: 'magazines',
   'song-book': 'songBooks',
   'photo-strip': 'photoStrip',
+  'gift-card': 'giftCards',
 }
 
 export const mergeManualOrderCatalog = (value = {}) => Object.fromEntries(

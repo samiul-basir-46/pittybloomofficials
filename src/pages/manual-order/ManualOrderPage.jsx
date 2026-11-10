@@ -1,10 +1,10 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eye, Film, Frame, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eye, Film, Frame, Gift, ImagePlus, Loader2, Music2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
-import { getActiveAddons, getFrameDesigns, getManualOrderCatalog, getMiniMagazines, getOrderSettings, getPolaroidProducts, getProducts, getSizes, getSongBooks } from '../../shared/services/contentService'
+import { getActiveAddons, getFrameDesigns, getGiftCards, getManualOrderCatalog, getMiniMagazines, getOrderSettings, getPolaroidProducts, getProducts, getSizes, getSongBooks } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { deliveryFee, detectOrderImageType, dhakaToday, expeditedSurcharge, minimumDeliveryDate, orderImageType, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
@@ -13,6 +13,7 @@ import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog, miniPhotoLimits
 import MagazineSizePreview from './MagazineSizePreview'
 import { polaroidPricing } from '../polaroids/packs'
 
+import { MAX_GIFT_PHOTOS, NOTE_LIMIT, availableSizes, giftCardPrice, sizeById } from '../gift-card/sizes'
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
 const CATEGORIES = ['Birthday', 'Couple', 'Anniversary', 'Personal', 'Parents', 'Marriage', 'Special Day', 'Farewell', 'Best Friends', 'Other']
 const PRODUCT_META = [
@@ -21,6 +22,7 @@ const PRODUCT_META = [
   { id: 'miniMagazines', icon: BookOpen, tint: 'bg-[#EDE8F5]' },
   { id: 'magazines', icon: BookOpen, tint: 'bg-[#E6EDF5]' },
   { id: 'songBooks', icon: Music2, tint: 'bg-[#F8EED9]' },
+  { id: 'giftCards', icon: Gift, tint: 'bg-[#F7E6EA]' },
   { id: 'photoStrip', icon: Film, tint: 'bg-[#F3E9EC]' },
 ]
 const newId = () => {
@@ -31,6 +33,7 @@ const newId = () => {
 }
 const makeFrameConfiguration = () => ({ key: newId(), quantity: 1, designId: '', photos: [], notes: '' })
 const makePhotoStripConfiguration = () => ({ key: newId(), quantity: 1, designId: '', photos: [], notes: '' })
+const newGiftCard = (gift) => ({ key: newId(), type: 'gift-card', productId: gift?.id || '', sizeId: availableSizes(gift)[0]?.id || '', from: '', letter: '', left: '', right: '', photos: [] })
 const makeItem = (type) => ({ key: newId(), type, quantity: 1, optionId: '', designId: '', sizeId: '', category: 'Birthday', custom: {}, notes: '', photos: [], reference: null, configurations: type === 'frame' ? [makeFrameConfiguration()] : undefined, frontId: '', backId: '', songName: '', lyrics: '' })
 const field = (label, value, onChange, { type = 'text', required = false, placeholder = '', error = '', className = '' } = {}) => (
   <label className={`block ${className}`}>
@@ -224,6 +227,7 @@ export default function ManualOrderPage() {
   const polaroidCatalogData = useAsync(getPolaroidProducts)
   const miniCatalogData = useAsync(getMiniMagazines)
   const songCatalogData = useAsync(getSongBooks)
+  const giftCatalogData = useAsync(getGiftCards)
   const sizesData = useAsync(getSizes)
   const settingsData = useAsync(getOrderSettings)
   const manualCatalogData = useAsync(getManualOrderCatalog)
@@ -238,6 +242,7 @@ export default function ManualOrderPage() {
   const [miniBooks, setMiniBooks] = useState([])
   const [magazines, setMagazines] = useState([])
   const [songBooks, setSongBooks] = useState([])
+  const [giftCards, setGiftCards] = useState([])
   const [catalogAddons, setCatalogAddons] = useState([])
   const [delivery, setDelivery] = useState({ recipient: '', phone: '', address: '', city: '', area: '', date: '' })
   const [customer, setCustomer] = useState({ name: '', instagram: '', whatsapp: '' })
@@ -266,6 +271,7 @@ export default function ManualOrderPage() {
   const photoStripProduct = productCatalog.find((product) => product.id === 'photo-strip')
   const miniProducts = miniCatalogData.data ?? []
   const songProducts = songCatalogData.data ?? []
+  const giftProducts = giftCatalogData.data ?? []
   const polaroidUnitPrice = Number(polaroidProduct?.unitPrice) || 0
   const polaroidMinimum = Math.max(1, Number(polaroidProduct?.minQuantity) || 9)
   const photoStripPrice = Number(photoStripProduct?.unitPrice) || 0
@@ -290,6 +296,7 @@ export default function ManualOrderPage() {
     }
     if (meta.id === 'miniMagazines') { card.enabled = Boolean(manualCatalog.miniMagazines.enabled && miniProducts.length); if (miniProducts[0]) Object.assign(card, { title: miniProducts[0].title || card.title, description: miniProducts[0].description || card.description, image: miniProducts[0].image || '', imageUpdatedAt: 0 }) }
     if (meta.id === 'songBooks') { card.enabled = Boolean(manualCatalog.songBooks.enabled && songProducts.length); card.title = manualCatalog.songBooks.title || 'Song Book'; card.description = ''; if (songProducts[0]) Object.assign(card, { image: songProducts[0].image || '', imageUpdatedAt: 0 }) }
+    if (meta.id === 'giftCards') { card.enabled = Boolean(manualCatalog.giftCards.enabled && giftProducts.length); card.title = manualCatalog.giftCards.title || 'Gift Card'; if (giftProducts[0]) Object.assign(card, { description: giftProducts[0].description || card.description, image: giftProducts[0].image || '', imageUpdatedAt: 0 }) }
     if (meta.id === 'photoStrip') {
       card.enabled = Boolean(photoStripProduct && manualCatalog.photoStrip.enabled && photoStripProduct.status === 'Available' && photoStripDesigns.length > 0 && photoStripPrice > 0)
       if (photoStripProduct) Object.assign(card, { title: photoStripProduct.name || card.title, description: photoStripProduct.description || card.description, image: photoStripProduct.image || '', imageUpdatedAt: 0 })
@@ -303,14 +310,15 @@ export default function ManualOrderPage() {
   const a4Sizes = sizes.filter((size) => size.format === 'A4' && size.price > 0 && size.pages >= 4 && size.pages <= 40 && size.pages % 4 === 0).sort((a, b) => a.pages - b.pages)
   const a5Sizes = sizes.filter((size) => size.format === 'A5' && [4, 8].includes(size.pages) && size.price > 0).sort((a, b) => a.pages - b.pages)
   const magazineOptions = [...a4Sizes, ...a5Sizes]
-  const loading = productsData.loading || addonsData.loading || polaroidCatalogData.loading || miniCatalogData.loading || songCatalogData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading || designsData.loading
-  const loadError = productsData.error || addonsData.error || polaroidCatalogData.error || miniCatalogData.error || songCatalogData.error || sizesData.error || settingsData.error || manualCatalogData.error || designsData.error
+  const loading = productsData.loading || addonsData.loading || polaroidCatalogData.loading || miniCatalogData.loading || songCatalogData.loading || giftCatalogData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading || designsData.loading
+  const loadError = productsData.error || addonsData.error || polaroidCatalogData.error || miniCatalogData.error || songCatalogData.error || giftCatalogData.error || sizesData.error || settingsData.error || manualCatalogData.error || designsData.error
   const items = [
     ...(selected.polaroids ? [{ key: 'polaroids', type: 'polaroids', qty: Number(polaroid.quantity) || 0, price: polaroidUnitPrice, lineTotal: pricedPolaroids.total, photos: polaroid.photos, reference: polaroid.reference }] : []),
     ...(selected.frames ? frames.flatMap((group) => (group.configurations ?? []).map((configuration) => { const basePrice = frameOptions.find((option) => option.id === group.optionId)?.price || 0; const designPrice = frameDesigns.find((design) => design.id === configuration.designId)?.price; const quantity = Number(configuration.quantity) || 1; const price = designPrice > 0 ? designPrice : basePrice; return { ...configuration, type: 'frame', optionId: group.optionId, qty: 1, quantity, price, lineTotal: price * quantity } })) : []),
     ...(selected.miniMagazines ? miniBooks.map((item) => { const product = miniProducts.find((row) => row.id === item.productId) ?? miniProducts[0]; return { ...item, type: 'mini-magazine', price: Number(product?.price) || 0, product } }) : []),
     ...(selected.magazines ? magazines.map((item) => ({ ...item, type: 'magazine', price: magazineOptions.find((option) => option.id === item.sizeId)?.price || 0 })) : []),
     ...(selected.songBooks ? songBooks.map((item) => { const book = songProducts.find((row) => row.id === item.productId) ?? songProducts[0]; return { ...item, type: 'song-book', price: Number(book?.price12) || 0, product: book } }) : []),
+    ...(selected.giftCards ? giftCards.map((item) => { const gift = giftProducts.find((row) => row.id === item.productId) ?? giftProducts[0]; return { ...item, type: 'gift-card', qty: 1, quantity: 1, price: giftCardPrice(gift, item.sizeId), product: gift } }) : []),
     // One line per Photo Strip setup; the combined offer price is shared out by quantity so the lines add up to the total.
     ...(selected.photoStrip ? (() => { let allocated = 0; return photoStrips.map((item, index) => { const quantity = Number(item.quantity) || 1; const lineTotal = index === photoStrips.length - 1 ? pricedPhotoStrip.total - allocated : Math.floor(pricedPhotoStrip.total * quantity / (photoStripQuantity || 1)); allocated += lineTotal; return { ...item, type: 'photo-strip', qty: 1, quantity, price: lineTotal, lineTotal, design: item.designId === 'custom' ? { id: 'custom', name: 'My own design' } : photoStripDesigns.find((design) => design.id === item.designId) } }) })() : []),
   ]
@@ -350,6 +358,7 @@ export default function ManualOrderPage() {
       if (id === 'miniMagazines' && !miniBooks.length) setMiniBooks([{ ...makeItem('mini-magazine'), productId: miniProducts[0]?.id || '' }])
       if (id === 'magazines' && !magazines.length) setMagazines([makeItem('magazine')])
       if (id === 'songBooks' && !songBooks.length) setSongBooks([{ ...makeItem('song-book'), productId: songProducts[0]?.id || '' }])
+      if (id === 'giftCards' && !giftCards.length) setGiftCards([newGiftCard(giftProducts[0])])
       if (id === 'photoStrip' && !photoStrips.length) setPhotoStrips([makePhotoStripConfiguration()])
     } else if (expandedProduct === id) setExpandedProduct(null)
     setSelected((current) => ({ ...current, [id]: !current[id] }))
@@ -380,6 +389,7 @@ export default function ManualOrderPage() {
     if (id === 'magazines') return Math.min(...magazineOptions.map((option) => option.price).filter((price) => price > 0), Infinity)
     if (id === 'photoStrip') return photoStripPrice ? polaroidPricing(photoStripProduct, 1).total : Infinity
     if (id === 'songBooks') return Number(songProducts[0]?.price12)
+    if (id === 'giftCards') return Math.min(...availableSizes(giftProducts[0]).map((size) => giftCardPrice(giftProducts[0], size.id)), Infinity)
     return Infinity
   }
   const cardImageUrl = (card) => MEDIA_API && card.imageUpdatedAt ? `${MEDIA_API}/manual-order-cards/${encodeURIComponent(card.id)}?v=${card.imageUpdatedAt}` : ''
@@ -392,6 +402,7 @@ export default function ManualOrderPage() {
     if (selected.frames && !frames.length) next.framesEmpty = 'Add at least one frame or unselect Frames.'
     if (selected.miniMagazines && !miniBooks.length) next.miniEmpty = 'Add at least one Mini Magazine or unselect it.'
     if (selected.magazines && !magazines.length) next.magazinesEmpty = 'Add at least one Magazine or unselect it.'
+    if (selected.giftCards && !giftCards.length) next.giftEmpty = 'Add at least one Gift Card or unselect it.'
     if (selected.songBooks && !songBooks.length) next.songBooksEmpty = 'Add at least one Song Book or unselect it.'
     if (selected.polaroids) {
       if (Number(polaroid.quantity) < polaroidMinimum) next.polaroidQuantity = `The minimum Polaroid order is ${polaroidMinimum} pieces.`
@@ -448,6 +459,16 @@ export default function ManualOrderPage() {
       if (!item.photos.some((photo) => photo.id === item.frontId)) next[`song-${item.key}-front`] = 'Choose a front cover photo.'
       if (!item.photos.some((photo) => photo.id === item.backId)) next[`song-${item.key}-back`] = 'Choose a back cover photo.'
     })
+    selected.giftCards && giftCards.forEach((item, index) => {
+      const gift = giftProducts.find((row) => row.id === item.productId) ?? giftProducts[0]
+      const size = sizeById(item.sizeId)
+      if (!gift || !size || !giftCardPrice(gift, size.id)) next[`gift-${item.key}-size`] = 'Choose a card size.'
+      if (!item.letter.trim()) next[`gift-${item.key}-letter`] = `Write the letter for Gift Card #${index + 1}.`
+      else if (size && item.letter.length > size.letterLimit) next[`gift-${item.key}-letter`] = `Letter is too long for ${size.label} (max ${size.letterLimit} characters).`
+      if (item.left.length > NOTE_LIMIT) next[`gift-${item.key}-left`] = `Left note is too long (max ${NOTE_LIMIT}).`
+      if (item.right.length > NOTE_LIMIT) next[`gift-${item.key}-right`] = `Right note is too long (max ${NOTE_LIMIT}).`
+    })
+    if (selected.giftCards && giftCards.length > Number(manualCatalog.giftCards.maxItems || 20)) next.giftEmpty = `You can add up to ${manualCatalog.giftCards.maxItems} Gift Cards to one order.`
     const frameCount = frames.reduce((count, group) => count + group.configurations.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0), 0)
     if (selected.frames && frameCount > Number(manualCatalog.frames.maxItems || 20)) next.framesEmpty = `You can add up to ${manualCatalog.frames.maxItems} individual frames to one order.`
     if (selected.miniMagazines && miniBooks.length > Number(manualCatalog.miniMagazines.maxItems || 20)) next.miniEmpty = `You can add up to ${manualCatalog.miniMagazines.maxItems} Mini Pocket Magazines to one order.`
@@ -479,11 +500,12 @@ export default function ManualOrderPage() {
     setErrors(next)
     if (Object.keys(next).length) {
       if (step === 1) {
-        const firstError = Object.keys(next).find((key) => /^(polaroid|frame-|mini-|mag-|song-|addon-)/.test(key))
+        const firstError = Object.keys(next).find((key) => /^(polaroid|frame-|mini-|mag-|song-|gift-|addon-)/.test(key))
         const productId = firstError?.startsWith('frame-') ? 'frames'
           : firstError?.startsWith('mini-') ? 'miniMagazines'
             : firstError?.startsWith('mag-') ? 'magazines'
               : firstError?.startsWith('song-') ? 'songBooks'
+                : firstError?.startsWith('gift-') ? 'giftCards'
                 : firstError?.startsWith('polaroid') ? 'polaroids'
                   : firstError?.startsWith('photoStrip-') ? 'photoStrip'
                   : firstError?.startsWith('addon-') ? `addon-${catalogAddons.find((item) => firstError === `addon-${item.key}`)?.productId || ''}` : null
@@ -558,6 +580,7 @@ export default function ManualOrderPage() {
     if (selected.miniMagazines) rows.push(...miniBooks.map((item) => ({ type: 'mini-magazine', item })))
     if (selected.magazines) rows.push(...magazines.map((item) => ({ type: 'magazine', item })))
     if (selected.songBooks) rows.push(...songBooks.map((item) => ({ type: 'song-book', item })))
+    if (selected.giftCards) rows.push(...giftCards.map((item) => ({ type: 'gift-card', item })))
     const allPhotos = rows.flatMap(({ item }) => [...(item.photos ?? []), ...(item.reference ? [item.reference] : [])])
     setProgress('Uploading your photos…')
     await uploadAllPhotos(allPhotos)
@@ -587,6 +610,7 @@ export default function ManualOrderPage() {
             type: item.type, key: item.key, groupKey: item.groupKey || '', productId: item.productId || '', quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', designId: item.designId || '', sizeId: item.sizeId || '',
             category: item.category || '', custom: item.custom || {}, notes: item.notes || '', songName: item.songName || '', lyrics: item.lyrics || '', pages: item.pages === 16 ? 16 : 12,
             photos: item.files, referenceFile: item.referenceFile, frontId: item.frontId || '', backId: item.backId || '',
+            ...(item.type === 'gift-card' ? { from: item.from || '', letter: item.letter || '', leftNote: item.left || '', rightNote: item.right || '' } : {}),
           })),
           delivery: { ...delivery },
           customer: { name: customer.name.trim(), instagram: customer.instagram.trim().replace(/^@+/, ''), whatsapp: customer.whatsapp.trim() },
@@ -602,7 +626,7 @@ export default function ManualOrderPage() {
   }
 
   if (loading) return <Container className="py-24 text-center text-ink/60">Loading your order options…</Container>
-  if (loadError) return <Container className="py-24 text-center"><p>We could not load product options.</p><button type="button" onClick={() => [productsData.reload(), addonsData.reload(), polaroidCatalogData.reload(), miniCatalogData.reload(), songCatalogData.reload(), sizesData.reload(), settingsData.reload(), manualCatalogData.reload(), designsData.reload()]} className="mt-3 text-brand underline">Try again</button></Container>
+  if (loadError) return <Container className="py-24 text-center"><p>We could not load product options.</p><button type="button" onClick={() => [productsData.reload(), addonsData.reload(), polaroidCatalogData.reload(), miniCatalogData.reload(), songCatalogData.reload(), giftCatalogData.reload(), sizesData.reload(), settingsData.reload(), manualCatalogData.reload(), designsData.reload()]} className="mt-3 text-brand underline">Try again</button></Container>
 
   if (success) return <Container className="py-12 sm:py-20">
     <div className="mx-auto max-w-2xl rounded-3xl border border-sand bg-white p-6 text-center shadow-lg sm:p-10">
@@ -805,7 +829,27 @@ export default function ManualOrderPage() {
           })}</div>
           <button type="button" disabled={!canAddItems('songBooks', songBooks.length)} onClick={() => addItem(setSongBooks, 'song-book', { productId: songProducts[0]?.id || '' })} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('songBooks', songBooks.length) ? 'Add another Song Book' : 'Song Book item limit reached'}</button>
         </ProductSectionCard>}
-        {(errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.photoStripEmpty) && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.photoStripEmpty}</p>}
+        {selected.giftCards && <ProductSectionCard id="giftCards" title="Gift Cards" subtitle="Pick a size, write your letter and (optional) side notes. We print them on the card." expanded={expandedProduct === 'giftCards'} onToggle={() => setExpandedProduct((current) => current === 'giftCards' ? null : 'giftCards')}>
+          <div className="space-y-4">{giftCards.map((item, index) => {
+            const gift = giftProducts.find((row) => row.id === item.productId) ?? giftProducts[0]
+            const sizes = availableSizes(gift)
+            return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-4 sm:p-5">
+              <ItemHeader title={`${gift?.title || 'Gift Card'} #${index + 1}`} onRemove={() => removeProductItem(setGiftCards, giftCards, 'giftCards', item.key)} />
+              {giftProducts.length > 1 && <label className="mb-4 block text-sm font-medium">Card design<select value={gift?.id || ''} onChange={(event) => updateList(setGiftCards, item.key, 'productId', event.target.value)} className={`${inputClass} mt-1`}>{giftProducts.map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select></label>}
+              <div className="mb-4 grid grid-cols-2 gap-3">{sizes.map((size) => <button key={size.id} type="button" onClick={() => updateList(setGiftCards, item.key, 'sizeId', size.id)} className={`rounded-xl border p-3 text-left text-sm ${item.sizeId === size.id ? 'border-brand bg-cream' : 'border-sand'}`}><span className="block font-semibold">{size.label}</span><span className="block text-xs text-ink/55">{size.cm}</span><span className="mt-1 block font-semibold text-brand">{formatPrice(giftCardPrice(gift, size.id))}</span></button>)}</div>
+              {errors[`gift-${item.key}-size`] && <p className="-mt-2 mb-3 text-xs text-red-700">{errors[`gift-${item.key}-size`]}</p>}
+              {field('From (your name on the card, optional)', item.from, (value) => updateList(setGiftCards, item.key, 'from', value.slice(0, 60)))}
+              <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Letter <span className="text-brand">*</span></span><textarea rows="6" value={item.letter} onChange={(event) => updateList(setGiftCards, item.key, 'letter', event.target.value)} className={inputClass} placeholder="Write the letter that goes in the middle of the card" /><span className="mt-1 block text-xs text-ink/50">{item.letter.length}/{sizeById(item.sizeId)?.letterLimit || 1500}</span>{errors[`gift-${item.key}-letter`] && <span className="mt-1 block text-xs text-red-700">{errors[`gift-${item.key}-letter`]}</span>}</label>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block"><span className="mb-1.5 block text-sm font-medium">Left side note (optional)</span><textarea rows="3" value={item.left} onChange={(event) => updateList(setGiftCards, item.key, 'left', event.target.value)} className={inputClass} /><span className="mt-1 block text-xs text-ink/50">{item.left.length}/{NOTE_LIMIT}</span>{errors[`gift-${item.key}-left`] && <span className="block text-xs text-red-700">{errors[`gift-${item.key}-left`]}</span>}</label>
+                <label className="block"><span className="mb-1.5 block text-sm font-medium">Right side note (optional)</span><textarea rows="3" value={item.right} onChange={(event) => updateList(setGiftCards, item.key, 'right', event.target.value)} className={inputClass} /><span className="mt-1 block text-xs text-ink/50">{item.right.length}/{NOTE_LIMIT}</span>{errors[`gift-${item.key}-right`] && <span className="block text-xs text-red-700">{errors[`gift-${item.key}-right`]}</span>}</label>
+              </div>
+              <div className="mt-5"><UploadPicker title="Photos (optional)" files={item.photos} onChange={(photos) => updateList(setGiftCards, item.key, 'photos', photos)} max={MAX_GIFT_PHOTOS} help="Add up to 6 photos if you want them on the card." /></div>
+            </div>
+          })}</div>
+          <button type="button" disabled={!canAddItems('giftCards', giftCards.length)} onClick={() => setGiftCards((list) => [...list, newGiftCard(giftProducts[0])])} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('giftCards', giftCards.length) ? 'Add another Gift Card' : 'Gift Card item limit reached'}</button>
+        </ProductSectionCard>}
+        {(errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.giftEmpty || errors.photoStripEmpty) && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.giftEmpty || errors.photoStripEmpty}</p>}
         <div className="flex items-center justify-between gap-4 rounded-2xl bg-brand px-5 py-4 text-white"><span className="text-sm text-white/75">Current product subtotal</span><strong className="text-xl">{formatPrice(productSubtotal)}</strong></div>
         <div className="hidden justify-between gap-4 sm:flex"><Button variant="outline" onClick={goBack} className="min-h-12 gap-2"><ArrowLeft size={17} /> Back to products</Button><Button onClick={advance} className="min-h-12 gap-2 px-6">Continue to delivery <ArrowRight size={17} /></Button></div>
       </div>}
@@ -854,6 +898,7 @@ export default function ManualOrderPage() {
             if (item.type === 'frame') { const design = frameDesigns.find((row) => row.id === item.designId); title = `Frame #${index + 1}`; option = [item.optionId, item.designId === 'custom' ? 'Own design' : design?.name].filter(Boolean).join(' · '); unitPrice = design?.price > 0 ? design.price : frameOptions.find((row) => row.id === item.optionId)?.price || 0 }
             if (item.type === 'mini-magazine') { title = item.product?.title || 'Mini Pocket Magazine'; option = '8 pages'; unitPrice = Number(item.product?.price) || 0 }
             if (item.type === 'magazine') { title = `${manualCatalog.magazines.title} #${index + 1}`; const size = magazineOptions.find((row) => row.id === item.sizeId); option = size ? `${size.format} · ${size.pages} pages · ${item.category}` : item.category; unitPrice = size?.price || 0 }
+            if (item.type === 'gift-card') { title = `${item.product?.title || 'Gift Card'} #${index + 1}`; option = `${sizeById(item.sizeId)?.label || ''} · letter + notes`; unitPrice = Number(item.price) || 0 }
             if (item.type === 'song-book') { title = `${item.product?.title || 'Song Book'} #${index + 1}`; option = `12 pages · ${item.songName}`; unitPrice = Number(item.product?.price12) || 0 }
             return <div key={item.key} className="py-4 first:pt-0 last:pb-0"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-ink/55">{option}</p>{item.type === 'magazine' && <p className="mt-1 text-xs text-ink/60">{Object.entries(item.custom).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{item.type === 'song-book' && <p className="mt-1 line-clamp-2 text-xs text-ink/60">{item.lyrics}</p>}{item.type === 'photo-strip' && item.notes && <p className="mt-1 text-xs text-ink/60">{item.notes}</p>}<ReviewPhotoGallery photos={item.photos} frontId={item.frontId} backId={item.backId} />{item.reference && <p className="mt-2 text-xs text-ink/55">Design reference: {item.reference.file.name}</p>}</div><p className="shrink-0 font-semibold">{formatPrice(item.lineTotal ?? unitPrice * quantity)}</p></div></div>
           })}</div>

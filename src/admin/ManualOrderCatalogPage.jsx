@@ -4,7 +4,7 @@ import Button from '../shared/ui/Button'
 import useAsync from '../shared/hooks/useAsync'
 import { inputClass } from './classes'
 import { adminAuth } from '../shared/services/firebaseClient'
-import { getManualOrderCatalog, manualOrderCatalogApi, getMiniMagazines, getProducts, getSongBooks, sizesApi } from '../shared/services/contentService'
+import { getManualOrderCatalog, manualOrderCatalogApi, getGiftCards, getMiniMagazines, getProducts, getSongBooks, sizesApi } from '../shared/services/contentService'
 import { Link } from 'react-router-dom'
 import { mergeManualOrderCatalog } from '../pages/manual-order/catalog'
 import { parseOptions } from '../shared/utils/options'
@@ -96,8 +96,8 @@ function CardImage({ card, onChange }) {
 
 export default function ManualOrderCatalogPage() {
   const { data, loading, error: loadError, reload } = useAsync(async () => {
-    const [catalog, products, sizes, miniProducts, songBooks] = await Promise.all([getManualOrderCatalog(), getProducts(), sizesApi.list(), getMiniMagazines(), getSongBooks()])
-    return { catalog: mergeManualOrderCatalog(catalog), products, sizes, miniProducts, songBooks }
+    const [catalog, products, sizes, miniProducts, songBooks, giftCards] = await Promise.all([getManualOrderCatalog(), getProducts(), sizesApi.list(), getMiniMagazines(), getSongBooks(), getGiftCards()])
+    return { catalog: mergeManualOrderCatalog(catalog), products, sizes, miniProducts, songBooks, giftCards }
   })
   const [catalog, setCatalog] = useState(null)
   const [frameProduct, setFrameProduct] = useState(null)
@@ -177,11 +177,11 @@ export default function ManualOrderCatalogPage() {
         <label className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-cream px-3 text-sm font-medium"><input type="checkbox" checked={Boolean(card.enabled)} onChange={(event) => updateCard(card.id, { enabled: event.target.checked })} /> Available</label>
       </div>
       <div className="grid gap-5 md:grid-cols-[minmax(220px,0.8fr)_1.2fr]">
-        {['polaroids', 'photoStrip', 'miniMagazines', 'songBooks'].includes(card.id) ? <div><div className="relative aspect-[1.7/1] overflow-hidden rounded-xl border border-sand bg-cream">{(card.id === 'photoStrip' ? data.products.find((product) => product.id === 'photo-strip')?.image : card.id === 'polaroids' ? data.products.find((product) => product.id === 'polaroids')?.image : card.id === 'miniMagazines' ? data.miniProducts[0]?.image : data.songBooks[0]?.image) ? <img src={card.id === 'photoStrip' ? data.products.find((product) => product.id === 'photo-strip')?.image : card.id === 'polaroids' ? data.products.find((product) => product.id === 'polaroids')?.image : card.id === 'miniMagazines' ? data.miniProducts[0]?.image : data.songBooks[0]?.image} alt={`${card.title} card preview`} className="size-full object-cover" /> : <div className="grid h-full place-items-center text-sm text-ink/45">Set the product image in its catalog</div>}</div><p className="mt-2 text-xs text-ink/55">Product image is managed in its catalog.</p></div> : <CardImage card={card} onChange={(next) => updateCard(card.id, next)} />}
+        {['polaroids', 'photoStrip', 'miniMagazines', 'songBooks', 'giftCards'].includes(card.id) ? <div><div className="relative aspect-[1.7/1] overflow-hidden rounded-xl border border-sand bg-cream">{(card.id === 'photoStrip' ? data.products.find((product) => product.id === 'photo-strip')?.image : card.id === 'polaroids' ? data.products.find((product) => product.id === 'polaroids')?.image : card.id === 'miniMagazines' ? data.miniProducts[0]?.image : card.id === 'giftCards' ? data.giftCards[0]?.image : data.songBooks[0]?.image) ? <img src={card.id === 'photoStrip' ? data.products.find((product) => product.id === 'photo-strip')?.image : card.id === 'polaroids' ? data.products.find((product) => product.id === 'polaroids')?.image : card.id === 'miniMagazines' ? data.miniProducts[0]?.image : card.id === 'giftCards' ? data.giftCards[0]?.image : data.songBooks[0]?.image} alt={`${card.title} card preview`} className="size-full object-cover" /> : <div className="grid h-full place-items-center text-sm text-ink/45">Set the product image in its catalog</div>}</div><p className="mt-2 text-xs text-ink/55">Product image is managed in its catalog.</p></div> : <CardImage card={card} onChange={(next) => updateCard(card.id, next)} />}
         <div className="grid content-start gap-4 sm:grid-cols-2">
-          {![ 'polaroids', 'photoStrip', 'miniMagazines', 'songBooks' ].includes(card.id) && <Input label="Card title" value={card.title} onChange={(title) => updateCard(card.id, { title })} />}
+          {![ 'polaroids', 'photoStrip', 'miniMagazines', 'songBooks', 'giftCards' ].includes(card.id) && <Input label="Card title" value={card.title} onChange={(title) => updateCard(card.id, { title })} />}
           <Input label="Card position" type="number" min="1" max="5" value={card.order} onChange={(order) => updateCard(card.id, { order })} />
-          {![ 'polaroids', 'photoStrip', 'miniMagazines', 'songBooks' ].includes(card.id) && <Input label="Short description" value={card.description} onChange={(description) => updateCard(card.id, { description })} />}
+          {![ 'polaroids', 'photoStrip', 'miniMagazines', 'songBooks', 'giftCards' ].includes(card.id) && <Input label="Short description" value={card.description} onChange={(description) => updateCard(card.id, { description })} />}
           <Input label="Maximum separate items per order" type="number" min="1" max="80" value={card.maxItems} onChange={(maxItems) => updateCard(card.id, { maxItems })} hint="For repeated items such as magazines and song books." />
           {card.id === 'frames' && <Input label="Maximum quantity per frame size" type="number" min="1" max="80" value={card.maxQuantity} onChange={(maxQuantity) => updateCard(card.id, { maxQuantity })} />}
         </div>
@@ -197,6 +197,7 @@ export default function ManualOrderCatalogPage() {
         </label>)}</div>
       </div>}
       {card.id === 'miniMagazines' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Names, images, prices and photo limits come from each Mini Magazine's catalog.</p>}
+      {card.id === 'giftCards' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Name, image and A4/A3 prices come from the Gift Card catalog.</p>}
       {card.id === 'songBooks' && <p className="mt-4 rounded-xl bg-cream p-3 text-xs text-ink/60">Names, images and page prices come from each Song Book's catalog.</p>}
     </section>)}
 

@@ -128,7 +128,7 @@ async function trustedCatalog(project) {
   const photoStripDoc = await getFirestoreDoc(project, 'contentData/products--photo-strip')
   const polaroidCatalogDoc = await getFirestoreDoc(project, 'contentData/polaroidProducts--polaroids')
   const legacyPolaroidDoc = polaroidCatalogDoc ? null : await getFirestoreDoc(project, 'contentData/products--polaroids')
-  const [miniMagazines, songBooks, polaroidCatalogItems, addonRows] = await Promise.all([loadCatalogGroup(project, 'miniMagazines'), loadCatalogGroup(project, 'songBooks'), loadCatalogGroup(project, 'polaroidProducts'), loadCatalogGroup(project, 'addons')])
+  const [miniMagazines, songBooks, giftCards, polaroidCatalogItems, addonRows] = await Promise.all([loadCatalogGroup(project, 'miniMagazines'), loadCatalogGroup(project, 'songBooks'), loadCatalogGroup(project, 'giftCards'), loadCatalogGroup(project, 'polaroidProducts'), loadCatalogGroup(project, 'addons')])
   const catalogAddons = await Promise.all(addonRows.map(async (addon) => ({ ...addon, product: (await getFirestoreDoc(project, `contentData/products--${encodeURIComponent(addon.id)}`))?.value ?? null })))
   const sizeDocs = await Promise.all(DEFAULT_SIZES.map((size) => getFirestoreDoc(project, `contentData/printSizes--${encodeURIComponent(size.id)}`)))
   const settingsDoc = await getFirestoreDoc(project, 'contentData/orderSettings--singleton')
@@ -159,6 +159,7 @@ async function trustedCatalog(project) {
     polaroidProducts: normalizedPolaroids,
     miniMagazines,
     songBooks,
+    giftCards,
     catalogAddons,
     sizes: configuredSizes,
     deliverySettings: settingsDoc?.value ?? {},
@@ -194,6 +195,10 @@ async function verifyReference(env, sessionKey, file) {
   return verified[0]
 }
 
+const GIFT_SIZES = [
+  { id: 'a4', label: 'A4', priceKey: 'priceA4', cm: '21 × 29.7 cm', letterLimit: 1500 },
+  { id: 'a3', label: 'A3', priceKey: 'priceA3', cm: '29.7 × 42 cm', letterLimit: 2500 },
+]
 function coverName(files, id) { return files.find((file) => file.id === id)?.name ?? '' }
 function assertCovers(files, item) {
   if (files.length < 2) throw new Error('Add at least two photos so every front and back cover can be selected.')
@@ -290,6 +295,21 @@ function buildItem(input, config, photos, referenceFile) {
     const details = [{ label: 'Song name', value: text(input.songName, 200) }, { label: 'Lyrics', value: text(input.lyrics, 20000) }]
     if (notes) details.push({ label: 'Additional notes', value: notes })
     return { kind: 'song-book', id: book?.id || 'song-book', name: book?.title || card.title, image: book?.image || '', optionLabel: `${pages} pages`, qty: 1, price: unitPrice, meta: { pages }, details, photos: { count: photos.length, files: photos, names: photos.map((file) => file.name), front: coverName(photos, input.frontId), back: coverName(photos, input.backId), frontId: input.frontId, backId: input.backId } }
+  }
+  if (input.type === 'gift-card') {
+    const gift = config.giftCards?.find((row) => row.id === String(input.productId)) ?? config.giftCards?.[0]
+    const size = GIFT_SIZES.find((row) => row.id === String(input.sizeId))
+    const unitPrice = Number(gift?.[size?.priceKey])
+    if (!gift || !size || !Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('This Gift Card size is not currently available.')
+    const letter = text(input.letter, 5000)
+    if (quantity !== 1 || !letter) throw new Error('Write the letter for each Gift Card.')
+    if (letter.length > size.letterLimit) throw new Error(`The Gift Card letter is too long for ${size.label}.`)
+    const from = text(input.from, 60)
+    const left = text(input.leftNote, 300)
+    const right = text(input.rightNote, 300)
+    if (photos.length > 6) throw new Error('A Gift Card can have up to 6 photos.')
+    const details = [{ label: 'Size', value: `${size.label} (${size.cm})` }, ...(from ? [{ label: 'From', value: from }] : []), { label: 'Letter', value: letter }, ...(left ? [{ label: 'Left side note', value: left }] : []), ...(right ? [{ label: 'Right side note', value: right }] : [])]
+    return { kind: 'gift-card', id: gift.id, name: gift.title || card.title, image: gift.image || '', optionLabel: size.label, qty: 1, price: unitPrice, meta: { size: size.id }, details, ...(photos.length ? { photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } } : {}) }
   }
   throw new Error('This product is not available in the manual order form.')
 }
