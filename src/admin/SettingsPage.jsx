@@ -178,7 +178,7 @@ export default function SettingsPage() {
         <Field label="Facebook link" value={form.facebookUrl} onChange={set('facebookUrl')} />
       </Group>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-5 py-3 backdrop-blur md:left-64">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-5 py-3 md:left-64">
         <div className="mx-auto flex max-w-4xl items-center gap-4">
           <Button type="submit" size="sm" disabled={saving || !dirty}>
             {saving ? 'Saving…' : 'Save changes'}

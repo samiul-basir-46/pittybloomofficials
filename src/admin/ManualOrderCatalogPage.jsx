@@ -204,7 +204,7 @@ export default function ManualOrderCatalogPage() {
 
     {message && <p role="status" className={`rounded-xl p-3 text-sm ${message.startsWith('Saved.') ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'}`}>{message}</p>}
     {loadError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Could not load all current settings.</p>}
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-4 py-3 backdrop-blur md:left-64">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-4 py-3 md:left-64">
       <div className="mx-auto flex max-w-5xl items-center gap-3"><Button type="submit" disabled={busy || !dirty} className="gap-2"><Save size={16} /> {busy ? 'Saving…' : 'Save changes now'}</Button>{dirty && !busy && <span className="text-xs text-amber-700">Unsaved changes · saving automatically</span>}{message.startsWith('Saved.') && <span className="inline-flex items-center gap-1 text-xs text-green-700"><Check size={15} /> Saved</span>}{message && !message.startsWith('Saved.') && <span role="alert" className="text-xs text-red-700">{message}</span>}</div>
     </div>
   </form>

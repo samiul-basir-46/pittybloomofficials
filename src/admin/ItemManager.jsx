@@ -172,7 +172,7 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
 
       {form && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
         >
           <form
             onSubmit={submit}

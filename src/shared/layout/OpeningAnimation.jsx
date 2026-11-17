@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
 
 export default function OpeningAnimation() {
-  const [visible, setVisible] = useState(() =>
-    typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  )
+  // Play the intro once per browser session, not on every page load.
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
+    try {
+      if (window.sessionStorage.getItem('pb-intro')) return false
+      window.sessionStorage.setItem('pb-intro', '1')
+    } catch { /* storage blocked: just play it */ }
+    return true
+  })
 
   useEffect(() => {
     if (!visible) return undefined

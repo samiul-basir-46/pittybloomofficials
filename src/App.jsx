@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './shared/layout/Layout'
 import ScrollToTop from './shared/layout/ScrollToTop'
@@ -26,37 +27,38 @@ import CartPage from './pages/cart/CartPage'
 import AccountPage from './pages/account/AccountPage'
 import ProductPage from './pages/products/ProductPage'
 import NotFoundPage from './pages/not-found/NotFoundPage'
-import AdminLayout from './admin/AdminLayout'
-import Dashboard from './admin/Dashboard'
-import ItemManager from './admin/ItemManager'
-import SettingsPage from './admin/SettingsPage'
-import OrdersPage from './admin/OrdersPage'
-import OrderDetailPage from './admin/OrderDetailPage'
+const AdminLayout = lazy(() => import('./admin/AdminLayout'))
+const Dashboard = lazy(() => import('./admin/Dashboard'))
+const ItemManager = lazy(() => import('./admin/ItemManager'))
+const SettingsPage = lazy(() => import('./admin/SettingsPage'))
+const OrdersPage = lazy(() => import('./admin/OrdersPage'))
+const OrderDetailPage = lazy(() => import('./admin/OrderDetailPage'))
 import OrderDetailsPage from './pages/order-details/OrderDetailsPage'
 import OrderPage from './pages/order/OrderPage'
-import OrderSettingsPage from './admin/OrderSettingsPage'
+const OrderSettingsPage = lazy(() => import('./admin/OrderSettingsPage'))
 import { SECTIONS } from './admin/sections'
 import { RequireCustomer } from './shared/ui/RouteGuards'
-import DraftDetailPage from './admin/DraftDetailPage'
+const DraftDetailPage = lazy(() => import('./admin/DraftDetailPage'))
 import ManualOrderPage from './pages/manual-order/ManualOrderPage'
-import AdminLoginPage from './admin/AdminLoginPage'
-import ManualOrderCatalogPage from './admin/ManualOrderCatalogPage'
+const AdminLoginPage = lazy(() => import('./admin/AdminLoginPage'))
+const ManualOrderCatalogPage = lazy(() => import('./admin/ManualOrderCatalogPage'))
 import SongBookPage from './pages/song-book/SongBookPage'
 import SongBookDetailPage from './pages/song-book/SongBookDetailPage'
 import SongBookOrderPage from './pages/song-book/SongBookOrderPage'
-import FrameSettingsPage from './admin/FrameSettingsPage'
-import MiniMagazineSettingsPage from './admin/MiniMagazineSettingsPage'
-import GiftCardSettingsPage from './admin/GiftCardSettingsPage'
-import WishCardSettingsPage from './admin/WishCardSettingsPage'
-import PolaroidSettingsPage from './admin/PolaroidSettingsPage'
-import PhotoStripSettingsPage from './admin/PhotoStripSettingsPage'
-import StickerSettingsPage from './admin/StickerSettingsPage'
+const FrameSettingsPage = lazy(() => import('./admin/FrameSettingsPage'))
+const MiniMagazineSettingsPage = lazy(() => import('./admin/MiniMagazineSettingsPage'))
+const GiftCardSettingsPage = lazy(() => import('./admin/GiftCardSettingsPage'))
+const WishCardSettingsPage = lazy(() => import('./admin/WishCardSettingsPage'))
+const PolaroidSettingsPage = lazy(() => import('./admin/PolaroidSettingsPage'))
+const PhotoStripSettingsPage = lazy(() => import('./admin/PhotoStripSettingsPage'))
+const StickerSettingsPage = lazy(() => import('./admin/StickerSettingsPage'))
 import { AdminAuthProvider } from './admin/AdminAuthContext'
 
 export default function App() {
   return (
     <>
       <ScrollToTop />
+      <Suspense fallback={<div className="min-h-screen" />}>
       <Routes>
         <Route path="admin/login" element={<AdminAuthProvider><AdminLoginPage /></AdminAuthProvider>} />
         <Route element={<Layout />}>
@@ -122,6 +124,7 @@ export default function App() {
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
+      </Suspense>
     </>
   )
 }

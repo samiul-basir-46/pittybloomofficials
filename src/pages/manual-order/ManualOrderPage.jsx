@@ -942,7 +942,7 @@ export default function ManualOrderPage() {
         <div className="hidden flex-col-reverse justify-between gap-3 sm:flex sm:flex-row"><Button variant="outline" onClick={goBack} disabled={submitting} className="min-h-12 gap-2"><ArrowLeft size={17} /> Back and edit</Button><Button onClick={submitOrder} disabled={submitting} className="min-h-12 gap-2 px-6">{submitting ? 'Sending order…' : 'Place order'} <Sparkles size={17} /></Button></div>
       </div>}
     </div>
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+.75rem)] pt-3 shadow-[0_-8px_24px_rgba(52,43,41,.08)] backdrop-blur sm:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+.75rem)] pt-3 shadow-[0_-8px_24px_rgba(52,43,41,.08)] sm:hidden">
       <div className="mx-auto max-w-6xl">
         <div className="mb-2 flex items-center justify-between gap-3"><span className="text-xs text-ink/60">{step < 2 ? 'Product subtotal' : step === 4 ? 'Grand total' : 'Estimated total'}</span><strong className="text-sm text-brand">{formatPrice(step < 2 ? productSubtotal : total)}</strong></div>
         <div className="flex gap-2">
@@ -953,7 +953,7 @@ export default function ManualOrderPage() {
     </div>
   </Container>
   {magazineSizePreviewOpen && <MagazineSizePreview onClose={() => setMagazineSizePreviewOpen(false)} />}
-  {submitting && <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/55 p-4 backdrop-blur-sm" role="presentation">
+  {submitting && <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/55 p-4" role="presentation">
     <section role="dialog" aria-modal="true" aria-labelledby="order-upload-title" aria-describedby="order-upload-description" className="w-full max-w-md rounded-2xl border border-sand bg-white p-6 shadow-2xl sm:p-8">
       <div className="mx-auto grid size-14 place-items-center rounded-full bg-cream text-brand"><Loader2 size={27} className="animate-spin" /></div>
       <h2 id="order-upload-title" className="mt-4 text-center font-serif text-2xl">{uploadStatus.total > uploadStatus.completed ? 'Uploading your photos' : 'Saving your order'}</h2>

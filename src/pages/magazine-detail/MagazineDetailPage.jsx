@@ -108,7 +108,7 @@ function Detail({ magazine, sizes, settings }) {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 gap-2 border-t border-sand bg-white/95 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgba(42,26,28,0.08)] backdrop-blur sm:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 gap-2 border-t border-sand bg-white/95 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgba(42,26,28,0.08)] sm:hidden">
         <Button variant="outline" size="sm" className="h-11 gap-2 px-2 text-xs" onClick={addToCart}>
           <ShoppingCart size={16} /> Add to Cart
         </Button>

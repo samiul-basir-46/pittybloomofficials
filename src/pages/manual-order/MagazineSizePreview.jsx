@@ -27,7 +27,7 @@ export default function MagazineSizePreview({ onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-ink/55 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-ink/55 p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}
     >
       <section

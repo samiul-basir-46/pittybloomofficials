@@ -486,7 +486,7 @@ function Wizard({ magazine, sizes, addons, products, frameDesigns, addonsFailed,
 
             <StepView ctx={ctx} />
 
-            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-sand bg-white/95 px-3 py-3 backdrop-blur lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-sand bg-white/95 px-3 py-3 lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
               <div className="mx-auto flex max-w-[1488px] items-center gap-2 sm:px-2 lg:gap-3 lg:px-0">
                 <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5 max-[460px]:px-3" onClick={back} disabled={busy}>
                   <ArrowLeft size={16} /> Back

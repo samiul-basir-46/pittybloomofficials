@@ -47,7 +47,7 @@ export default function WishCardPage() {
         <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-gradient-to-b from-[#fbf6f7] to-sand shadow-[0_18px_40px_-24px_rgba(81,46,48,.4)] ring-1 ring-sand" onTouchStart={(event) => { touchX.current = event.touches[0].clientX }} onTouchEnd={onTouchEnd}>
           <SmartImage src={images[active] || card.image} alt={`${card.title}, picture ${active + 1} of ${images.length || 1}`} className="size-full object-contain" />
           {images.length > 1 && <>
-            <span className="absolute right-2.5 top-2.5 rounded-full bg-ink/70 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-white backdrop-blur">{active + 1} / {images.length}</span>
+            <span className="absolute right-2.5 top-2.5 rounded-full bg-ink/70 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-white">{active + 1} / {images.length}</span>
             <button type="button" aria-label="Previous picture" onClick={() => go(active - 1)} className="absolute left-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-ink shadow-md transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><ChevronLeft size={17} /></button>
             <button type="button" aria-label="Next picture" onClick={() => go(active + 1)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-ink shadow-md transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><ChevronRight size={17} /></button>
           </>}

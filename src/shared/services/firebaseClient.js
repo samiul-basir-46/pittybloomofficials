@@ -14,8 +14,11 @@ const config = {
 
 // Firestore's default streaming connection is silently blocked or stalled by some mobile networks, proxies and
 // Safari builds, which leaves order saving "buffering" forever. Auto-detect falls back to long-polling when needed.
+// iPhone/iPad browsers (every iOS browser is WebKit) stall on the streaming connection, and auto-detect only gives up
+// after ~10 seconds, so every page that reads the catalog waits that long. Use long-polling straight away there.
+const isIOS = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 const openFirestore = (firebaseApp) => {
-  try { return initializeFirestore(firebaseApp, { experimentalAutoDetectLongPolling: true }) }
+  try { return initializeFirestore(firebaseApp, isIOS ? { experimentalForceLongPolling: true } : { experimentalAutoDetectLongPolling: true }) }
   catch { return getFirestore(firebaseApp) } // already initialised (hot reload)
 }
 

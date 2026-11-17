@@ -43,7 +43,7 @@ export default function AddOnModal({ magazine, size, initial = [], onClose, onCo
   // Rendered on document.body so no parent (transforms, overflow) can ever shift it off the screen.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-6"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

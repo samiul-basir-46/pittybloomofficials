@@ -16,7 +16,7 @@ export default function SizePreview({ image, title, onClose }) {
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = overflow }
   }, [onClose])
 
-  return <div className="fixed inset-0 z-[80] grid place-items-center bg-ink/60 p-3 backdrop-blur-sm" onClick={onClose}>
+  return <div className="fixed inset-0 z-[80] grid place-items-center bg-ink/60 p-3" onClick={onClose}>
     <div role="dialog" aria-modal="true" aria-label="Size preview" onClick={(event) => event.stopPropagation()} className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div><h2 className="font-serif text-2xl">Size preview</h2><p className="mt-0.5 text-sm text-ink/60">Both sizes drawn to the same scale.</p></div>
