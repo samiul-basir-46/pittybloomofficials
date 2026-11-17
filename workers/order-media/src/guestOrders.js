@@ -128,7 +128,7 @@ async function trustedCatalog(project) {
   const photoStripDoc = await getFirestoreDoc(project, 'contentData/products--photo-strip')
   const polaroidCatalogDoc = await getFirestoreDoc(project, 'contentData/polaroidProducts--polaroids')
   const legacyPolaroidDoc = polaroidCatalogDoc ? null : await getFirestoreDoc(project, 'contentData/products--polaroids')
-  const [miniMagazines, songBooks, giftCards, polaroidCatalogItems, addonRows] = await Promise.all([loadCatalogGroup(project, 'miniMagazines'), loadCatalogGroup(project, 'songBooks'), loadCatalogGroup(project, 'giftCards'), loadCatalogGroup(project, 'polaroidProducts'), loadCatalogGroup(project, 'addons')])
+  const [miniMagazines, songBooks, giftCards, wishCards, polaroidCatalogItems, addonRows] = await Promise.all([loadCatalogGroup(project, 'miniMagazines'), loadCatalogGroup(project, 'songBooks'), loadCatalogGroup(project, 'giftCards'), loadCatalogGroup(project, 'wishCards'), loadCatalogGroup(project, 'polaroidProducts'), loadCatalogGroup(project, 'addons')])
   const catalogAddons = await Promise.all(addonRows.map(async (addon) => ({ ...addon, product: (await getFirestoreDoc(project, `contentData/products--${encodeURIComponent(addon.id)}`))?.value ?? null })))
   const sizeDocs = await Promise.all(DEFAULT_SIZES.map((size) => getFirestoreDoc(project, `contentData/printSizes--${encodeURIComponent(size.id)}`)))
   const settingsDoc = await getFirestoreDoc(project, 'contentData/orderSettings--singleton')
@@ -160,6 +160,7 @@ async function trustedCatalog(project) {
     miniMagazines,
     songBooks,
     giftCards,
+    wishCards,
     catalogAddons,
     sizes: configuredSizes,
     deliverySettings: settingsDoc?.value ?? {},
@@ -311,6 +312,16 @@ function buildItem(input, config, photos, referenceFile) {
     const details = [{ label: 'Size', value: `${size.label} (${size.cm})` }, ...(from ? [{ label: 'From', value: from }] : []), { label: 'Letter', value: letter }, ...(left ? [{ label: 'Left side note', value: left }] : []), ...(right ? [{ label: 'Right side note', value: right }] : [])]
     return { kind: 'gift-card', id: gift.id, name: gift.title || card.title, image: gift.image || '', optionLabel: size.label, qty: 1, price: unitPrice, meta: { size: size.id }, details, ...(photos.length ? { photos: { count: photos.length, files: photos, names: photos.map((file) => file.name) } } : {}) }
   }
+  if (input.type === 'wish-card') {
+    const wish = config.wishCards?.find((row) => row.id === String(input.productId)) ?? config.wishCards?.[0]
+    const size = GIFT_SIZES.find((row) => row.id === String(input.sizeId))
+    const unitPrice = Number(wish?.[size?.priceKey])
+    if (!wish || !size || !Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('This Wish Card size is not currently available.')
+    if (quantity !== 1 || photos.length !== 1) throw new Error('Upload one picture for each Wish Card.')
+    const from = text(input.from, 60)
+    const details = [{ label: 'Size', value: `${size.label} (${size.cm})` }, ...(from ? [{ label: 'From', value: from }] : []), { label: 'Wish Card picture', value: photos[0].name }, ...(notes ? [{ label: 'Other notes', value: notes }] : [])]
+    return { kind: 'wish-card', id: wish.id, name: wish.title || 'Wish Card', image: wish.image || '', optionLabel: size.label, qty: 1, price: unitPrice, note: notes, meta: { size: size.id }, details, photos: { count: 1, files: photos, names: photos.map((file) => file.name) } }
+  }
   throw new Error('This product is not available in the manual order form.')
 }
 
@@ -427,7 +438,10 @@ export async function handleGuestOrder(request, env, cors) {
     const hasRush = orderItems.some((item) => item.kind === 'magazine' || item.kind === 'song-book')
     const rushCharge = expeditedSurcharge({ date, area, hasRushProducts: hasRush, now })
     if (rushCharge === null) throw new Error('The selected delivery date is unavailable. Choose a later date.')
-    const standardCharge = area === 'inside' ? Number(config.deliverySettings.insideDhakaCharge) || 60 : Number(config.deliverySettings.outsideDhakaCharge) || 110
+    const configuredStandardCharge = Number(area === 'inside' ? config.deliverySettings.insideDhakaCharge : config.deliverySettings.outsideDhakaCharge)
+    const standardCharge = Number.isFinite(configuredStandardCharge) && configuredStandardCharge >= 0
+      ? configuredStandardCharge
+      : area === 'inside' ? 60 : 110
     const magazineTotal = orderItems.filter((item) => item.kind === 'magazine').reduce((sum, item) => sum + item.price * item.qty, 0)
     const otherTotal = orderItems.filter((item) => item.kind !== 'magazine').reduce((sum, item) => sum + item.price * item.qty, 0)
     const productSubtotal = magazineTotal + otherTotal

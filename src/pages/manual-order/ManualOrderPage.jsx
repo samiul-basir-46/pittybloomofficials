@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, Che
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
-import { getActiveAddons, getFrameDesigns, getGiftCards, getManualOrderCatalog, getMiniMagazines, getOrderSettings, getPolaroidProducts, getProducts, getSizes, getSongBooks } from '../../shared/services/contentService'
+import { getActiveAddons, getFrameDesigns, getGiftCards, getWishCards, getManualOrderCatalog, getMiniMagazines, getOrderSettings, getPolaroidProducts, getProducts, getSizes, getSongBooks } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
 import { deliveryFee, detectOrderImageType, dhakaToday, expeditedSurcharge, minimumDeliveryDate, orderImageType, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
@@ -13,7 +13,7 @@ import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog, miniPhotoLimits
 import MagazineSizePreview from './MagazineSizePreview'
 import { polaroidPricing } from '../polaroids/packs'
 
-import { MAX_GIFT_PHOTOS, NOTE_LIMIT, availableSizes, giftCardPrice, sizeById } from '../gift-card/sizes'
+import { availableSizes, giftCardPrice, sizeById } from '../gift-card/sizes'
 const MEDIA_API = import.meta.env.VITE_MEDIA_API_URL?.replace(/\/$/, '')
 const CATEGORIES = ['Birthday', 'Couple', 'Anniversary', 'Personal', 'Parents', 'Marriage', 'Special Day', 'Farewell', 'Best Friends', 'Other']
 const PRODUCT_META = [
@@ -23,6 +23,7 @@ const PRODUCT_META = [
   { id: 'magazines', icon: BookOpen, tint: 'bg-[#E6EDF5]' },
   { id: 'songBooks', icon: Music2, tint: 'bg-[#F8EED9]' },
   { id: 'giftCards', icon: Gift, tint: 'bg-[#F7E6EA]' },
+  { id: 'wishCards', icon: Gift, tint: 'bg-[#F7E6EA]' },
   { id: 'photoStrip', icon: Film, tint: 'bg-[#F3E9EC]' },
 ]
 const newId = () => {
@@ -33,7 +34,8 @@ const newId = () => {
 }
 const makeFrameConfiguration = () => ({ key: newId(), quantity: 1, designId: '', photos: [], notes: '' })
 const makePhotoStripConfiguration = () => ({ key: newId(), quantity: 1, designId: '', photos: [], notes: '' })
-const newGiftCard = (gift) => ({ key: newId(), type: 'gift-card', productId: gift?.id || '', sizeId: availableSizes(gift)[0]?.id || '', from: '', letter: '', left: '', right: '', photos: [] })
+const newGiftCard = (gift) => ({ key: newId(), type: 'gift-card', productId: gift?.id || '', sizeId: availableSizes(gift)[0]?.id || '', from: '', letter: '', notes: '' })
+const newWishCard = (gift) => ({ key: newId(), type: 'wish-card', productId: gift?.id || '', sizeId: availableSizes(gift)[0]?.id || '', notes: '', photos: [] })
 const makeItem = (type) => ({ key: newId(), type, quantity: 1, optionId: '', designId: '', sizeId: '', category: 'Birthday', custom: {}, notes: '', photos: [], reference: null, configurations: type === 'frame' ? [makeFrameConfiguration()] : undefined, frontId: '', backId: '', songName: '', lyrics: '' })
 const field = (label, value, onChange, { type = 'text', required = false, placeholder = '', error = '', className = '' } = {}) => (
   <label className={`block ${className}`}>
@@ -78,7 +80,7 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
           {['frontId', 'backId'].map((coverKey) => {
             const selectedCover = (coverKey === 'frontId' ? frontId : backId) === preview.id
             const label = coverKey === 'frontId' ? 'Front' : 'Back'
-            return <button key={coverKey} type="button" aria-label={`Use ${preview.file.name} for ${label.toLowerCase()} cover`} aria-pressed={selectedCover} onClick={() => onCoverChange(coverKey, selectedCover ? '' : preview.id)} className={`min-h-8 min-w-0 flex-1 rounded-md border px-1 text-[11px] font-semibold transition ${selectedCover ? 'border-brand bg-brand text-white' : 'border-sand text-ink hover:border-brand hover:text-brand'}`}>{selectedCover ? 'âœ“ ' : ''}{label}</button>
+            return <button key={coverKey} type="button" aria-label={`Use ${preview.file.name} for ${label.toLowerCase()} cover`} aria-pressed={selectedCover} onClick={() => onCoverChange(coverKey, selectedCover ? '' : preview.id)} className={`min-h-8 min-w-0 flex-1 rounded-md border px-1 text-[11px] font-semibold transition ${selectedCover ? 'border-brand bg-brand text-white' : 'border-sand text-ink hover:border-brand hover:text-brand'}`}>{label}</button>
           })}
         </div>}
       </div>)}
@@ -228,6 +230,7 @@ export default function ManualOrderPage() {
   const miniCatalogData = useAsync(getMiniMagazines)
   const songCatalogData = useAsync(getSongBooks)
   const giftCatalogData = useAsync(getGiftCards)
+  const wishCatalogData = useAsync(getWishCards)
   const sizesData = useAsync(getSizes)
   const settingsData = useAsync(getOrderSettings)
   const manualCatalogData = useAsync(getManualOrderCatalog)
@@ -243,6 +246,7 @@ export default function ManualOrderPage() {
   const [magazines, setMagazines] = useState([])
   const [songBooks, setSongBooks] = useState([])
   const [giftCards, setGiftCards] = useState([])
+  const [wishCards, setWishCards] = useState([])
   const [catalogAddons, setCatalogAddons] = useState([])
   const [delivery, setDelivery] = useState({ recipient: '', phone: '', address: '', city: '', area: '', date: '' })
   const [customer, setCustomer] = useState({ name: '', instagram: '', whatsapp: '' })
@@ -272,6 +276,7 @@ export default function ManualOrderPage() {
   const miniProducts = miniCatalogData.data ?? []
   const songProducts = songCatalogData.data ?? []
   const giftProducts = giftCatalogData.data ?? []
+  const wishProducts = wishCatalogData.data ?? []
   const polaroidUnitPrice = Number(polaroidProduct?.unitPrice) || 0
   const polaroidMinimum = Math.max(1, Number(polaroidProduct?.minQuantity) || 9)
   const photoStripPrice = Number(photoStripProduct?.unitPrice) || 0
@@ -297,6 +302,7 @@ export default function ManualOrderPage() {
     if (meta.id === 'miniMagazines') { card.enabled = Boolean(manualCatalog.miniMagazines.enabled && miniProducts.length); if (miniProducts[0]) Object.assign(card, { title: miniProducts[0].title || card.title, description: miniProducts[0].description || card.description, image: miniProducts[0].image || '', imageUpdatedAt: 0 }) }
     if (meta.id === 'songBooks') { card.enabled = Boolean(manualCatalog.songBooks.enabled && songProducts.length); card.title = manualCatalog.songBooks.title || 'Song Book'; card.description = ''; if (songProducts[0]) Object.assign(card, { image: songProducts[0].image || '', imageUpdatedAt: 0 }) }
     if (meta.id === 'giftCards') { card.enabled = Boolean(manualCatalog.giftCards.enabled && giftProducts.length); card.title = manualCatalog.giftCards.title || 'Gift Card'; if (giftProducts[0]) Object.assign(card, { description: giftProducts[0].description || card.description, image: giftProducts[0].image || '', imageUpdatedAt: 0 }) }
+    if (meta.id === 'wishCards') { card.enabled = Boolean(manualCatalog.wishCards.enabled && wishProducts.length); card.title = manualCatalog.wishCards.title || 'Wish Card'; if (wishProducts[0]) Object.assign(card, { description: wishProducts[0].description || card.description, image: wishProducts[0].image || '', imageUpdatedAt: 0 }) }
     if (meta.id === 'photoStrip') {
       card.enabled = Boolean(photoStripProduct && manualCatalog.photoStrip.enabled && photoStripProduct.status === 'Available' && photoStripDesigns.length > 0 && photoStripPrice > 0)
       if (photoStripProduct) Object.assign(card, { title: photoStripProduct.name || card.title, description: photoStripProduct.description || card.description, image: photoStripProduct.image || '', imageUpdatedAt: 0 })
@@ -310,8 +316,8 @@ export default function ManualOrderPage() {
   const a4Sizes = sizes.filter((size) => size.format === 'A4' && size.price > 0 && size.pages >= 4 && size.pages <= 40 && size.pages % 4 === 0).sort((a, b) => a.pages - b.pages)
   const a5Sizes = sizes.filter((size) => size.format === 'A5' && [4, 8].includes(size.pages) && size.price > 0).sort((a, b) => a.pages - b.pages)
   const magazineOptions = [...a4Sizes, ...a5Sizes]
-  const loading = productsData.loading || addonsData.loading || polaroidCatalogData.loading || miniCatalogData.loading || songCatalogData.loading || giftCatalogData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading || designsData.loading
-  const loadError = productsData.error || addonsData.error || polaroidCatalogData.error || miniCatalogData.error || songCatalogData.error || giftCatalogData.error || sizesData.error || settingsData.error || manualCatalogData.error || designsData.error
+  const loading = productsData.loading || addonsData.loading || polaroidCatalogData.loading || miniCatalogData.loading || songCatalogData.loading || giftCatalogData.loading || wishCatalogData.loading || sizesData.loading || settingsData.loading || manualCatalogData.loading || designsData.loading
+  const loadError = productsData.error || addonsData.error || polaroidCatalogData.error || miniCatalogData.error || songCatalogData.error || giftCatalogData.error || wishCatalogData.error || sizesData.error || settingsData.error || manualCatalogData.error || designsData.error
   const items = [
     ...(selected.polaroids ? [{ key: 'polaroids', type: 'polaroids', qty: Number(polaroid.quantity) || 0, price: polaroidUnitPrice, lineTotal: pricedPolaroids.total, photos: polaroid.photos, reference: polaroid.reference }] : []),
     ...(selected.frames ? frames.flatMap((group) => (group.configurations ?? []).map((configuration) => { const basePrice = frameOptions.find((option) => option.id === group.optionId)?.price || 0; const designPrice = frameDesigns.find((design) => design.id === configuration.designId)?.price; const quantity = Number(configuration.quantity) || 1; const price = designPrice > 0 ? designPrice : basePrice; return { ...configuration, type: 'frame', optionId: group.optionId, qty: 1, quantity, price, lineTotal: price * quantity } })) : []),
@@ -319,6 +325,7 @@ export default function ManualOrderPage() {
     ...(selected.magazines ? magazines.map((item) => ({ ...item, type: 'magazine', price: magazineOptions.find((option) => option.id === item.sizeId)?.price || 0 })) : []),
     ...(selected.songBooks ? songBooks.map((item) => { const book = songProducts.find((row) => row.id === item.productId) ?? songProducts[0]; return { ...item, type: 'song-book', price: Number(book?.price12) || 0, product: book } }) : []),
     ...(selected.giftCards ? giftCards.map((item) => { const gift = giftProducts.find((row) => row.id === item.productId) ?? giftProducts[0]; return { ...item, type: 'gift-card', qty: 1, quantity: 1, price: giftCardPrice(gift, item.sizeId), product: gift } }) : []),
+    ...(selected.wishCards ? wishCards.map((item) => { const gift = wishProducts.find((row) => row.id === item.productId) ?? wishProducts[0]; return { ...item, type: 'wish-card', qty: 1, quantity: 1, price: giftCardPrice(gift, item.sizeId), product: gift } }) : []),
     // One line per Photo Strip setup; the combined offer price is shared out by quantity so the lines add up to the total.
     ...(selected.photoStrip ? (() => { let allocated = 0; return photoStrips.map((item, index) => { const quantity = Number(item.quantity) || 1; const lineTotal = index === photoStrips.length - 1 ? pricedPhotoStrip.total - allocated : Math.floor(pricedPhotoStrip.total * quantity / (photoStripQuantity || 1)); allocated += lineTotal; return { ...item, type: 'photo-strip', qty: 1, quantity, price: lineTotal, lineTotal, design: item.designId === 'custom' ? { id: 'custom', name: 'My own design' } : photoStripDesigns.find((design) => design.id === item.designId) } }) })() : []),
   ]
@@ -327,7 +334,8 @@ export default function ManualOrderPage() {
   const hasRushProducts = Boolean(selected.magazines || selected.songBooks)
   const earliest = delivery.area ? minimumDeliveryDate({ area: delivery.area, hasPolaroids }) : ''
   const surcharge = delivery.date ? expeditedSurcharge({ date: delivery.date, area: delivery.area, hasRushProducts }) : 0
-  const shipping = deliveryFee(delivery.area)
+  const deliverySettings = settingsData.data ?? {}
+  const shipping = deliveryFee(delivery.area, deliverySettings)
   const total = productSubtotal + shipping + (surcharge || 0)
 
   const setItemList = (setter, key, fieldName, value) => setter((list) => list.map((item) => item.key === key ? { ...item, [fieldName]: value } : item))
@@ -359,6 +367,7 @@ export default function ManualOrderPage() {
       if (id === 'magazines' && !magazines.length) setMagazines([makeItem('magazine')])
       if (id === 'songBooks' && !songBooks.length) setSongBooks([{ ...makeItem('song-book'), productId: songProducts[0]?.id || '' }])
       if (id === 'giftCards' && !giftCards.length) setGiftCards([newGiftCard(giftProducts[0])])
+      if (id === 'wishCards' && !wishCards.length) setWishCards([newWishCard(wishProducts[0])])
       if (id === 'photoStrip' && !photoStrips.length) setPhotoStrips([makePhotoStripConfiguration()])
     } else if (expandedProduct === id) setExpandedProduct(null)
     setSelected((current) => ({ ...current, [id]: !current[id] }))
@@ -390,6 +399,7 @@ export default function ManualOrderPage() {
     if (id === 'photoStrip') return photoStripPrice ? polaroidPricing(photoStripProduct, 1).total : Infinity
     if (id === 'songBooks') return Number(songProducts[0]?.price12)
     if (id === 'giftCards') return Math.min(...availableSizes(giftProducts[0]).map((size) => giftCardPrice(giftProducts[0], size.id)), Infinity)
+    if (id === 'wishCards') return Math.min(...availableSizes(wishProducts[0]).map((size) => giftCardPrice(wishProducts[0], size.id)), Infinity)
     return Infinity
   }
   const cardImageUrl = (card) => MEDIA_API && card.imageUpdatedAt ? `${MEDIA_API}/manual-order-cards/${encodeURIComponent(card.id)}?v=${card.imageUpdatedAt}` : ''
@@ -403,6 +413,7 @@ export default function ManualOrderPage() {
     if (selected.miniMagazines && !miniBooks.length) next.miniEmpty = 'Add at least one Mini Magazine or unselect it.'
     if (selected.magazines && !magazines.length) next.magazinesEmpty = 'Add at least one Magazine or unselect it.'
     if (selected.giftCards && !giftCards.length) next.giftEmpty = 'Add at least one Gift Card or unselect it.'
+    if (selected.wishCards && !wishCards.length) next.wishEmpty = 'Add at least one Wish Card or unselect it.'
     if (selected.songBooks && !songBooks.length) next.songBooksEmpty = 'Add at least one Song Book or unselect it.'
     if (selected.polaroids) {
       if (Number(polaroid.quantity) < polaroidMinimum) next.polaroidQuantity = `The minimum Polaroid order is ${polaroidMinimum} pieces.`
@@ -465,10 +476,15 @@ export default function ManualOrderPage() {
       if (!gift || !size || !giftCardPrice(gift, size.id)) next[`gift-${item.key}-size`] = 'Choose a card size.'
       if (!item.letter.trim()) next[`gift-${item.key}-letter`] = `Write the letter for Gift Card #${index + 1}.`
       else if (size && item.letter.length > size.letterLimit) next[`gift-${item.key}-letter`] = `Letter is too long for ${size.label} (max ${size.letterLimit} characters).`
-      if (item.left.length > NOTE_LIMIT) next[`gift-${item.key}-left`] = `Left note is too long (max ${NOTE_LIMIT}).`
-      if (item.right.length > NOTE_LIMIT) next[`gift-${item.key}-right`] = `Right note is too long (max ${NOTE_LIMIT}).`
+    })
+    selected.wishCards && wishCards.forEach((item, index) => {
+      const wish = wishProducts.find((row) => row.id === item.productId) ?? wishProducts[0]
+      const size = sizeById(item.sizeId)
+      if (!wish || !size || !giftCardPrice(wish, size.id)) next[`wish-${item.key}-size`] = 'Choose a Wish Card size.'
+      if (item.photos.length !== 1) next[`wish-${item.key}-photo`] = `Upload one picture for Wish Card #${index + 1}.`
     })
     if (selected.giftCards && giftCards.length > Number(manualCatalog.giftCards.maxItems || 20)) next.giftEmpty = `You can add up to ${manualCatalog.giftCards.maxItems} Gift Cards to one order.`
+    if (selected.wishCards && wishCards.length > Number(manualCatalog.wishCards.maxItems || 20)) next.wishEmpty = `You can add up to ${manualCatalog.wishCards.maxItems} Wish Cards to one order.`
     const frameCount = frames.reduce((count, group) => count + group.configurations.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0), 0)
     if (selected.frames && frameCount > Number(manualCatalog.frames.maxItems || 20)) next.framesEmpty = `You can add up to ${manualCatalog.frames.maxItems} individual frames to one order.`
     if (selected.miniMagazines && miniBooks.length > Number(manualCatalog.miniMagazines.maxItems || 20)) next.miniEmpty = `You can add up to ${manualCatalog.miniMagazines.maxItems} Mini Pocket Magazines to one order.`
@@ -500,12 +516,13 @@ export default function ManualOrderPage() {
     setErrors(next)
     if (Object.keys(next).length) {
       if (step === 1) {
-        const firstError = Object.keys(next).find((key) => /^(polaroid|frame-|mini-|mag-|song-|gift-|addon-)/.test(key))
+        const firstError = Object.keys(next).find((key) => /^(polaroid|frame-|mini-|mag-|song-|gift-|wish-|addon-)/.test(key))
         const productId = firstError?.startsWith('frame-') ? 'frames'
           : firstError?.startsWith('mini-') ? 'miniMagazines'
             : firstError?.startsWith('mag-') ? 'magazines'
               : firstError?.startsWith('song-') ? 'songBooks'
                 : firstError?.startsWith('gift-') ? 'giftCards'
+            : firstError?.startsWith('wish-') ? 'wishCards'
                 : firstError?.startsWith('polaroid') ? 'polaroids'
                   : firstError?.startsWith('photoStrip-') ? 'photoStrip'
                   : firstError?.startsWith('addon-') ? `addon-${catalogAddons.find((item) => firstError === `addon-${item.key}`)?.productId || ''}` : null
@@ -581,6 +598,7 @@ export default function ManualOrderPage() {
     if (selected.magazines) rows.push(...magazines.map((item) => ({ type: 'magazine', item })))
     if (selected.songBooks) rows.push(...songBooks.map((item) => ({ type: 'song-book', item })))
     if (selected.giftCards) rows.push(...giftCards.map((item) => ({ type: 'gift-card', item })))
+    if (selected.wishCards) rows.push(...wishCards.map((item) => ({ type: 'wish-card', item })))
     const allPhotos = rows.flatMap(({ item }) => [...(item.photos ?? []), ...(item.reference ? [item.reference] : [])])
     setProgress('Uploading your photos…')
     await uploadAllPhotos(allPhotos)
@@ -610,7 +628,7 @@ export default function ManualOrderPage() {
             type: item.type, key: item.key, groupKey: item.groupKey || '', productId: item.productId || '', quantity: Number(item.quantity ?? item.qty ?? 1), optionId: item.optionId || '', designId: item.designId || '', sizeId: item.sizeId || '',
             category: item.category || '', custom: item.custom || {}, notes: item.notes || '', songName: item.songName || '', lyrics: item.lyrics || '', pages: item.pages === 16 ? 16 : 12,
             photos: item.files, referenceFile: item.referenceFile, frontId: item.frontId || '', backId: item.backId || '',
-            ...(item.type === 'gift-card' ? { from: item.from || '', letter: item.letter || '', leftNote: item.left || '', rightNote: item.right || '' } : {}),
+            ...(item.type === 'gift-card' ? { from: item.from || '', letter: item.letter || '' } : {}),
           })),
           delivery: { ...delivery },
           customer: { name: customer.name.trim(), instagram: customer.instagram.trim().replace(/^@+/, ''), whatsapp: customer.whatsapp.trim() },
@@ -829,7 +847,7 @@ export default function ManualOrderPage() {
           })}</div>
           <button type="button" disabled={!canAddItems('songBooks', songBooks.length)} onClick={() => addItem(setSongBooks, 'song-book', { productId: songProducts[0]?.id || '' })} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('songBooks', songBooks.length) ? 'Add another Song Book' : 'Song Book item limit reached'}</button>
         </ProductSectionCard>}
-        {selected.giftCards && <ProductSectionCard id="giftCards" title="Gift Cards" subtitle="Pick a size, write your letter and (optional) side notes. We print them on the card." expanded={expandedProduct === 'giftCards'} onToggle={() => setExpandedProduct((current) => current === 'giftCards' ? null : 'giftCards')}>
+        {selected.giftCards && <ProductSectionCard id="giftCards" title="Gift Cards" subtitle="Pick a size and write a letter for your card. Add any other instructions in the optional notes." expanded={expandedProduct === 'giftCards'} onToggle={() => setExpandedProduct((current) => current === 'giftCards' ? null : 'giftCards')}>
           <div className="space-y-4">{giftCards.map((item, index) => {
             const gift = giftProducts.find((row) => row.id === item.productId) ?? giftProducts[0]
             const sizes = availableSizes(gift)
@@ -840,16 +858,26 @@ export default function ManualOrderPage() {
               {errors[`gift-${item.key}-size`] && <p className="-mt-2 mb-3 text-xs text-red-700">{errors[`gift-${item.key}-size`]}</p>}
               {field('From (your name on the card, optional)', item.from, (value) => updateList(setGiftCards, item.key, 'from', value.slice(0, 60)))}
               <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Letter <span className="text-brand">*</span></span><textarea rows="6" value={item.letter} onChange={(event) => updateList(setGiftCards, item.key, 'letter', event.target.value)} className={inputClass} placeholder="Write the letter that goes in the middle of the card" /><span className="mt-1 block text-xs text-ink/50">{item.letter.length}/{sizeById(item.sizeId)?.letterLimit || 1500}</span>{errors[`gift-${item.key}-letter`] && <span className="mt-1 block text-xs text-red-700">{errors[`gift-${item.key}-letter`]}</span>}</label>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <label className="block"><span className="mb-1.5 block text-sm font-medium">Left side note (optional)</span><textarea rows="3" value={item.left} onChange={(event) => updateList(setGiftCards, item.key, 'left', event.target.value)} className={inputClass} /><span className="mt-1 block text-xs text-ink/50">{item.left.length}/{NOTE_LIMIT}</span>{errors[`gift-${item.key}-left`] && <span className="block text-xs text-red-700">{errors[`gift-${item.key}-left`]}</span>}</label>
-                <label className="block"><span className="mb-1.5 block text-sm font-medium">Right side note (optional)</span><textarea rows="3" value={item.right} onChange={(event) => updateList(setGiftCards, item.key, 'right', event.target.value)} className={inputClass} /><span className="mt-1 block text-xs text-ink/50">{item.right.length}/{NOTE_LIMIT}</span>{errors[`gift-${item.key}-right`] && <span className="block text-xs text-red-700">{errors[`gift-${item.key}-right`]}</span>}</label>
-              </div>
-              <div className="mt-5"><UploadPicker title="Photos (optional)" files={item.photos} onChange={(photos) => updateList(setGiftCards, item.key, 'photos', photos)} max={MAX_GIFT_PHOTOS} help="Add up to 6 photos if you want them on the card." /></div>
+              <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Other notes (optional)</span><textarea rows="3" value={item.notes} onChange={(event) => updateList(setGiftCards, item.key, 'notes', event.target.value)} className={inputClass} placeholder="Add any other instructions for this Gift Card" /></label>
             </div>
           })}</div>
           <button type="button" disabled={!canAddItems('giftCards', giftCards.length)} onClick={() => setGiftCards((list) => [...list, newGiftCard(giftProducts[0])])} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('giftCards', giftCards.length) ? 'Add another Gift Card' : 'Gift Card item limit reached'}</button>
         </ProductSectionCard>}
-        {(errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.giftEmpty || errors.photoStripEmpty) && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.giftEmpty || errors.photoStripEmpty}</p>}
+        {selected.wishCards && <ProductSectionCard id="wishCards" title="Wish Cards" subtitle="Pick a size, upload one picture, and add any other instructions in the optional notes." expanded={expandedProduct === 'wishCards'} onToggle={() => setExpandedProduct((current) => current === 'wishCards' ? null : 'wishCards')}>
+          <div className="space-y-4">{wishCards.map((item, index) => {
+            const wish = wishProducts.find((row) => row.id === item.productId) ?? wishProducts[0]
+            const cardSizes = availableSizes(wish)
+            return <div key={item.key} className="rounded-2xl border border-sand bg-[#FFFEFC] p-4 sm:p-5">
+              <ItemHeader title={`${wish?.title || 'Wish Card'} #${index + 1}`} onRemove={() => removeProductItem(setWishCards, wishCards, 'wishCards', item.key)} />
+              <div className="mb-4 grid grid-cols-2 gap-3">{cardSizes.map((size) => <button key={size.id} type="button" onClick={() => updateList(setWishCards, item.key, 'sizeId', size.id)} className={`rounded-xl border p-3 text-left text-sm ${item.sizeId === size.id ? 'border-brand bg-cream' : 'border-sand'}`}><span className="block font-semibold">{size.label}</span><span className="block text-xs text-ink/55">{size.cm}</span><span className="mt-1 block font-semibold text-brand">{formatPrice(giftCardPrice(wish, size.id))}</span></button>)}</div>
+              {errors[`wish-${item.key}-size`] && <p className="-mt-2 mb-3 text-xs text-red-700">{errors[`wish-${item.key}-size`]}</p>}
+              <div className="mt-4"><UploadPicker title="Picture for your Wish Card" files={item.photos} onChange={(photos) => updateList(setWishCards, item.key, 'photos', photos.slice(0, 1))} multiple={false} max={1} help="Upload one picture to print on the card." error={errors[`wish-${item.key}-photo`]} /></div>
+              <label className="mt-4 block"><span className="mb-1.5 block text-sm font-medium">Other notes (optional)</span><textarea rows="3" value={item.notes} onChange={(event) => updateList(setWishCards, item.key, 'notes', event.target.value)} className={inputClass} placeholder="Add any other instructions for this Wish Card" /></label>
+            </div>
+          })}</div>
+          <button type="button" disabled={!canAddItems('wishCards', wishCards.length)} onClick={() => setWishCards((list) => [...list, newWishCard(wishProducts[0])])} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-brand/25 px-4 text-sm font-semibold text-brand hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50"><Plus size={16} /> {canAddItems('wishCards', wishCards.length) ? 'Add another Wish Card' : 'Wish Card item limit reached'}</button>
+        </ProductSectionCard>}
+        {(errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.giftEmpty || errors.wishEmpty || errors.photoStripEmpty) && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{errors.framesEmpty || errors.miniEmpty || errors.magazinesEmpty || errors.songBooksEmpty || errors.giftEmpty || errors.wishEmpty || errors.photoStripEmpty}</p>}
         <div className="flex items-center justify-between gap-4 rounded-2xl bg-brand px-5 py-4 text-white"><span className="text-sm text-white/75">Current product subtotal</span><strong className="text-xl">{formatPrice(productSubtotal)}</strong></div>
         <div className="hidden justify-between gap-4 sm:flex"><Button variant="outline" onClick={goBack} className="min-h-12 gap-2"><ArrowLeft size={17} /> Back to products</Button><Button onClick={advance} className="min-h-12 gap-2 px-6">Continue to delivery <ArrowRight size={17} /></Button></div>
       </div>}
@@ -862,7 +890,7 @@ export default function ManualOrderPage() {
               {field("Recipient's phone number", delivery.phone, (value) => setDelivery({ ...delivery, phone: value }), { type: 'tel', required: true, placeholder: '01XXXXXXXXX', error: errors.deliveryPhone })}
               <label className="block sm:col-span-2"><span className="mb-1.5 block text-sm font-medium">Full delivery address <span className="text-brand">*</span></span><textarea rows="3" value={delivery.address} onChange={(event) => setDelivery({ ...delivery, address: event.target.value })} className={inputClass} placeholder="House, road, area, landmark" />{errors.address && <span className="mt-1 block text-xs text-red-700">{errors.address}</span>}</label>
               {field('City or district', delivery.city, (value) => setDelivery({ ...delivery, city: value }), { required: true, error: errors.city })}
-              <label className="block"><span className="mb-1.5 block text-sm font-medium">Delivery area <span className="text-brand">*</span></span><select value={delivery.area} onChange={(event) => setDelivery({ ...delivery, area: event.target.value, date: '' })} className={inputClass}><option value="">Choose area</option><option value="inside">Inside Dhaka · ৳60 delivery</option><option value="outside">Outside Dhaka · ৳110 delivery</option></select>{errors.area && <span className="mt-1 block text-xs text-red-700">{errors.area}</span>}</label>
+              <label className="block"><span className="mb-1.5 block text-sm font-medium">Delivery area <span className="text-brand">*</span></span><select value={delivery.area} onChange={(event) => setDelivery({ ...delivery, area: event.target.value, date: '' })} className={inputClass}><option value="">Choose area</option><option value="inside">Inside Dhaka · {formatPrice(deliveryFee('inside', deliverySettings))} delivery</option><option value="outside">Outside Dhaka · {formatPrice(deliveryFee('outside', deliverySettings))} delivery</option></select>{errors.area && <span className="mt-1 block text-xs text-red-700">{errors.area}</span>}</label>
             </div>
           </SectionCard>
           <SectionCard title="Choose a delivery date" subtitle="Unavailable dates are disabled. Select an available date to see any express fee before you continue.">
@@ -899,8 +927,9 @@ export default function ManualOrderPage() {
             if (item.type === 'mini-magazine') { title = item.product?.title || 'Mini Pocket Magazine'; option = '8 pages'; unitPrice = Number(item.product?.price) || 0 }
             if (item.type === 'magazine') { title = `${manualCatalog.magazines.title} #${index + 1}`; const size = magazineOptions.find((row) => row.id === item.sizeId); option = size ? `${size.format} · ${size.pages} pages · ${item.category}` : item.category; unitPrice = size?.price || 0 }
             if (item.type === 'gift-card') { title = `${item.product?.title || 'Gift Card'} #${index + 1}`; option = `${sizeById(item.sizeId)?.label || ''} · letter + notes`; unitPrice = Number(item.price) || 0 }
+            if (item.type === 'wish-card') { title = `${item.product?.title || 'Wish Card'} #${index + 1}`; option = `${sizeById(item.sizeId)?.label || ''} · picture + notes`; unitPrice = Number(item.price) || 0 }
             if (item.type === 'song-book') { title = `${item.product?.title || 'Song Book'} #${index + 1}`; option = `12 pages · ${item.songName}`; unitPrice = Number(item.product?.price12) || 0 }
-            return <div key={item.key} className="py-4 first:pt-0 last:pb-0"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-ink/55">{option}</p>{item.type === 'magazine' && <p className="mt-1 text-xs text-ink/60">{Object.entries(item.custom).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{item.type === 'song-book' && <p className="mt-1 line-clamp-2 text-xs text-ink/60">{item.lyrics}</p>}{item.type === 'photo-strip' && item.notes && <p className="mt-1 text-xs text-ink/60">{item.notes}</p>}<ReviewPhotoGallery photos={item.photos} frontId={item.frontId} backId={item.backId} />{item.reference && <p className="mt-2 text-xs text-ink/55">Design reference: {item.reference.file.name}</p>}</div><p className="shrink-0 font-semibold">{formatPrice(item.lineTotal ?? unitPrice * quantity)}</p></div></div>
+            return <div key={item.key} className="py-4 first:pt-0 last:pb-0"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-ink/55">{option}</p>{item.type === 'magazine' && <p className="mt-1 text-xs text-ink/60">{Object.entries(item.custom).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{item.type === 'song-book' && <p className="mt-1 line-clamp-2 text-xs text-ink/60">{item.lyrics}</p>}{['photo-strip', 'wish-card'].includes(item.type) && item.notes && <p className="mt-1 text-xs text-ink/60">{item.notes}</p>}<ReviewPhotoGallery photos={item.photos} frontId={item.frontId} backId={item.backId} />{item.reference && <p className="mt-2 text-xs text-ink/55">Design reference: {item.reference.file.name}</p>}</div><p className="shrink-0 font-semibold">{formatPrice(item.lineTotal ?? unitPrice * quantity)}</p></div></div>
           })}</div>
         </SectionCard>
         <SectionCard title="Delivery & contact">
@@ -918,7 +947,7 @@ export default function ManualOrderPage() {
         <div className="mb-2 flex items-center justify-between gap-3"><span className="text-xs text-ink/60">{step < 2 ? 'Product subtotal' : step === 4 ? 'Grand total' : 'Estimated total'}</span><strong className="text-sm text-brand">{formatPrice(step < 2 ? productSubtotal : total)}</strong></div>
         <div className="flex gap-2">
           {step > 0 && <Button variant="outline" onClick={goBack} disabled={submitting} aria-label="Go back" className="min-h-11 shrink-0 gap-1.5 px-3"><ArrowLeft size={16} /><span>Back</span></Button>}
-          <Button onClick={step === 4 ? submitOrder : advance} disabled={submitting} className="min-h-11 flex-1 gap-2">{step === 0 ? 'Choose product details' : step === 1 ? 'Continue to delivery' : step === 2 ? 'Continue to your information' : step === 3 ? 'Review order' : submitting ? 'Sending order…' : 'Place order'}{step === 4 ? <Sparkles size={16} /> : <ArrowRight size={16} />}</Button>
+          <Button onClick={step === 4 ? submitOrder : advance} disabled={submitting} className="min-h-11 flex-1 gap-2 text-xs leading-tight sm:text-base">{step === 0 ? 'Choose product details' : step === 1 ? 'Continue to delivery' : step === 2 ? 'Continue to your information' : step === 3 ? 'Review order' : submitting ? 'Sending order…' : 'Place order'}{step === 4 ? <Sparkles size={16} /> : <ArrowRight size={16} />}</Button>
         </div>
       </div>
     </div>

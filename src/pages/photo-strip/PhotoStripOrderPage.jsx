@@ -4,25 +4,26 @@ import { Check, CheckCircle2, ImagePlus, Maximize2, Plus, ShoppingBag, Trash2, X
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
+import useDeliveryCharges from '../../shared/hooks/useDeliveryCharges'
 import { getProduct, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
-import { orderImageType } from '../../shared/utils/manualOrderRules'
+import { deliveryFee, orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { photoStore } from '../order/lib/photoStore'
 import { polaroidPricing } from '../polaroids/packs'
 import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 
-const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
 const areaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
 // "Upload my own design": the customer's own picture is printed exactly as sent, no template.
 const CUSTOM_DESIGN = { id: 'custom', name: 'My own design (printed as uploaded)', image: '' }
 const newKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 export default function PhotoStripOrderPage() {
+  const deliverySettings = useDeliveryCharges()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -172,7 +173,7 @@ export default function PhotoStripOrderPage() {
       if (cartMode) { lines.forEach((line, index) => addToCart(line, { silent: index < lines.length - 1 })); navigate('/cart'); return }
       const order = await ordersApi.place(buildOrder({
         id: '', cartItems: lines, customer: { ...customer, instagram: cleanInstagram(customer.instagram), uid: user?.uid || '', email: user?.email || '' },
-        extras: { deliveryCharge: deliveryFee(area), deliveryLabel: `${areaLabel(area)} · Delivery details received`, deliveryInfo: { location: area, locationLabel: areaLabel(area) } },
+        extras: { deliveryCharge: deliveryFee(area, deliverySettings), deliveryLabel: `${areaLabel(area)} · Delivery details received`, deliveryInfo: { location: area, locationLabel: areaLabel(area) } },
       }), requestKey.current)
       setPlacedOrder(order)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -204,7 +205,7 @@ export default function PhotoStripOrderPage() {
           })}</div>
           <Button id="photo-strip-add-design" type="button" variant="outline" disabled={strips.length >= 20} onClick={() => setStrips((current) => [...current, { key: newKey(), quantity: 1, designId: '', notes: '' }])} className="w-full justify-center gap-2 rounded-xl py-3 text-center leading-snug sm:w-auto"><Plus size={16} /> Add another design</Button>
           </>}
-          {!cartMode && step === 2 && <div className="border-t border-sand pt-5"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mt-1 text-sm text-ink/60">Enter where we should deliver your Photo Strip order.</p><div className="mt-4 space-y-3"><div><input id="photo-strip-customer-name" aria-label="Full name" aria-invalid={Boolean(customerErrors.name)} className={`${inputClass} ${customerErrors.name ? 'border-red-500' : ''}`} placeholder="Full name" autoComplete="name" value={customer.name} onChange={setCustomerField('name')} />{customerErrors.name && <p className="mt-1 text-xs text-red-600">{customerErrors.name}</p>}</div><div><input id="photo-strip-customer-phone" aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p className="mt-1 text-xs text-red-600">{customerErrors.phone}</p>}</div><div><input id="photo-strip-customer-instagram" aria-label="Instagram username" aria-invalid={Boolean(customerErrors.instagram)} className={`${inputClass} ${customerErrors.instagram ? 'border-red-500' : ''}`} placeholder="Instagram username (e.g. @yourname)" autoComplete="off" autoCapitalize="none" value={customer.instagram} onChange={setCustomerField('instagram')} />{customerErrors.instagram && <p className="mt-1 text-xs text-red-600">{customerErrors.instagram}</p>}</div><div><textarea id="photo-strip-customer-address" aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={3} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p className="mt-1 text-xs text-red-600">{customerErrors.address}</p>}</div><div><select id="photo-strip-delivery-area" aria-label="Delivery area" aria-invalid={Boolean(customerErrors.area)} className={`${inputClass} ${customerErrors.area ? 'border-red-500' : ''}`} value={area} onChange={(event) => { setArea(event.target.value); setCustomerErrors((current) => ({ ...current, area: '' })) }}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select>{customerErrors.area && <p className="mt-1 text-xs text-red-600">{customerErrors.area}</p>}</div></div></div>}
+          {!cartMode && step === 2 && <div className="border-t border-sand pt-5"><h2 className="font-serif text-2xl">Delivery information</h2><p className="mt-1 text-sm text-ink/60">Enter where we should deliver your Photo Strip order.</p><div className="mt-4 space-y-3"><div><input id="photo-strip-customer-name" aria-label="Full name" aria-invalid={Boolean(customerErrors.name)} className={`${inputClass} ${customerErrors.name ? 'border-red-500' : ''}`} placeholder="Full name" autoComplete="name" value={customer.name} onChange={setCustomerField('name')} />{customerErrors.name && <p className="mt-1 text-xs text-red-600">{customerErrors.name}</p>}</div><div><input id="photo-strip-customer-phone" aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p className="mt-1 text-xs text-red-600">{customerErrors.phone}</p>}</div><div><input id="photo-strip-customer-instagram" aria-label="Instagram username" aria-invalid={Boolean(customerErrors.instagram)} className={`${inputClass} ${customerErrors.instagram ? 'border-red-500' : ''}`} placeholder="Instagram username (e.g. @yourname)" autoComplete="off" autoCapitalize="none" value={customer.instagram} onChange={setCustomerField('instagram')} />{customerErrors.instagram && <p className="mt-1 text-xs text-red-600">{customerErrors.instagram}</p>}</div><div><textarea id="photo-strip-customer-address" aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={3} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p className="mt-1 text-xs text-red-600">{customerErrors.address}</p>}</div><div><select id="photo-strip-delivery-area" aria-label="Delivery area" aria-invalid={Boolean(customerErrors.area)} className={`${inputClass} ${customerErrors.area ? 'border-red-500' : ''}`} value={area} onChange={(event) => { setArea(event.target.value); setCustomerErrors((current) => ({ ...current, area: '' })) }}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — {formatPrice(deliveryFee('inside', deliverySettings))}</option><option value="outside">Outside Dhaka — {formatPrice(deliveryFee('outside', deliverySettings))}</option></select>{customerErrors.area && <p className="mt-1 text-xs text-red-600">{customerErrors.area}</p>}</div></div></div>}
           {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {cartMode ? <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? 'Adding to cart…' : 'Add to cart'} <ShoppingBag size={17} /></Button> : step === 1 ? <Button type="button" onClick={continueToDelivery} className="w-full gap-2">Continue to delivery <Plus size={17} /></Button> : <div className="grid gap-3 sm:grid-cols-2"><Button type="button" variant="outline" onClick={() => { setStep(1); setError(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>Back to strip details</Button><Button type="submit" disabled={placing} className="w-full gap-2">{placing ? 'Saving order…' : 'Place order'} <ShoppingBag size={17} /></Button></div>}
         </section>
@@ -216,7 +217,7 @@ export default function PhotoStripOrderPage() {
           {hasQuantityPricing && <div className="mt-2 flex justify-between text-sm"><span className="text-ink/60">Single price</span><span>{formatPrice(unitPrice)} each</span></div>}
           {pricing?.saving > 0 && <div className="mt-2 flex justify-between text-sm text-green-700"><span>Combo offer savings</span><span>-{formatPrice(pricing.saving)}</span></div>}
           <div className="mt-3 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Subtotal</span><span className="font-extrabold">{formatPrice(total)}</span></div>
-          {!cartMode && <div className="mt-2 flex justify-between text-sm"><span className="text-ink/60">Delivery</span><span>{area ? formatPrice(deliveryFee(area)) : 'Select an area'}</span></div>}
+          {!cartMode && <div className="mt-2 flex justify-between text-sm"><span className="text-ink/60">Delivery</span><span>{area ? formatPrice(deliveryFee(area, deliverySettings)) : 'Select an area'}</span></div>}
         </aside>
       </form>
     </>}

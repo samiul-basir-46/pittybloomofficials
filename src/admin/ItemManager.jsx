@@ -97,7 +97,6 @@ export default function ItemManager({ title, api, fields, blank, label, columns 
         <div>
           <h1 className="font-serif text-3xl">{title}</h1>
           <p className="mt-1 text-sm text-ink/60">{items.length} item{items.length === 1 ? '' : 's'}</p>
-          {note && <p className="mt-2 max-w-xl text-sm text-ink/60">{note}</p>}
         </div>
         {canAdd && <Button size="sm" className="gap-1.5" onClick={() => {
             setProblem('')

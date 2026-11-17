@@ -8,12 +8,14 @@ import QtyStepper from '../../shared/ui/QtyStepper'
 import { useCart } from '../../shared/context/CartContext'
 import { useSettings } from '../../shared/context/SettingsContext'
 import useAsync from '../../shared/hooks/useAsync'
+import useDeliveryCharges from '../../shared/hooks/useDeliveryCharges'
 import { customerProfileApi, getMagazines, getSongBooks, ordersApi } from '../../shared/services/contentService'
 import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 import { savedDrafts } from '../order/lib/savedDrafts'
 import { photoStore } from '../order/lib/photoStore'
 import { buildOrder } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
+import { deliveryFee } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { useAuth } from '../../shared/context/AuthContext'
 import { firebaseConfigured } from '../../shared/services/firebaseClient'
@@ -173,6 +175,7 @@ function Line({ item }) {
 }
 
 export default function CartPage() {
+  const deliverySettings = useDeliveryCharges()
   const { items, subtotal, savings, count, clear } = useCart()
   const { settings } = useSettings()
   const { user } = useAuth()
@@ -224,7 +227,7 @@ export default function CartPage() {
   const deliveryCharge = Number(savedOrderCheckout?.deliveryCharge) || 0
   const rushCharge = Number(savedOrderCheckout?.rushCharge) || 0
   const hasFrameOrPolaroids = items.some((item) => item.kind === 'frame' || /frame|polaroid/i.test(`${item.id || ''} ${item.name || ''}`))
-  const productDeliveryCharge = deliveryArea === 'inside' ? 60 : deliveryArea === 'outside' ? 110 : 0
+  const productDeliveryCharge = deliveryFee(deliveryArea, deliverySettings)
   const totalDeliveryCharge = hasFrameOrPolaroids ? Math.max(deliveryCharge, productDeliveryCharge) : deliveryCharge
   const placeOrder = async (e) => {
     e.preventDefault()
@@ -343,7 +346,7 @@ export default function CartPage() {
                 <input className={inputClass} type="tel" placeholder="Delivery phone number" required value={customer.phone} onChange={set('phone')} />
                 <input className={inputClass} placeholder="Instagram username (e.g. @yourname)" aria-label="Instagram username" autoComplete="off" autoCapitalize="none" required value={customer.instagram} onChange={set('instagram')} />
                 <textarea className={inputClass} rows={3} placeholder="Delivery address" required value={customer.address} onChange={set('address')} />
-                {hasFrameOrPolaroids && <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setSubmitError('') }} className={`${inputClass} appearance-none pr-10`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span></label>}
+                {hasFrameOrPolaroids && <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setSubmitError('') }} className={`${inputClass} appearance-none pr-10`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — {formatPrice(deliveryFee('inside', deliverySettings))}</option><option value="outside">Outside Dhaka — {formatPrice(deliveryFee('outside', deliverySettings))}</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span></label>}
                 <input className={inputClass} placeholder="Delivery note (optional)" value={customer.note} onChange={set('note')} />
               </div> : <div className="border-t border-sand pt-5"><Button type="button" className="w-full gap-2 shadow-lg" onClick={beginCheckout}><ShoppingBag size={18} /> {hasIncompleteMagazine ? `Continue ${incompleteOrder.kind === 'song-book' ? 'Song Book' : 'magazine'} order` : 'Place order'}</Button></div>}
 

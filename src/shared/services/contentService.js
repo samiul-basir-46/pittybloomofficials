@@ -46,6 +46,8 @@ const normalizeMiniTile = (item) => isMiniTile(item)
   : item
 const GIFT_TILE_ID = 'gift-card'
 const isGiftTile = (item) => item.id === GIFT_TILE_ID || ['/gift-card', '/gift-cards'].includes(String(item.to || '').replace(/\/+$/, ''))
+const WISH_TILE_ID = 'wish-card'
+const isWishTile = (item) => item.id === WISH_TILE_ID || ['/wish-card', '/wish-cards'].includes(String(item.to || '').replace(/\/+$/, ''))
 const isPhotoStripTile = (item) => item.id === 'photo-strip' || ['/photo-strip', '/products/photo-strip'].includes(String(item.to || '').replace(/\/+$/, ''))
 export const moreProductsApi = {
   ...moreProductsCollection,
@@ -63,6 +65,10 @@ export const moreProductsApi = {
     if (isGiftTile(tile)) {
       tile = { ...tile, id: GIFT_TILE_ID, name: tile.name || 'Gift Card', to: '/gift-card' }
       for (const existing of items.filter((row) => isGiftTile(row) && row.id !== tile.id)) await moreProductsCollection.remove(existing.id)
+    }
+    if (isWishTile(tile)) {
+      tile = { ...tile, id: WISH_TILE_ID, name: tile.name || 'Wish Card', to: '/wish-card' }
+      for (const existing of items.filter((row) => isWishTile(row) && row.id !== tile.id)) await moreProductsCollection.remove(existing.id)
     }
     return moreProductsCollection.save(isPhotoStripTile(tile) ? { ...tile, to: '/photo-strip' } : tile)
   },
@@ -109,6 +115,19 @@ export const moreProductsApi = {
       }
     } else {
       items = items.filter((item) => !isGiftTile(item))
+    }
+    const wishCard = (await getWishCards().catch(() => []))[0]
+    if (wishCard) {
+      const existing = items.find(isWishTile)
+      if (!existing) {
+        const wishTile = { id: WISH_TILE_ID, name: wishCard.title || 'Wish Card', image: wishCard.image || '', to: '/wish-card', order: (items.length + 1) * 10 }
+        try { await moreProductsCollection.save(wishTile) } catch { /* visitors cannot write; show the tile anyway */ }
+        items = sortMoreProducts([...items, wishTile])
+      } else {
+        items = items.map((item) => isWishTile(item) ? { ...item, to: '/wish-card', image: item.homeImage || item.image || wishCard.image || '' } : item)
+      }
+    } else {
+      items = items.filter((item) => !isWishTile(item))
     }
     const [shop, frames, polaroids] = await Promise.all([
       productsApi.list().catch(() => []),
@@ -608,6 +627,9 @@ export const getMiniMagazine = async (id) => (await getMiniMagazines()).find((it
 export const giftCardsApi = collection('giftCards', [], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
 export const getGiftCards = async () => (await giftCardsApi.list()).filter((item) => item.status !== 'Inactive' && (Number(item.priceA4) > 0 || Number(item.priceA3) > 0))
 export const getGiftCard = async (id) => { const cards = await getGiftCards(); return (id && cards.find((item) => item.id === id)) || cards[0] || null }
+export const wishCardsApi = collection('wishCards', [], (items) => [...items].sort((a, b) => Number(a.order ?? 99) - Number(b.order ?? 99)))
+export const getWishCards = async () => (await wishCardsApi.list()).filter((item) => item.status !== 'Inactive' && (Number(item.priceA4) > 0 || Number(item.priceA3) > 0))
+export const getWishCard = async (id) => { const cards = await getWishCards(); return (id && cards.find((item) => item.id === id)) || cards[0] || null }
 export const getFrameProducts = async () => (await frameProductsApi.list()).filter((item) => item.status !== 'Inactive')
 export const getFrameProduct = async (id) => (await getFrameProducts()).find((item) => item.id === id) ?? null
 const mapAddonsToCatalog = async (items) => {

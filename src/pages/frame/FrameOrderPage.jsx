@@ -4,18 +4,18 @@ import { Check, CheckCircle2, ChevronDown, ImagePlus, Maximize2, Plus, ShoppingB
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
+import useDeliveryCharges from '../../shared/hooks/useDeliveryCharges'
 import { getFrameProduct, getProduct, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
-import { orderImageType } from '../../shared/utils/manualOrderRules'
+import { deliveryFee, orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 import { photoStore } from '../order/lib/photoStore'
 
-const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
 const deliveryAreaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
 
 const newKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -89,6 +89,7 @@ function FramePiece({ pieceKey, index, total, designs, designId, quantity, onQua
 }
 
 export default function FrameOrderPage() {
+  const deliverySettings = useDeliveryCharges()
   const [params] = useSearchParams()
   const frameId = params.get('frame')
   const navigate = useNavigate()
@@ -253,7 +254,7 @@ export default function FrameOrderPage() {
       }
       const order = await ordersApi.place(buildOrder({
         id: '', cartItems: items, customer: { ...customer, instagram: cleanInstagram(customer.instagram), uid: user?.uid || '', email: user?.email || '' },
-        extras: { deliveryCharge: deliveryFee(deliveryArea), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
+        extras: { deliveryCharge: deliveryFee(deliveryArea, deliverySettings), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
       }), requestKey.current)
       setPlacedOrder(order)
     } catch (cause) {
@@ -262,7 +263,7 @@ export default function FrameOrderPage() {
   }
 
   const unit = option.price
-  const deliveryCharge = cartMode ? 0 : deliveryFee(deliveryArea)
+  const deliveryCharge = cartMode ? 0 : deliveryFee(deliveryArea, deliverySettings)
   const total = unit * count + deliveryCharge
 
   return <div className="min-h-screen bg-cream pb-16 pt-6 sm:pt-10">
@@ -302,7 +303,7 @@ export default function FrameOrderPage() {
                 <div><input id="frame-customer-phone" aria-label="WhatsApp / phone number" aria-invalid={Boolean(customerErrors.phone)} aria-describedby={customerErrors.phone ? 'frame-phone-error' : undefined} className={`${inputClass} ${customerErrors.phone ? 'border-red-500' : ''}`} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" value={customer.phone} onChange={setCustomerField('phone')} />{customerErrors.phone && <p id="frame-phone-error" className="mt-1 text-xs text-red-700">{customerErrors.phone}</p>}</div>
                 <div><input id="frame-customer-instagram" aria-label="Instagram username" aria-invalid={Boolean(customerErrors.instagram)} className={`${inputClass} ${customerErrors.instagram ? 'border-red-500' : ''}`} placeholder="Instagram username (e.g. @yourname)" autoComplete="off" autoCapitalize="none" value={customer.instagram} onChange={setCustomerField('instagram')} />{customerErrors.instagram && <p className="mt-1 text-xs text-red-700">{customerErrors.instagram}</p>}</div>
                 <div><textarea id="frame-customer-address" aria-label="Full delivery address" aria-invalid={Boolean(customerErrors.address)} aria-describedby={customerErrors.address ? 'frame-address-error' : undefined} className={`${inputClass} ${customerErrors.address ? 'border-red-500' : ''}`} rows={4} placeholder="Full delivery address" autoComplete="street-address" value={customer.address} onChange={setCustomerField('address')} />{customerErrors.address && <p id="frame-address-error" className="mt-1 text-xs text-red-700">{customerErrors.address}</p>}</div>
-                <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select id="frame-delivery-area" aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setCustomerErrors((current) => ({ ...current, deliveryArea: '' })) }} className={`${inputClass} appearance-none pr-10 ${customerErrors.deliveryArea ? 'border-red-500' : ''}`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span>{customerErrors.deliveryArea && <span className="mt-1 block text-xs text-red-700">{customerErrors.deliveryArea}</span>}</label>
+                <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select id="frame-delivery-area" aria-label="Delivery area" required value={deliveryArea} onChange={(event) => { setDeliveryArea(event.target.value); setCustomerErrors((current) => ({ ...current, deliveryArea: '' })) }} className={`${inputClass} appearance-none pr-10 ${customerErrors.deliveryArea ? 'border-red-500' : ''}`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — {formatPrice(deliveryFee('inside', deliverySettings))}</option><option value="outside">Outside Dhaka — {formatPrice(deliveryFee('outside', deliverySettings))}</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span>{customerErrors.deliveryArea && <span className="mt-1 block text-xs text-red-700">{customerErrors.deliveryArea}</span>}</label>
               </div>
             </div>}
             {error && <p role="alert" aria-live="assertive" className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}

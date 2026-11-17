@@ -5,21 +5,22 @@ import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import QtyStepper from '../../shared/ui/QtyStepper'
 import useAsync from '../../shared/hooks/useAsync'
+import useDeliveryCharges from '../../shared/hooks/useDeliveryCharges'
 import { getPolaroidProduct, getPolaroidProducts, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
-import { orderImageType } from '../../shared/utils/manualOrderRules'
+import { deliveryFee, orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 import { photoStore } from '../order/lib/photoStore'
 import { polaroidPricing, validPacks } from './packs'
 
-const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
 const deliveryAreaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
 
 export default function PolaroidsOrderPage() {
+  const deliverySettings = useDeliveryCharges()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { add: addToCart } = useCart()
@@ -121,7 +122,7 @@ export default function PolaroidsOrderPage() {
         id: '',
         cartItems: [item],
         customer: { ...customer, instagram: cleanInstagram(customer.instagram), uid: user?.uid || '', email: user?.email || '' },
-        extras: { deliveryCharge: deliveryFee(deliveryArea), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
+        extras: { deliveryCharge: deliveryFee(deliveryArea, deliverySettings), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
       }), requestKey.current)
       setPlacedOrder(order)
     } catch (cause) {
@@ -159,7 +160,7 @@ export default function PolaroidsOrderPage() {
               <input className={inputClass} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" required value={customer.phone} onChange={setCustomerField('phone')} />
               <input className={inputClass} placeholder="Instagram username (e.g. @yourname)" aria-label="Instagram username" autoComplete="off" autoCapitalize="none" required value={customer.instagram} onChange={setCustomerField('instagram')} />
               <textarea className={inputClass} rows={4} placeholder="Full delivery address" autoComplete="street-address" required value={customer.address} onChange={setCustomerField('address')} />
-              <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => setDeliveryArea(event.target.value)} className={`${inputClass} appearance-none pr-10`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — ৳60</option><option value="outside">Outside Dhaka — ৳110</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span></label>
+              <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => setDeliveryArea(event.target.value)} className={`${inputClass} appearance-none pr-10`}><option value="">Select delivery area</option><option value="inside">Inside Dhaka — {formatPrice(deliveryFee('inside', deliverySettings))}</option><option value="outside">Outside Dhaka — {formatPrice(deliveryFee('outside', deliverySettings))}</option></select><ChevronDown aria-hidden="true" size={17} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B665C]" /></span></label>
             </div></div>}
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? (cartMode ? 'Adding to cart…' : 'Placing order…') : (cartMode ? 'Add to Cart' : 'Place order')} <ShoppingBag size={17} /></Button>
@@ -167,8 +168,8 @@ export default function PolaroidsOrderPage() {
           <aside className="min-w-0 max-w-full rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-6">
             <h2 className="font-serif text-2xl">Order summary</h2>
             <div className="mt-5 flex items-center gap-3 border-b border-sand pb-5"><div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={product.image} alt={product.name} className="size-full object-cover" /></div><div className="min-w-0 flex-1"><p className="font-semibold">Polaroids</p><p className="mt-1 text-sm text-ink/60">{qty} piece{qty === 1 ? '' : 's'}{hasPacks ? (priced.applied ? ' · offer price' : ` · ৳${unitPrice} each`) : ` · ৳${unitPrice} each`}</p></div><p className="font-semibold">{formatPrice(lineUnit * lineQty)}</p></div>
-            <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery {deliveryArea ? `(${deliveryAreaLabel(deliveryArea)})` : ''}</span><span>{cartMode ? 'Set at cart checkout' : deliveryArea ? formatPrice(deliveryFee(deliveryArea)) : 'Select an area'}</span></div>
-            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(lineUnit * lineQty + (cartMode ? 0 : deliveryFee(deliveryArea)))}</span></div>
+            <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery {deliveryArea ? `(${deliveryAreaLabel(deliveryArea)})` : ''}</span><span>{cartMode ? 'Set at cart checkout' : deliveryArea ? formatPrice(deliveryFee(deliveryArea, deliverySettings)) : 'Select an area'}</span></div>
+            <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(lineUnit * lineQty + (cartMode ? 0 : deliveryFee(deliveryArea, deliverySettings)))}</span></div>
             <p className="mt-4 text-xs leading-5 text-ink/50">{cartMode ? 'Add delivery information when you place the full cart order.' : 'No delivery date selection is needed. We’ll confirm delivery after you place the order.'}</p>
           </aside>
         </form>

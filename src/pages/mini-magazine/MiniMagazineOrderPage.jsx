@@ -4,22 +4,23 @@ import { CheckCircle2, ChevronDown, ImagePlus, ShoppingBag, Trash2 } from 'lucid
 import Container from '../../shared/ui/Container'
 import Button from '../../shared/ui/Button'
 import useAsync from '../../shared/hooks/useAsync'
+import useDeliveryCharges from '../../shared/hooks/useDeliveryCharges'
 import { getMiniMagazine, ordersApi } from '../../shared/services/contentService'
 import { useAuth } from '../../shared/context/AuthContext'
 import { useCart } from '../../shared/context/CartContext'
 import { buildOrder } from '../../shared/utils/orders'
 import { formatPrice } from '../../shared/utils/format'
-import { orderImageType } from '../../shared/utils/manualOrderRules'
+import { deliveryFee, orderImageType } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { cleanInstagram, instagramProblem } from '../order/lib/validation'
 import { photoStore } from '../order/lib/photoStore'
 import { photoRule } from './photoRule'
 
-const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
 const deliveryAreaLabel = (area) => area === 'inside' ? 'Inside Dhaka' : area === 'outside' ? 'Outside Dhaka' : ''
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 export default function MiniMagazineOrderPage() {
+  const deliverySettings = useDeliveryCharges()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { add: addToCart } = useCart()
@@ -86,7 +87,7 @@ export default function MiniMagazineOrderPage() {
         id: '',
         cartItems: [line],
         customer: { ...customer, instagram: cleanInstagram(customer.instagram), uid: user?.uid || '', email: user?.email || '' },
-        extras: { deliveryCharge: deliveryFee(deliveryArea), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
+        extras: { deliveryCharge: deliveryFee(deliveryArea, deliverySettings), deliveryLabel: `${deliveryAreaLabel(deliveryArea)} · Delivery details received`, deliveryInfo: { location: deliveryArea, locationLabel: deliveryAreaLabel(deliveryArea) } },
       }), requestKey.current)
       setPlacedOrder(order)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -124,7 +125,7 @@ export default function MiniMagazineOrderPage() {
             <input className={inputClass} type="tel" placeholder="WhatsApp / phone number" autoComplete="tel" required value={customer.phone} onChange={setField('phone')} />
             <input className={inputClass} placeholder="Instagram username (e.g. @yourname)" aria-label="Instagram username" autoComplete="off" autoCapitalize="none" required value={customer.instagram} onChange={setField('instagram')} />
               <textarea className={inputClass} rows={4} placeholder="Full delivery address" autoComplete="street-address" required value={customer.address} onChange={setField('address')} />
-            <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => setDeliveryArea(event.target.value)} className={`${inputClass} appearance-none pr-10`}><option value="">Select an area</option><option value="inside">Inside Dhaka · ৳60</option><option value="outside">Outside Dhaka · ৳110</option></select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink/50" /></span></label>
+            <label className="block text-sm font-medium">Delivery area <span className="text-red-600">*</span><span className="relative mt-1 block"><select aria-label="Delivery area" required value={deliveryArea} onChange={(event) => setDeliveryArea(event.target.value)} className={`${inputClass} appearance-none pr-10`}><option value="">Select an area</option><option value="inside">Inside Dhaka · {formatPrice(deliveryFee('inside', deliverySettings))}</option><option value="outside">Outside Dhaka · {formatPrice(deliveryFee('outside', deliverySettings))}</option></select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink/50" /></span></label>
           </div></div>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <Button type="submit" disabled={placing} className="w-full gap-2">{placing ? (cartMode ? 'Adding to cart…' : 'Placing order…') : (cartMode ? 'Add to Cart' : 'Place order')} <ShoppingBag size={17} /></Button>
@@ -132,8 +133,8 @@ export default function MiniMagazineOrderPage() {
         <aside className="min-w-0 max-w-full rounded-2xl border border-sand bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-6">
           <h2 className="font-serif text-2xl">Order summary</h2>
           <div className="mt-5 flex items-center gap-3 border-b border-sand pb-5"><div className="size-16 shrink-0 overflow-hidden rounded-xl bg-cream"><img src={item.image} alt={item.title} className="size-full object-cover" /></div><div className="min-w-0 flex-1"><p className="font-semibold">{item.title}</p><p className="text-sm text-ink/60">{photos.length} photo{photos.length === 1 ? '' : 's'}</p></div><p className="font-semibold">{formatPrice(price)}</p></div>
-          <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery {deliveryArea ? `(${deliveryAreaLabel(deliveryArea)})` : ''}</span><span>{cartMode ? 'Set at cart checkout' : deliveryArea ? formatPrice(deliveryFee(deliveryArea)) : 'Select an area'}</span></div>
-          <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(price + (cartMode ? 0 : deliveryFee(deliveryArea)))}</span></div>
+          <div className="mt-4 flex justify-between text-sm"><span className="text-ink/60">Delivery {deliveryArea ? `(${deliveryAreaLabel(deliveryArea)})` : ''}</span><span>{cartMode ? 'Set at cart checkout' : deliveryArea ? formatPrice(deliveryFee(deliveryArea, deliverySettings)) : 'Select an area'}</span></div>
+          <div className="mt-4 flex justify-between border-t border-sand pt-4 text-lg"><span className="font-semibold">Total</span><span className="font-extrabold">{formatPrice(price + (cartMode ? 0 : deliveryFee(deliveryArea, deliverySettings)))}</span></div>
         </aside>
       </form>
     </>}

@@ -43,7 +43,12 @@ export const expeditedSurcharge = ({ date, area, hasRushProducts, now = new Date
   return eligibleDays === 0 ? 100 : eligibleDays === 1 ? 50 : 0
 }
 
-export const deliveryFee = (area) => area === 'inside' ? 60 : area === 'outside' ? 110 : 0
+export const deliveryFee = (area, settings = {}) => {
+  const key = area === 'inside' ? 'insideDhakaCharge' : area === 'outside' ? 'outsideDhakaCharge' : ''
+  if (!key) return 0
+  const configured = Number(settings?.[key])
+  return Number.isFinite(configured) && configured >= 0 ? configured : area === 'inside' ? 60 : 110
+}
 
 export const validBangladeshPhone = (value = '') => /^(?:\+?88)?01[3-9]\d{8}$/.test(String(value).replace(/[\s()-]/g, ''))
 

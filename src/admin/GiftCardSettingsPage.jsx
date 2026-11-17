@@ -14,11 +14,11 @@ export default function GiftCardSettingsPage() {
     { name: 'gallery', label: 'More photos (detail page slider)', type: 'gallery' },
     { name: 'priceA4', label: 'A4 price (BDT)', type: 'number' },
     { name: 'priceA3', label: 'A3 price (BDT)', type: 'number' },
-    { name: 'sizeImage', label: 'Size preview picture (optional — shown in “View size preview”)', type: 'image' },
+    { name: 'sizeImage', label: 'Size preview picture (optional; shown when customers view size preview)', type: 'image' },
     { name: 'description', label: 'Description', type: 'textarea', rows: 6 },
     { name: 'status', label: 'Availability', type: 'select', options: ['Available', 'Inactive'] },
     { name: 'order', label: 'List position', type: 'number' },
-  ]} blank={{ title: 'Gift Card', image: '', gallery: [], priceA4: 0, priceA3: 0, sizeImage: '', description: '', status: 'Available', order: 10 }} label={(item) => item.title} columns={[
+  ]} blank={{ title: 'Gift Card', image: '', gallery: [], priceA4: 0, priceA3: 0, sizeImage: '', description: '', status: 'Available', order: 10 }} label={(item) => item.title} allowAdd={(items) => items.length === 0} columns={[
     { key: 'priceA4', label: 'A4', format: (value) => Number(value) > 0 ? `৳${value}` : '—' },
     { key: 'priceA3', label: 'A3', format: (value) => Number(value) > 0 ? `৳${value}` : '—' },
     { key: 'status', label: 'Availability' },
