@@ -51,6 +51,7 @@ const GiftCardSettingsPage = lazy(() => import('./admin/GiftCardSettingsPage'))
 const WishCardSettingsPage = lazy(() => import('./admin/WishCardSettingsPage'))
 const PolaroidSettingsPage = lazy(() => import('./admin/PolaroidSettingsPage'))
 const PhotoStripSettingsPage = lazy(() => import('./admin/PhotoStripSettingsPage'))
+const AddOrderPage = lazy(() => import('./admin/AddOrderPage'))
 const StickerSettingsPage = lazy(() => import('./admin/StickerSettingsPage'))
 import { AdminAuthProvider } from './admin/AdminAuthContext'
 
@@ -110,6 +111,7 @@ export default function App() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="completed-orders" element={<OrdersPage fixedView="completed" />} />
           <Route path="cancelled-orders" element={<OrdersPage fixedView="cancelled" />} />
+          <Route path="orders/new" element={<AddOrderPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="drafts/:id" element={<DraftDetailPage />} />
           <Route path="order-settings" element={<OrderSettingsPage />} />

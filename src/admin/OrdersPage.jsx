@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { itemCategory } from '../shared/utils/orderCategory'
-import { Search, ClipboardList, ChevronDown, Check, LoaderCircle } from 'lucide-react'
+import { Search, ClipboardList, ChevronDown, Check, LoaderCircle, Plus } from 'lucide-react'
 import useAsync from '../shared/hooks/useAsync'
 import useOrders from '../shared/hooks/useOrders'
 import { getOrderSettings, ordersApi } from '../shared/services/contentService'
@@ -166,7 +166,7 @@ export default function OrdersPage({ fixedView = 'all' }) {
       <div className="mx-auto max-w-[1240px] pb-6">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div><h1 className="font-serif text-[34px] font-medium leading-tight tracking-[-.01em]">{fixedView === 'completed' ? 'Completed orders' : fixedView === 'cancelled' ? 'Cancelled orders' : 'Orders'}</h1><p className="mt-1 text-sm text-[#6B665C]">{now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}</p></div>
-          {fixedView === 'all' && <div className="flex flex-wrap items-center gap-2">{dispatchedCount > 0 && <button type="button" onClick={completeAllDispatched} disabled={completingDispatched} className="inline-flex min-h-10 items-center gap-2 rounded-[10px] bg-[#4D8A4F] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#3F7441] disabled:cursor-wait disabled:opacity-70">{completingDispatched ? <LoaderCircle size={16} className="animate-spin" /> : <Check size={16} />}{completingDispatched ? 'Completing…' : `Complete all dispatched (${dispatchedCount})`}</button>}<CopyButton label="Copy urgent summary" doneLabel="Urgent orders copied!" className={`!rounded-[10px] !bg-[#2F3A33] px-4 py-2.5 ${urgentOrders.length ? '' : 'pointer-events-none opacity-45'}`} getText={() => groupedOrderSummaries(urgentOrders, settings, now)} /></div>}
+          {fixedView === 'all' && <div className="flex flex-wrap items-center gap-2"><Link to="/admin/orders/new" className="inline-flex min-h-10 items-center gap-2 rounded-[10px] border border-[#2F3A33] bg-white px-4 py-2.5 text-sm font-semibold text-[#2F3A33] hover:bg-[#F1ECE0]"><Plus size={16} /> Add order</Link>{dispatchedCount > 0 && <button type="button" onClick={completeAllDispatched} disabled={completingDispatched} className="inline-flex min-h-10 items-center gap-2 rounded-[10px] bg-[#4D8A4F] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#3F7441] disabled:cursor-wait disabled:opacity-70">{completingDispatched ? <LoaderCircle size={16} className="animate-spin" /> : <Check size={16} />}{completingDispatched ? 'Completing…' : `Complete all dispatched (${dispatchedCount})`}</button>}<CopyButton label="Copy urgent summary" doneLabel="Urgent orders copied!" className={`!rounded-[10px] !bg-[#2F3A33] px-4 py-2.5 ${urgentOrders.length ? '' : 'pointer-events-none opacity-45'}`} getText={() => groupedOrderSummaries(urgentOrders, settings, now)} /></div>}
         </header>
         {bulkNotice && <p role="status" className="mb-4 rounded-xl border border-[#D9D4C7] bg-white px-4 py-3 text-sm text-[#2F3A33]">{bulkNotice}</p>}
 

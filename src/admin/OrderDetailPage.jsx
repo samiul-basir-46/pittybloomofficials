@@ -360,6 +360,10 @@ export default function OrderDetailPage() {
           })}</div>
         </Card>
 
+        {order.screenshots?.length > 0 && <Card title="Message screenshots" aside={<span className="text-xs text-ink/55">{order.source}</span>}>
+          <div className="flex flex-wrap gap-3">{order.screenshots.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-sand bg-cream"><img src={url} alt={`Screenshot ${index + 1}`} loading="lazy" className="h-44 w-auto max-w-full object-contain" /></a>)}</div>
+        </Card>}
+
         <Card title="Admin notes" aside={<span className="text-xs text-ink/55">Internal only</span>}>
           <div className="space-y-2">
             {(order.adminNotes ?? []).map((note, index) => <div key={`${note.createdAt}-${index}`} className="rounded-xl bg-cream p-3"><p className="text-xs text-ink/55">{note.author || 'Admin'} · {when(note.createdAt)}</p><p className="mt-0.5 whitespace-pre-wrap text-sm">{note.text}</p></div>)}
