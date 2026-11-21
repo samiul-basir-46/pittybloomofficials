@@ -11,6 +11,7 @@ import { formatPrice } from '../../shared/utils/format'
 import { parseOptions } from '../../shared/utils/options'
 import { polaroidPricing, validPacks } from '../polaroids/packs'
 import { STEPS } from './data'
+import { sizesForMagazine } from '../magazine-detail/data'
 import { buildCopies, defaultSizeFor, getFormats, sizesFor, withFields } from './lib/copies'
 import { calcTotals, orderingDay } from './lib/pricing'
 import { emptyContact, freshDraft, orderDraft } from './lib/orderDraft'
@@ -564,14 +565,15 @@ export default function OrderPage() {
       </div>
     )
   if (!magazine.data) return <p className="py-32 text-center text-ink/60">Magazine not found.</p>
-  if (!sizes.data.length) return <p className="py-32 text-center text-ink/60">No sizes are available to order right now.</p>
-  if (!getFormats(settings.data).some((f) => sizesFor(sizes.data, f).length)) return <Navigate to={`/magazines/${id}`} replace />
+  const availableSizes = sizesForMagazine(sizes.data, magazine.data)
+  if (!availableSizes.length) return <p className="py-32 text-center text-ink/60">No sizes are available to order right now.</p>
+  if (!getFormats(settings.data).some((f) => sizesFor(availableSizes, f).length)) return <Navigate to={`/magazines/${id}`} replace />
 
   return (
     <Wizard
       key={`${magazine.data.id}-${search.get('cartItemKey') ?? search.get('draft') ?? ''}-${cartMode ? 'cart' : 'order'}`}
       magazine={magazine.data}
-      sizes={sizes.data}
+      sizes={availableSizes}
       addons={addons.data ?? []}
       products={products.data ?? []}
       frameDesigns={frameDesigns.data ?? []}

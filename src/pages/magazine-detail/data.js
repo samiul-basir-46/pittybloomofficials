@@ -1,5 +1,10 @@
 export const DEFAULT_SIZE = 'a4-8'
 
+export const sizesForMagazine = (sizes, magazine) => {
+  const fixedPages = Number(magazine?.fixedPages)
+  return fixedPages ? sizes.filter((size) => Number(size.pages) === fixedPages) : sizes
+}
+
 // A4 and A5 magazines, priced by page count. Edit from Admin → Sizes & Pricing.
 // A price of 0 hides an option from customers until a real price is set.
 const size = (format, pages, photos, price) => ({

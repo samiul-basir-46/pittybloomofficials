@@ -50,23 +50,29 @@ export const SECTIONS = [
     title: 'Magazines',
     icon: BookOpen,
     api: magazinesApi,
+    note: 'Enter any fixed page count (in multiples of 4) to limit this magazine to that exact count in customer orders and the cart. Add the matching A4/A5 page count and price in Sizes & Pricing. Leave empty to let customers choose from all priced page counts.',
     fields: [
       { name: 'title', label: 'Title', required: true },
       { name: 'price', label: 'Price (BDT)', type: 'number' },
       { name: 'mrp', label: 'MRP in BDT (struck-through price)', type: 'number' },
       { name: 'badge', label: 'Badge', type: 'select', options: ['', 'Best Seller', 'New Release'] },
+      { name: 'fixedPages', label: 'Fixed page count (leave empty for customer choice)', type: 'number' },
       { name: 'image', label: 'Cover image', type: 'image' },
       { name: 'backImage', label: 'Second image', type: 'image' },
       { name: 'categories', label: 'Filters on the Magazines page', type: 'categories' },
       { name: 'book', label: 'Book preview (PDF)', type: 'pdf' },
     ],
-    blank: { title: '', price: 1499, mrp: 1999, badge: '', image: '', backImage: '', categories: [], book: null },
+    blank: { title: '', price: 1499, mrp: 1999, badge: '', fixedPages: '', image: '', backImage: '', categories: [], book: null },
     label: (i) => i.title,
     columns: [
       { key: 'price', label: 'Price', format: formatPrice },
+      { key: 'fixedPages', label: 'Fixed pages', format: (pages) => Number(pages) > 0 ? `${pages} pages` : 'Customer chooses' },
       { key: 'badge', label: 'Badge' },
       { key: 'book', label: 'Book', format: (b) => `${b.pageCount} pages` },
     ],
+    validate: async (item) => item.fixedPages != null && item.fixedPages !== '' && (!Number.isInteger(Number(item.fixedPages)) || Number(item.fixedPages) < 4 || Number(item.fixedPages) % 4 !== 0)
+      ? 'Fixed page count must be a multiple of 4 (for example 12, 16, 20).'
+      : '',
   },
   {
     path: 'magazine-filters',

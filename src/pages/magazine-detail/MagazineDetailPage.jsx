@@ -13,7 +13,7 @@ import useAsync from '../../shared/hooks/useAsync'
 import { useSettings } from '../../shared/context/SettingsContext'
 import { useCart } from '../../shared/context/CartContext'
 import { getMagazine, getMagazines, getOrderSettings, getSizes } from '../../shared/services/contentService'
-import { DEFAULT_SIZE } from './data'
+import { DEFAULT_SIZE, sizesForMagazine } from './data'
 import { freshDraft, orderDraft } from '../order/lib/orderDraft'
 import { getFormats } from '../order/lib/copies'
 import { photoStore } from '../order/lib/photoStore'
@@ -23,6 +23,7 @@ function Detail({ magazine, sizes, settings }) {
   const { add } = useCart()
   const { productInfo } = useSettings().settings
   const related = useAsync(getMagazines)
+  sizes = sizesForMagazine(sizes, magazine)
   const formats = getFormats(settings)
   const [sizeId, setSizeId] = useState((sizes.find((s) => s.id === DEFAULT_SIZE) ?? sizes[0]).id)
   const size = sizes.find((s) => s.id === sizeId) ?? sizes[0]
@@ -129,5 +130,7 @@ export default function MagazineDetail() {
   if (magazine.loading || sizes.loading || settings.loading) return <p className="py-32 text-center text-ink/60">Loading…</p>
   if (!magazine.data) return <p className="py-32 text-center text-ink/60">Magazine not found.</p>
   if (!sizes.data.length) return <p className="py-32 text-center text-ink/60">No sizes available.</p>
-  return <Detail key={magazine.data.id} magazine={magazine.data} sizes={sizes.data} settings={settings.data} />
+  const availableSizes = sizesForMagazine(sizes.data, magazine.data)
+  if (!availableSizes.length) return <p className="py-32 text-center text-ink/60">No sizes available for this magazine.</p>
+  return <Detail key={magazine.data.id} magazine={magazine.data} sizes={availableSizes} settings={settings.data} />
 }

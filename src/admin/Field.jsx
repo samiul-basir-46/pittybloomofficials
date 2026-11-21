@@ -6,7 +6,7 @@ import CategoriesField from './CategoriesField'
 import { inputClass } from './classes'
 
 export default function Field({ label, type = 'text', value, onChange, options = [], rows = 5, required }) {
-  const handle = (e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)
+  const handle = (e) => onChange(type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)
   let control
 
   if (type === 'image') {
