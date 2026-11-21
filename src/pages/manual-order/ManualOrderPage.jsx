@@ -7,6 +7,7 @@ import useAsync from '../../shared/hooks/useAsync'
 import { getActiveAddons, getFrameDesigns, getGiftCards, getWishCards, getManualOrderCatalog, getMiniMagazines, getOrderSettings, getPolaroidProducts, getProducts, getSizes, getSongBooks } from '../../shared/services/contentService'
 import { parseOptions } from '../../shared/utils/options'
 import { formatPrice } from '../../shared/utils/format'
+import { photoVault } from './photoVault'
 import { deliveryFee, detectOrderImageType, dhakaToday, expeditedSurcharge, minimumDeliveryDate, orderImageType, validBangladeshPhone, validUpload } from '../../shared/utils/manualOrderRules'
 import { inputClass } from '../../admin/classes'
 import { MANUAL_ORDER_CATALOG_DEFAULTS, mergeManualOrderCatalog, miniPhotoLimits } from './catalog'
@@ -45,6 +46,8 @@ const field = (label, value, onChange, { type = 'text', required = false, placeh
   </label>
 )
 
+const canRead = async (file) => { const head = file.slice(0, 16); if (typeof head.arrayBuffer === 'function') await head.arrayBuffer() }
+
 function UploadPicker({ title, files = [], onChange, multiple = true, max = Infinity, help = '', error = '', frontId, backId, onCoverChange }) {
   const [uploadError, setUploadError] = useState('')
   const [previews, setPreviews] = useState([])
@@ -54,23 +57,30 @@ function UploadPicker({ title, files = [], onChange, multiple = true, max = Infi
     return () => next.forEach((preview) => URL.revokeObjectURL(preview.url))
   }, [files])
   const acceptFiles = async (incoming) => {
-    // Phones hand over a live pointer to the file in the gallery. If the gallery, Google Photos or the camera app touches
-    // that file afterwards, the browser refuses to read or upload it ("Preview unavailable" / "Network problem").
-    // Copy each photo into the page's own memory right now so it stays readable until the order is sent.
-    const list = []
+    // A phone hands over a live pointer to the gallery file. If the gallery, Google Photos or the camera app touches the
+    // file afterwards, the browser refuses to preview or upload it. So every photo is saved straight away into the
+    // browser's own storage (one at a time, original quality, no RAM pile-up) and the page uses that stored copy.
+    const room = multiple ? Math.max(0, max - files.length) : 1
+    const fresh = []
+    let invalid = false
     let unreadable = ''
     for (const original of Array.from(incoming || [])) {
-      try { list.push(new File([await original.arrayBuffer()], original.name, { type: original.type, lastModified: original.lastModified })) }
-      catch { unreadable = unreadable || original.name }
+      if (fresh.length >= room) break
+      const type = await detectOrderImageType(original).catch(() => '')
+      if (!validUpload(original) || !type) { invalid = true; continue }
+      const id = newId()
+      try {
+        let file
+        try { file = await photoVault.keep(id, original, type) }
+        catch { file = typeof original.arrayBuffer === 'function' ? new File([await original.arrayBuffer()], original.name, { type: original.type, lastModified: original.lastModified }) : original } // storage unavailable: keep it in memory instead
+        await canRead(file) // prove the copy can be read
+        fresh.push({ id, file, type })
+      } catch { unreadable = unreadable || original.name }
     }
-    const analyzed = await Promise.all(list.map(async (file) => ({ file, type: await detectOrderImageType(file) })))
-    const invalid = analyzed.some(({ file, type }) => !validUpload(file) || !type)
-    const fresh = analyzed.filter(({ file, type }) => validUpload(file) && type).map(({ file, type }) => ({ id: newId(), file, type }))
-    setUploadError(unreadable ? `Could not read ${unreadable}. Please choose it again from your gallery.` : invalid ? 'Choose a supported image format up to 100 MB.' : '')
+    const overLimit = multiple && Number.isFinite(max) && Array.from(incoming || []).length > room
+    setUploadError(unreadable ? `Could not read ${unreadable}. Please choose it again from your gallery.` : invalid ? 'Choose a supported image format up to 100 MB.' : overLimit ? `You can add up to ${max} images here.` : '')
     if (!fresh.length) return
-    const next = multiple ? [...files, ...fresh].slice(0, max) : fresh.slice(0, 1)
-    if (multiple && Number.isFinite(max) && files.length + fresh.length > max) setUploadError(`You can add up to ${max} images here.`)
-    onChange(next)
+    onChange(multiple ? [...files, ...fresh] : fresh.slice(0, 1))
   }
   return <div>
     <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
@@ -269,6 +279,7 @@ export default function ManualOrderPage() {
   const [success, setSuccess] = useState(null)
   const requestKey = useRef(newId())
   const uploaded = useRef(new Map())
+  useEffect(() => { photoVault.clear() }, [])
 
   useEffect(() => {
     if (!submitting) return undefined
@@ -553,9 +564,13 @@ export default function ManualOrderPage() {
     if (uploaded.current.has(id)) return uploaded.current.get(id)
     const type = photo.type || orderImageType(file)
     let lastError
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
+    // Big print-quality originals need longer on a slow phone connection: at least 2 minutes, more for large files.
+    const timeoutMs = Math.max(120000, Math.ceil(file.size / 40000) * 1000)
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      try { await canRead(file) }
+      catch { throw new Error(`Could not read ${file.name}. Please remove it and add it again from your gallery.`) }
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 120000)
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
       try {
         const response = await fetch(`${MEDIA_API}/guest-media/${requestKey.current}/${id}`, {
           method: 'PUT', headers: { 'Content-Type': type, 'X-File-Name': encodeURIComponent(file.name) }, body: file, signal: controller.signal,
@@ -570,9 +585,9 @@ export default function ManualOrderPage() {
         if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) throw lastError
       } catch (error) {
         if (error === lastError) throw error
-        lastError = new Error(error?.name === 'AbortError' ? `Uploading ${file.name} took too long. Check your internet and try again.` : `Network problem while uploading ${file.name}. Check your internet and try again.`)
+        lastError = new Error(error?.name === 'AbortError' ? `Uploading ${file.name} took too long. Check your internet and try again.` : `Connection dropped while uploading ${file.name}. Check your internet and press Place order again — photos already sent will not be re-sent.`)
       } finally { clearTimeout(timer) }
-      if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, attempt * 1500))
+      if (attempt < 5) await new Promise((resolve) => setTimeout(resolve, attempt * 2000))
     }
     throw lastError
   }
@@ -591,7 +606,7 @@ export default function ManualOrderPage() {
         } catch (error) { failure = failure || error }
       }
     }
-    await Promise.all(Array.from({ length: Math.min(3, queue.length) }, worker))
+    await Promise.all(Array.from({ length: Math.min(2, queue.length) }, worker))
     if (failure) throw failure
   }
   const filePayload = (fileItems) => (fileItems ?? []).map((photo) => uploaded.current.get(photo.id))
@@ -645,6 +660,7 @@ export default function ManualOrderPage() {
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'We could not place your order. Please try again.')
       setSuccess(result.order)
+      photoVault.clear()
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       setSubmitError(error.message || 'We could not place your order. Please try again.')
